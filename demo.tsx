@@ -1,5 +1,22 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Plus, X, User, Calendar, Clock, UserCheck } from 'lucide-react';
+import { supabase } from './src/supabaseClient';
+
+// Define the Task interface for type safety
+interface Task {
+  id?: number;
+  title: string;
+  description: string;
+  type: string;
+  category: string;
+  date: number;
+  month: number;
+  year: number;
+  time: string;
+  assignee: number;
+  status: string;
+  color?: string;
+}
 
 const MMCCalendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date(2025, 6, 1)); // July 2025
@@ -10,14 +27,14 @@ const MMCCalendar = () => {
     campaigns: true,
     emailMarketing: true
   });
-  const [selectedTeamMember, setSelectedTeamMember] = useState(null);
+  const [selectedTeamMember, setSelectedTeamMember] = useState<number | null>(null);
   const [showNewEntryModal, setShowNewEntryModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [selectedTask, setSelectedTask] = useState(null);
-  const [editingTask, setEditingTask] = useState(null);
-  const [draggedTask, setDraggedTask] = useState(null);
-  const [newTask, setNewTask] = useState({
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [draggedTask, setDraggedTask] = useState<Task | null>(null);
+  const [newTask, setNewTask] = useState<Task>({
     title: '',
     description: '',
     type: 'Blog',
@@ -27,130 +44,12 @@ const MMCCalendar = () => {
     year: 2025,
     time: '09:00',
     assignee: 1,
-    status: 'planned'
+    status: 'planned',
+    color: ''
   });
-
-  // Sample data with month-specific tasks and assignees
-  const [allTasks, setAllTasks] = useState({
-    '2025-5': [ // June 2025
-      {
-        id: 101,
-        title: 'Summer Campaign Launch',
-        description: 'Launch our summer marketing campaign across all channels',
-        type: 'Campaign',
-        date: 15,
-        month: 5,
-        year: 2025,
-        time: '10:00',
-        category: 'campaigns',
-        color: 'bg-purple-100 text-purple-800 border-purple-200',
-        assignee: 3,
-        status: 'in-progress'
-      },
-      {
-        id: 102,
-        title: 'Product Update Blog',
-        description: 'Write blog post about new product features',
-        type: 'Blog',
-        date: 20,
-        month: 5,
-        year: 2025,
-        time: '14:30',
-        category: 'blogPosts',
-        color: 'bg-blue-100 text-blue-800 border-blue-200',
-        assignee: 6,
-        status: 'planned'
-      }
-    ],
-    '2025-6': [ // July 2025 (original data)
-      {
-        id: 1,
-        title: 'Product Feature Announcement',
-        description: 'Announce new product features across social media platforms',
-        type: 'Social',
-        date: 21,
-        month: 6,
-        year: 2025,
-        time: '11:00',
-        category: 'socialMedia',
-        color: 'bg-green-100 text-green-800 border-green-200',
-        assignee: 1,
-        status: 'completed'
-      },
-      {
-        id: 2,
-        title: 'How to Build Better User Interfaces',
-        description: 'Technical blog post about UI/UX best practices',
-        type: 'Blog',
-        date: 26,
-        month: 6,
-        year: 2025,
-        time: '13:00',
-        category: 'blogPosts',
-        color: 'bg-blue-100 text-blue-800 border-blue-200',
-        assignee: 2,
-        status: 'review'
-      },
-      {
-        id: 3,
-        title: 'Weekly Newsletter - Tech Updates',
-        description: 'Curate and send weekly newsletter with latest tech updates',
-        type: 'Email',
-        date: 28,
-        month: 6,
-        year: 2025,
-        time: '09:30',
-        category: 'emailMarketing',
-        color: 'bg-orange-100 text-orange-800 border-orange-200',
-        assignee: 6,
-        status: 'planned'
-      },
-      {
-        id: 4,
-        title: 'Q1 Marketing Campaign',
-        description: 'Launch Q1 marketing campaign with focus on lead generation',
-        type: 'Campaign',
-        date: 30,
-        month: 6,
-        year: 2025,
-        time: '15:00',
-        category: 'campaigns',
-        color: 'bg-purple-100 text-purple-800 border-purple-200',
-        assignee: 4,
-        status: 'planned'
-      }
-    ],
-    '2025-7': [ // August 2025
-      {
-        id: 201,
-        title: 'Back to School Campaign',
-        description: 'Educational content for back to school season',
-        type: 'Campaign',
-        date: 5,
-        month: 7,
-        year: 2025,
-        time: '08:00',
-        category: 'campaigns',
-        color: 'bg-purple-100 text-purple-800 border-purple-200',
-        assignee: 4,
-        status: 'planned'
-      },
-      {
-        id: 202,
-        title: 'Instagram Story Series',
-        description: 'Create engaging Instagram story series',
-        type: 'Social',
-        date: 12,
-        month: 7,
-        year: 2025,
-        time: '16:00',
-        category: 'socialMedia',
-        color: 'bg-green-100 text-green-800 border-green-200',
-        assignee: 1,
-        status: 'planned'
-      }
-    ]
-  });
+  const [allTasks, setAllTasks] = useState<Task[]>([]); // Flat array from Supabase
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const teamMembers = [
     { id: 1, name: 'Courtney Wright', role: 'Social and Digital Engagement Lead', avatar: 'CW', color: 'bg-blue-500', active: true },
@@ -173,8 +72,36 @@ const MMCCalendar = () => {
   
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+  // Fetch tasks from Supabase
+  const fetchTasks = async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*');
+    if (error) setError(error.message);
+    else setAllTasks(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchTasks();
+  }, []);
+
+  // Helper to group tasks by month key
+  const groupTasksByMonth = (tasks: Task[]) => {
+    const grouped: Record<string, Task[]> = {};
+    for (const task of tasks) {
+      const key = `${task.year}-${task.month}`;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(task);
+    }
+    return grouped;
+  };
+
+  const groupedTasks = groupTasksByMonth(allTasks);
   const currentMonthKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
-  const currentMonthTasks = allTasks[currentMonthKey] || [];
+  const currentMonthTasks = groupedTasks[currentMonthKey] || [];
 
   const navigateMonth = (direction) => {
     setCurrentDate(prev => {
@@ -184,33 +111,34 @@ const MMCCalendar = () => {
     });
   };
 
-  const getDaysInMonth = (date) => {
+  // Fix getDaysInMonth array type
+  const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
     const startingDayOfWeek = firstDay.getDay();
-    
-    const days = [];
-    
+
+    const days: (number | null)[] = [];
+
     for (let i = 0; i < startingDayOfWeek; i++) {
       days.push(null);
     }
-    
+
     for (let day = 1; day <= daysInMonth; day++) {
       days.push(day);
     }
-    
+
     return days;
   };
 
-  const getDaysInMonthCount = (year, month) => {
+  const getDaysInMonthCount = (year: number, month: number) => {
     return new Date(year, month + 1, 0).getDate();
   };
 
-  const getTasksForDate = (date) => {
-    let tasks = currentMonthTasks.filter(task => task.date === date && selectedFilters[task.category]);
+  const getTasksForDate = (date: number) => {
+    let tasks = currentMonthTasks.filter(task => task.date === date && selectedFilters[task.category as keyof typeof selectedFilters]);
     
     if (selectedTeamMember) {
       tasks = tasks.filter(task => task.assignee === selectedTeamMember);
@@ -220,7 +148,7 @@ const MMCCalendar = () => {
   };
 
   const getAllFilteredTasks = () => {
-    let tasks = currentMonthTasks.filter(task => selectedFilters[task.category]);
+    let tasks = currentMonthTasks.filter(task => selectedFilters[task.category as keyof typeof selectedFilters]);
     
     if (selectedTeamMember) {
       tasks = tasks.filter(task => task.assignee === selectedTeamMember);
@@ -240,14 +168,14 @@ const MMCCalendar = () => {
   const upcomingCount = allFilteredTasks.filter(t => t.status === 'planned').length;
   const inProgressCount = allFilteredTasks.filter(t => t.status === 'in-progress').length;
 
-  const toggleFilter = (filter) => {
+  const toggleFilter = (filter: keyof typeof selectedFilters) => {
     setSelectedFilters(prev => ({
       ...prev,
       [filter]: !prev[filter]
     }));
   };
 
-  const handleTeamMemberClick = (memberId) => {
+  const handleTeamMemberClick = (memberId: number) => {
     setSelectedTeamMember(selectedTeamMember === memberId ? null : memberId);
   };
 
@@ -262,103 +190,123 @@ const MMCCalendar = () => {
       year: currentDate.getFullYear(),
       time: '09:00',
       assignee: 1,
-      status: 'planned'
+      status: 'planned',
+      color: ''
     });
     setShowNewEntryModal(true);
   };
 
-  const handleTaskClick = (task) => {
+  const handleTaskClick = (task: Task) => {
     setSelectedTask(task);
     setShowTaskModal(true);
   };
 
-  const handleSaveNewTask = () => {
-    const taskId = Date.now();
+  // CREATE
+  const handleSaveNewTask = async () => {
+    setLoading(true);
+    setError(null);
     const task = {
       ...newTask,
-      id: taskId,
       color: categoryConfig[newTask.category].color
     };
-    
-    const monthKey = `${newTask.year}-${newTask.month}`;
-    setAllTasks(prev => ({
-      ...prev,
-      [monthKey]: [...(prev[monthKey] || []), task]
-    }));
-    
-    setShowNewEntryModal(false);
+    const { error } = await supabase.from('tasks').insert([task]);
+    if (error) setError(error.message);
+    else {
+      setShowNewEntryModal(false);
+      await fetchTasks();
+    }
+    setLoading(false);
   };
 
+  // Fix handleEditTask to always provide all fields
   const handleEditTask = () => {
-    setEditingTask({...selectedTask});
+    if (!selectedTask) return;
+    setEditingTask({
+      id: selectedTask.id,
+      title: selectedTask.title ?? '',
+      description: selectedTask.description ?? '',
+      type: selectedTask.type ?? '',
+      category: selectedTask.category ?? '',
+      date: selectedTask.date ?? 1,
+      month: selectedTask.month ?? 0,
+      year: selectedTask.year ?? 2025,
+      time: selectedTask.time ?? '',
+      assignee: selectedTask.assignee ?? 1,
+      status: selectedTask.status ?? 'planned',
+      color: selectedTask.color ?? ''
+    });
     setShowTaskModal(false);
     setShowEditModal(true);
   };
 
-  const handleSaveEditTask = () => {
-    const oldMonthKey = `${editingTask.year || currentDate.getFullYear()}-${editingTask.month !== undefined ? editingTask.month : currentDate.getMonth()}`;
-    const newMonthKey = `${editingTask.year}-${editingTask.month}`;
-    
-    setAllTasks(prev => {
-      const newTasks = { ...prev };
-      
-      // Remove from old month if it exists
-      if (newTasks[oldMonthKey]) {
-        newTasks[oldMonthKey] = newTasks[oldMonthKey].filter(task => task.id !== editingTask.id);
-      }
-      
-      // Add to new month
-      const updatedTask = { ...editingTask, color: categoryConfig[editingTask.category].color };
-      newTasks[newMonthKey] = [...(newTasks[newMonthKey] || []), updatedTask];
-      
-      return newTasks;
-    });
-    
-    setShowEditModal(false);
-    setEditingTask(null);
+  // UPDATE
+  const handleSaveEditTask = async () => {
+    if (!editingTask) return;
+    setLoading(true);
+    setError(null);
+    const updatedTask = { ...editingTask, color: categoryConfig[editingTask.category].color };
+    const { error } = await supabase
+      .from('tasks')
+      .update(updatedTask)
+      .eq('id', editingTask.id);
+    if (error) setError(error.message);
+    else {
+      setShowEditModal(false);
+      setEditingTask(null);
+      await fetchTasks();
+    }
+    setLoading(false);
   };
 
-  const handleDeleteTask = () => {
+  // DELETE
+  const handleDeleteTask = async () => {
+    if (!selectedTask) return;
     if (window.confirm('Are you sure you want to delete this task?')) {
-      setAllTasks(prev => ({
-        ...prev,
-        [currentMonthKey]: prev[currentMonthKey].filter(task => task.id !== selectedTask.id)
-      }));
-      
-      setShowTaskModal(false);
-      setSelectedTask(null);
+      setLoading(true);
+      setError(null);
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', selectedTask.id);
+      if (error) setError(error.message);
+      else {
+        setShowTaskModal(false);
+        setSelectedTask(null);
+        await fetchTasks();
+      }
+      setLoading(false);
     }
   };
 
   // Drag and drop handlers for Kanban
-  const handleDragStart = (e, task) => {
+  const handleDragStart = (e: React.DragEvent, task: Task) => {
     setDraggedTask(task);
     e.dataTransfer.effectAllowed = 'move';
   };
 
-  const handleDragOver = (e) => {
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
   };
 
-  const handleDrop = (e, newStatus) => {
+  // Kanban drag-and-drop: update status in Supabase
+  const handleDrop = async (e: React.DragEvent, newStatus: string) => {
     e.preventDefault();
-    
     if (draggedTask && draggedTask.status !== newStatus) {
-      setAllTasks(prev => ({
-        ...prev,
-        [currentMonthKey]: prev[currentMonthKey].map(task => 
-          task.id === draggedTask.id 
-            ? { ...task, status: newStatus }
-            : task
-        )
-      }));
+      setLoading(true);
+      setError(null);
+      const { error } = await supabase
+        .from('tasks')
+        .update({ status: newStatus })
+        .eq('id', draggedTask.id);
+      if (error) setError(error.message);
+      else await fetchTasks();
+      setDraggedTask(null);
+      setLoading(false);
     }
-    
-    setDraggedTask(null);
   };
 
-  const getTeamMemberName = (id) => {
+  const getTeamMemberName = (id: number) => {
     return teamMembers.find(member => member.id === id)?.name || 'Unknown';
   };
 
@@ -375,7 +323,7 @@ const MMCCalendar = () => {
     { id: 'completed', title: 'Completed', color: 'bg-green-50' }
   ];
 
-  const getTasksByStatus = (status) => {
+  const getTasksByStatus = (status: string) => {
     return getAllFilteredTasks().filter(task => task.status === status);
   };
 
@@ -440,8 +388,8 @@ const MMCCalendar = () => {
               <label key={filter.key} className="flex items-center space-x-2 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={selectedFilters[filter.key]}
-                  onChange={() => toggleFilter(filter.key)}
+                  checked={selectedFilters[filter.key as keyof typeof selectedFilters]}
+                  onChange={() => toggleFilter(filter.key as keyof typeof selectedFilters)}
                   className="rounded border-gray-300"
                 />
                 <span className="text-sm text-gray-700 flex-1">{filter.label}</span>
@@ -573,6 +521,8 @@ const MMCCalendar = () => {
 
         {/* Main View */}
         <div className="flex-1 p-6">
+          {loading && <div>Loading...</div>}
+          {error && <div className="text-red-500">{error}</div>}
           {activeView === 'Calendar' ? (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 h-full">
               {/* Calendar Header */}
@@ -708,7 +658,7 @@ const MMCCalendar = () => {
                 <input
                   type="text"
                   value={newTask.title}
-                  onChange={(e) => setNewTask(prev => ({ ...prev, title: e.target.value }))}
+                  onChange={(e) => setNewTask(prev => ({ ...prev, title: e.target.value ?? '' }))}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Enter task title"
                 />
@@ -718,9 +668,9 @@ const MMCCalendar = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                 <textarea
                   value={newTask.description}
-                  onChange={(e) => setNewTask(prev => ({ ...prev, description: e.target.value }))}
+                  onChange={(e) => setNewTask(prev => ({ ...prev, description: e.target.value ?? '' }))}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows="3"
+                  rows={3}
                   placeholder="Enter task description"
                 />
               </div>
@@ -730,7 +680,7 @@ const MMCCalendar = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Month</label>
                   <select
                     value={newTask.month}
-                    onChange={(e) => setNewTask(prev => ({ ...prev, month: parseInt(e.target.value) }))}
+                    onChange={(e) => setNewTask(prev => ({ ...prev, month: parseInt(e.target.value) || 0 }))}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     {monthNames.map((month, index) => (
@@ -743,7 +693,7 @@ const MMCCalendar = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
                   <select
                     value={newTask.year}
-                    onChange={(e) => setNewTask(prev => ({ ...prev, year: parseInt(e.target.value) }))}
+                    onChange={(e) => setNewTask(prev => ({ ...prev, year: parseInt(e.target.value) || 2025 }))}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value={2024}>2024</option>
@@ -761,7 +711,7 @@ const MMCCalendar = () => {
                     min="1"
                     max={getDaysInMonthCount(newTask.year, newTask.month)}
                     value={newTask.date}
-                    onChange={(e) => setNewTask(prev => ({ ...prev, date: parseInt(e.target.value) }))}
+                    onChange={(e) => setNewTask(prev => ({ ...prev, date: parseInt(e.target.value) || 1 }))}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -771,7 +721,7 @@ const MMCCalendar = () => {
                   <input
                     type="time"
                     value={newTask.time}
-                    onChange={(e) => setNewTask(prev => ({ ...prev, time: e.target.value }))}
+                    onChange={(e) => setNewTask(prev => ({ ...prev, time: e.target.value ?? '' }))}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -799,8 +749,8 @@ const MMCCalendar = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
                   <select
-                    value={newTask.assignee}
-                    onChange={(e) => setNewTask(prev => ({ ...prev, assignee: parseInt(e.target.value) }))}
+                    value={String(newTask.assignee)}
+                    onChange={(e) => setNewTask(prev => ({ ...prev, assignee: parseInt(e.target.value, 10) || 1 }))}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     {teamMembers.map(member => (
@@ -820,7 +770,7 @@ const MMCCalendar = () => {
               </button>
               <button
                 onClick={handleSaveNewTask}
-                disabled={!newTask.title.trim()}
+                disabled={!newTask.title.trim() || loading}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Save Task
@@ -903,6 +853,7 @@ const MMCCalendar = () => {
               <button
                 onClick={handleDeleteTask}
                 className="px-4 py-2 border border-red-300 text-red-700 rounded-md hover:bg-red-50"
+                disabled={loading}
               >
                 Delete
               </button>
@@ -943,7 +894,7 @@ const MMCCalendar = () => {
                 <input
                   type="text"
                   value={editingTask.title}
-                  onChange={(e) => setEditingTask(prev => ({ ...prev, title: e.target.value }))}
+                  onChange={e => setEditingTask(prev => prev ? { ...prev, title: e.target.value ?? '' } : prev)}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Enter task title"
                 />
@@ -953,9 +904,9 @@ const MMCCalendar = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                 <textarea
                   value={editingTask.description}
-                  onChange={(e) => setEditingTask(prev => ({ ...prev, description: e.target.value }))}
+                  onChange={e => setEditingTask(prev => prev ? { ...prev, description: e.target.value ?? '' } : prev)}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows="3"
+                  rows={3}
                   placeholder="Enter task description"
                 />
               </div>
@@ -965,7 +916,7 @@ const MMCCalendar = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Month</label>
                   <select
                     value={editingTask.month}
-                    onChange={(e) => setEditingTask(prev => ({ ...prev, month: parseInt(e.target.value) }))}
+                    onChange={e => setEditingTask(prev => prev ? { ...prev, month: parseInt(e.target.value) || 0 } : prev)}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     {monthNames.map((month, index) => (
@@ -978,7 +929,7 @@ const MMCCalendar = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
                   <select
                     value={editingTask.year}
-                    onChange={(e) => setEditingTask(prev => ({ ...prev, year: parseInt(e.target.value) }))}
+                    onChange={e => setEditingTask(prev => prev ? { ...prev, year: parseInt(e.target.value) || 2025 } : prev)}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value={2024}>2024</option>
@@ -996,7 +947,7 @@ const MMCCalendar = () => {
                     min="1"
                     max={getDaysInMonthCount(editingTask.year, editingTask.month)}
                     value={editingTask.date}
-                    onChange={(e) => setEditingTask(prev => ({ ...prev, date: parseInt(e.target.value) }))}
+                    onChange={e => setEditingTask(prev => prev ? { ...prev, date: parseInt(e.target.value) || 1 } : prev)}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -1006,7 +957,7 @@ const MMCCalendar = () => {
                   <input
                     type="time"
                     value={editingTask.time}
-                    onChange={(e) => setEditingTask(prev => ({ ...prev, time: e.target.value }))}
+                    onChange={e => setEditingTask(prev => prev ? { ...prev, time: e.target.value ?? '' } : prev)}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -1017,11 +968,7 @@ const MMCCalendar = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
                   <select
                     value={editingTask.category}
-                    onChange={(e) => setEditingTask(prev => ({ 
-                      ...prev, 
-                      category: e.target.value,
-                      type: categoryConfig[e.target.value].type
-                    }))}
+                    onChange={e => setEditingTask(prev => prev ? { ...prev, category: e.target.value, type: categoryConfig[e.target.value].type } : prev)}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="blogPosts">Blog Posts</option>
@@ -1034,8 +981,8 @@ const MMCCalendar = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
                   <select
-                    value={editingTask.assignee}
-                    onChange={(e) => setEditingTask(prev => ({ ...prev, assignee: parseInt(e.target.value) }))}
+                    value={String(editingTask.assignee)}
+                    onChange={e => setEditingTask(prev => prev ? { ...prev, assignee: parseInt(e.target.value, 10) || 1 } : prev)}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     {teamMembers.map(member => (
@@ -1049,7 +996,7 @@ const MMCCalendar = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                 <select
                   value={editingTask.status}
-                  onChange={(e) => setEditingTask(prev => ({ ...prev, status: e.target.value }))}
+                  onChange={e => setEditingTask(prev => prev ? { ...prev, status: e.target.value ?? 'planned' } : prev)}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="planned">Planned</option>
@@ -1069,7 +1016,7 @@ const MMCCalendar = () => {
               </button>
               <button
                 onClick={handleSaveEditTask}
-                disabled={!editingTask.title.trim()}
+                disabled={!editingTask.title.trim() || loading}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Save Changes
