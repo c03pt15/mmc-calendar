@@ -289,10 +289,10 @@ const MMCCalendar = () => {
 
   // Kanban columns
   const kanbanColumns = [
-    { id: 'planned', title: 'Planned', color: 'bg-gray-50' },
-    { id: 'in-progress', title: 'In Progress', color: 'bg-blue-50' },
-    { id: 'review', title: 'Review', color: 'bg-yellow-50' },
-    { id: 'completed', title: 'Completed', color: 'bg-green-50' }
+    { id: 'planned', title: 'Planned', color: 'bg-green-50' },
+    { id: 'in-progress', title: 'In Progress', color: 'bg-yellow-50' },
+    { id: 'review', title: 'Review', color: 'bg-orange-50' },
+    { id: 'completed', title: 'Completed', color: 'bg-blue-50' }
   ];
 
   const getTasksByStatus = (status: string) => {
