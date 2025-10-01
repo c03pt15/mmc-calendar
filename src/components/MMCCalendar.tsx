@@ -144,13 +144,9 @@ const MMCCalendar = () => {
     if (selectedTeamMember) tasks = tasks.filter(task => task.assignee === selectedTeamMember);
     
     // Generate recurring instances for the current date
-    const recurringInstances = tasks.flatMap(task => generateRecurringInstances(task))
-      .filter(instance => {
-        // Only show instances that match the current date and are within the current month/year
-        return instance.date === date && 
-               instance.month === currentDate.getMonth() && 
-               instance.year === currentDate.getFullYear();
-      });
+    const recurringInstances = tasks.flatMap(task => 
+      generateRecurringInstances(task, currentDate.getMonth(), currentDate.getFullYear())
+    ).filter(instance => instance.date === date);
     
     return recurringInstances;
   };
@@ -160,21 +156,16 @@ const MMCCalendar = () => {
     if (selectedTeamMember) tasks = tasks.filter(task => task.assignee === selectedTeamMember);
     
     // Generate recurring instances for all tasks
-    const recurringInstances = tasks.flatMap(task => generateRecurringInstances(task))
-      .filter(instance => {
-        // Only show instances within the current month/year
-        return instance.month === currentDate.getMonth() && 
-               instance.year === currentDate.getFullYear();
-      });
+    const recurringInstances = tasks.flatMap(task => 
+      generateRecurringInstances(task, currentDate.getMonth(), currentDate.getFullYear())
+    );
     
     return recurringInstances;
   };
 
-  const allTasksWithRecurring = currentMonthTasks.flatMap(task => generateRecurringInstances(task))
-    .filter(instance => {
-      return instance.month === currentDate.getMonth() && 
-             instance.year === currentDate.getFullYear();
-    });
+  const allTasksWithRecurring = currentMonthTasks.flatMap(task => 
+    generateRecurringInstances(task, currentDate.getMonth(), currentDate.getFullYear())
+  );
 
   const filterCounts = {
     blogPosts: allTasksWithRecurring.filter(t => t.category === 'blogPosts' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
@@ -338,8 +329,8 @@ const MMCCalendar = () => {
     }
   };
 
-  // Generate recurring task instances
-  const generateRecurringInstances = (task: any) => {
+  // Generate recurring task instances - moved outside component to avoid circular dependency
+  const generateRecurringInstances = (task: any, currentMonth: number, currentYear: number) => {
     if (!task.is_recurring || !task.recurring_pattern) return [task];
 
     const instances = [task];
@@ -481,7 +472,10 @@ const MMCCalendar = () => {
       }
     }
 
-    return instances;
+    // Filter instances to only show those in the current month/year
+    return instances.filter(instance => 
+      instance.month === currentMonth && instance.year === currentYear
+    );
   };
 
   const removeCustomCategory = (category: string) => {
