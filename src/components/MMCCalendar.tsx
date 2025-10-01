@@ -208,6 +208,25 @@ const MMCCalendar = () => {
     setShowEditModal(true);
   };
 
+  const handleDuplicateTask = () => {
+    const today = new Date();
+    setNewTask({
+      title: selectedTask.title + ' (Copy)',
+      description: selectedTask.description,
+      type: selectedTask.type,
+      category: selectedTask.category,
+      date: today.getDate(),
+      month: today.getMonth(),
+      year: today.getFullYear(),
+      time: selectedTask.time,
+      assignee: selectedTask.assignee,
+      status: 'planned',
+      color: ''
+    });
+    setShowTaskModal(false);
+    setShowNewEntryModal(true);
+  };
+
   const handleSaveEditTask = async () => {
     try {
       setLoading(true);
@@ -853,6 +872,12 @@ const MMCCalendar = () => {
                 className="px-4 py-2 border border-red-300 text-red-700 rounded-md hover:bg-red-50"
               >
                 Delete
+              </button>
+              <button
+                onClick={handleDuplicateTask}
+                className="px-4 py-2 border border-green-300 text-green-700 rounded-md hover:bg-green-50"
+              >
+                Duplicate
               </button>
               <button
                 onClick={() => setShowTaskModal(false)}
