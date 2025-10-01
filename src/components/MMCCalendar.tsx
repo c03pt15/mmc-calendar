@@ -143,29 +143,21 @@ const MMCCalendar = () => {
     let tasks = currentMonthTasks.filter(task => task.date === date && selectedFilters[task.category]);
     if (selectedTeamMember) tasks = tasks.filter(task => task.assignee === selectedTeamMember);
     
-    // Generate recurring instances for the current date
-    const recurringInstances = tasks.flatMap(task => 
-      generateRecurringInstances(task, currentDate.getMonth(), currentDate.getFullYear())
-    ).filter(instance => instance.date === date);
-    
-    return recurringInstances;
+    // For now, just return the original tasks to avoid circular dependency
+    // TODO: Implement recurring logic in a separate useEffect
+    return tasks;
   };
 
   const getAllFilteredTasks = () => {
     let tasks = currentMonthTasks.filter(task => selectedFilters[task.category]);
     if (selectedTeamMember) tasks = tasks.filter(task => task.assignee === selectedTeamMember);
     
-    // Generate recurring instances for all tasks
-    const recurringInstances = tasks.flatMap(task => 
-      generateRecurringInstances(task, currentDate.getMonth(), currentDate.getFullYear())
-    );
-    
-    return recurringInstances;
+    // For now, just return the original tasks to avoid circular dependency
+    // TODO: Implement recurring logic in a separate useEffect
+    return tasks;
   };
 
-  const allTasksWithRecurring = currentMonthTasks.flatMap(task => 
-    generateRecurringInstances(task, currentDate.getMonth(), currentDate.getFullYear())
-  );
+  const allTasksWithRecurring = currentMonthTasks;
 
   const filterCounts = {
     blogPosts: allTasksWithRecurring.filter(t => t.category === 'blogPosts' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
@@ -329,154 +321,7 @@ const MMCCalendar = () => {
     }
   };
 
-  // Generate recurring task instances - moved outside component to avoid circular dependency
-  const generateRecurringInstances = (task: any, currentMonth: number, currentYear: number) => {
-    if (!task.is_recurring || !task.recurring_pattern) return [task];
-
-    const instances = [task];
-    const startDate = new Date(task.year, task.month, task.date);
-    const endDate = task.recurring_end_date ? new Date(task.recurring_end_date) : new Date(startDate.getFullYear() + 1, startDate.getMonth(), startDate.getDate());
-    
-    let currentDate = new Date(startDate);
-    const maxInstances = 50; // Prevent infinite loops
-    let instanceCount = 0;
-
-    while (currentDate <= endDate && instanceCount < maxInstances) {
-      let nextDate: Date;
-
-      switch (task.recurring_pattern) {
-        case 'daily':
-          nextDate = new Date(currentDate);
-          nextDate.setDate(currentDate.getDate() + 1);
-          break;
-        
-        case 'weekly':
-          nextDate = new Date(currentDate);
-          nextDate.setDate(currentDate.getDate() + 7);
-          break;
-        
-        case 'monthly':
-          nextDate = new Date(currentDate);
-          nextDate.setMonth(currentDate.getMonth() + 1);
-          break;
-        
-        case 'first_monday':
-          nextDate = new Date(currentDate);
-          nextDate.setMonth(currentDate.getMonth() + 1);
-          nextDate.setDate(1);
-          while (nextDate.getDay() !== 1) {
-            nextDate.setDate(nextDate.getDate() + 1);
-          }
-          break;
-        
-        case 'first_tuesday':
-          nextDate = new Date(currentDate);
-          nextDate.setMonth(currentDate.getMonth() + 1);
-          nextDate.setDate(1);
-          while (nextDate.getDay() !== 2) {
-            nextDate.setDate(nextDate.getDate() + 1);
-          }
-          break;
-        
-        case 'first_wednesday':
-          nextDate = new Date(currentDate);
-          nextDate.setMonth(currentDate.getMonth() + 1);
-          nextDate.setDate(1);
-          while (nextDate.getDay() !== 3) {
-            nextDate.setDate(nextDate.getDate() + 1);
-          }
-          break;
-        
-        case 'first_thursday':
-          nextDate = new Date(currentDate);
-          nextDate.setMonth(currentDate.getMonth() + 1);
-          nextDate.setDate(1);
-          while (nextDate.getDay() !== 4) {
-            nextDate.setDate(nextDate.getDate() + 1);
-          }
-          break;
-        
-        case 'first_friday':
-          nextDate = new Date(currentDate);
-          nextDate.setMonth(currentDate.getMonth() + 1);
-          nextDate.setDate(1);
-          while (nextDate.getDay() !== 5) {
-            nextDate.setDate(nextDate.getDate() + 1);
-          }
-          break;
-        
-        case 'last_monday':
-          nextDate = new Date(currentDate);
-          nextDate.setMonth(currentDate.getMonth() + 1);
-          nextDate.setDate(0); // Last day of current month
-          while (nextDate.getDay() !== 1) {
-            nextDate.setDate(nextDate.getDate() - 1);
-          }
-          break;
-        
-        case 'last_tuesday':
-          nextDate = new Date(currentDate);
-          nextDate.setMonth(currentDate.getMonth() + 1);
-          nextDate.setDate(0);
-          while (nextDate.getDay() !== 2) {
-            nextDate.setDate(nextDate.getDate() - 1);
-          }
-          break;
-        
-        case 'last_wednesday':
-          nextDate = new Date(currentDate);
-          nextDate.setMonth(currentDate.getMonth() + 1);
-          nextDate.setDate(0);
-          while (nextDate.getDay() !== 3) {
-            nextDate.setDate(nextDate.getDate() - 1);
-          }
-          break;
-        
-        case 'last_thursday':
-          nextDate = new Date(currentDate);
-          nextDate.setMonth(currentDate.getMonth() + 1);
-          nextDate.setDate(0);
-          while (nextDate.getDay() !== 4) {
-            nextDate.setDate(nextDate.getDate() - 1);
-          }
-          break;
-        
-        case 'last_friday':
-          nextDate = new Date(currentDate);
-          nextDate.setMonth(currentDate.getMonth() + 1);
-          nextDate.setDate(0);
-          while (nextDate.getDay() !== 5) {
-            nextDate.setDate(nextDate.getDate() - 1);
-          }
-          break;
-        
-        default:
-          return [task];
-      }
-
-      if (nextDate <= endDate) {
-        const newInstance = {
-          ...task,
-          id: `${task.id}_${nextDate.getFullYear()}_${nextDate.getMonth()}_${nextDate.getDate()}`,
-          date: nextDate.getDate(),
-          month: nextDate.getMonth(),
-          year: nextDate.getFullYear(),
-          parent_task_id: task.id,
-          is_recurring: false // Mark instances as non-recurring to prevent double generation
-        };
-        instances.push(newInstance);
-        currentDate = nextDate;
-        instanceCount++;
-      } else {
-        break;
-      }
-    }
-
-    // Filter instances to only show those in the current month/year
-    return instances.filter(instance => 
-      instance.month === currentMonth && instance.year === currentYear
-    );
-  };
+  // TODO: Implement recurring task instances in a separate useEffect to avoid circular dependency
 
   const removeCustomCategory = (category: string) => {
     setCustomCategories(customCategories.filter(c => c !== category));
