@@ -27,6 +27,9 @@ const MMCCalendar = () => {
   const [dragOverDate, setDragOverDate] = useState<number | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
   const [newTask, setNewTask] = useState<any>({
     title: '',
     description: '',
@@ -306,6 +309,19 @@ const MMCCalendar = () => {
     // Simple PDF export using window.print() for now
     // In a real app, you'd use a library like jsPDF
     window.print();
+  };
+
+  // Custom categories functionality
+  const addCustomCategory = () => {
+    if (newCategoryName.trim() && !customCategories.includes(newCategoryName.trim())) {
+      setCustomCategories([...customCategories, newCategoryName.trim()]);
+      setNewCategoryName('');
+      setShowAddCategory(false);
+    }
+  };
+
+  const removeCustomCategory = (category: string) => {
+    setCustomCategories(customCategories.filter(c => c !== category));
   };
 
   // Close search results and export menu when clicking outside
@@ -1059,20 +1075,59 @@ const MMCCalendar = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                  <select
-                    value={newTask.category}
-                    onChange={(e) => setNewTask((prev: any) => ({ 
-                      ...prev, 
-                      category: e.target.value,
-                      type: categoryConfig[e.target.value].type
-                    }))}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="blogPosts">Blog Posts</option>
-                    <option value="socialMedia">Social Media</option>
-                    <option value="campaigns">Campaigns</option>
-                    <option value="emailMarketing">Email Marketing</option>
-                  </select>
+                  <div className="flex space-x-2">
+                    <select
+                      value={newTask.category}
+                      onChange={(e) => setNewTask((prev: any) => ({ 
+                        ...prev, 
+                        category: e.target.value,
+                        type: categoryConfig[e.target.value]?.type || 'Custom'
+                      }))}
+                      className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="blogPosts">Blog Posts</option>
+                      <option value="socialMedia">Social Media</option>
+                      <option value="campaigns">Campaigns</option>
+                      <option value="emailMarketing">Email Marketing</option>
+                      {customCategories.map(category => (
+                        <option key={category} value={category}>{category}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => setShowAddCategory(!showAddCategory)}
+                      className="px-3 py-2 bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200 text-sm"
+                      title="Add custom category"
+                    >
+                      +
+                    </button>
+                  </div>
+                  {showAddCategory && (
+                    <div className="mt-2 flex space-x-2">
+                      <input
+                        type="text"
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        placeholder="New category name"
+                        className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        onKeyPress={(e) => e.key === 'Enter' && addCustomCategory()}
+                      />
+                      <button
+                        onClick={addCustomCategory}
+                        className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                      >
+                        Add
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowAddCategory(false);
+                          setNewCategoryName('');
+                        }}
+                        className="px-3 py-2 bg-gray-300 text-gray-600 rounded-md hover:bg-gray-400 text-sm"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
@@ -1218,6 +1273,15 @@ const MMCCalendar = () => {
                   )}
                 </div>
               </div>
+              
+              {selectedTask.comments && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">COMMENTS</label>
+                  <div className="text-sm text-gray-900 bg-gray-50 p-3 rounded-md">
+                    {selectedTask.comments}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="flex space-x-3 mt-6">
               <button
@@ -1373,6 +1437,17 @@ const MMCCalendar = () => {
                   <option value="review">Review</option>
                   <option value="completed">Completed</option>
                 </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Comments</label>
+                <textarea
+                  value={editingTask.comments || ''}
+                  onChange={(e) => setEditingTask((prev: any) => ({ ...prev, comments: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={3}
+                  placeholder="Add any additional notes or comments..."
+                />
               </div>
             </div>
             <div className="flex space-x-3 mt-6">
