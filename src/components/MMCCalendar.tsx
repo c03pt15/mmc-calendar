@@ -28,7 +28,6 @@ const MMCCalendar = () => {
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
-  const [recurringInstances, setRecurringInstances] = useState<any[]>([]);
   const [newTask, setNewTask] = useState<any>({
     title: '',
     description: '',
@@ -41,8 +40,6 @@ const MMCCalendar = () => {
     assignee: 1,
     status: 'planned',
     priority: 'medium',
-    is_recurring: false,
-    recurring_pattern: '',
     comments: ''
   });
 
@@ -141,30 +138,18 @@ const MMCCalendar = () => {
   };
 
   const getTasksForDate = (date: number) => {
-    let tasks = recurringInstances.filter(task => 
-      task.date === date && 
-      task.month === currentDate.getMonth() && 
-      task.year === currentDate.getFullYear() &&
-      selectedFilters[task.category]
-    );
+    let tasks = currentMonthTasks.filter(task => task.date === date && selectedFilters[task.category]);
     if (selectedTeamMember) tasks = tasks.filter(task => task.assignee === selectedTeamMember);
     return tasks;
   };
 
   const getAllFilteredTasks = () => {
-    let tasks = recurringInstances.filter(task => 
-      task.month === currentDate.getMonth() && 
-      task.year === currentDate.getFullYear() &&
-      selectedFilters[task.category]
-    );
+    let tasks = currentMonthTasks.filter(task => selectedFilters[task.category]);
     if (selectedTeamMember) tasks = tasks.filter(task => task.assignee === selectedTeamMember);
     return tasks;
   };
 
-  const allTasksWithRecurring = recurringInstances.filter(task => 
-    task.month === currentDate.getMonth() && 
-    task.year === currentDate.getFullYear()
-  );
+  const allTasksWithRecurring = currentMonthTasks;
 
   const filterCounts = {
     blogPosts: allTasksWithRecurring.filter(t => t.category === 'blogPosts' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
@@ -328,160 +313,6 @@ const MMCCalendar = () => {
     }
   };
 
-  // Generate recurring task instances
-  const generateRecurringInstances = (task: any) => {
-    if (!task.is_recurring || !task.recurring_pattern) return [task];
-
-    const instances = [task];
-    const startDate = new Date(task.year, task.month, task.date);
-    const endDate = task.recurring_end_date ? new Date(task.recurring_end_date) : new Date(startDate.getFullYear() + 1, startDate.getMonth(), startDate.getDate());
-    
-    let currentDate = new Date(startDate);
-    const maxInstances = 50; // Prevent infinite loops
-    let instanceCount = 0;
-
-    while (currentDate <= endDate && instanceCount < maxInstances) {
-      let nextDate: Date;
-
-      switch (task.recurring_pattern) {
-        case 'daily':
-          nextDate = new Date(currentDate);
-          nextDate.setDate(currentDate.getDate() + 1);
-          break;
-        
-        case 'weekly':
-          nextDate = new Date(currentDate);
-          nextDate.setDate(currentDate.getDate() + 7);
-          break;
-        
-        case 'monthly':
-          nextDate = new Date(currentDate);
-          nextDate.setMonth(currentDate.getMonth() + 1);
-          break;
-        
-        case 'first_monday':
-          nextDate = new Date(currentDate);
-          nextDate.setMonth(currentDate.getMonth() + 1);
-          nextDate.setDate(1);
-          while (nextDate.getDay() !== 1) {
-            nextDate.setDate(nextDate.getDate() + 1);
-          }
-          break;
-        
-        case 'first_tuesday':
-          nextDate = new Date(currentDate);
-          nextDate.setMonth(currentDate.getMonth() + 1);
-          nextDate.setDate(1);
-          while (nextDate.getDay() !== 2) {
-            nextDate.setDate(nextDate.getDate() + 1);
-          }
-          break;
-        
-        case 'first_wednesday':
-          nextDate = new Date(currentDate);
-          nextDate.setMonth(currentDate.getMonth() + 1);
-          nextDate.setDate(1);
-          while (nextDate.getDay() !== 3) {
-            nextDate.setDate(nextDate.getDate() + 1);
-          }
-          break;
-        
-        case 'first_thursday':
-          nextDate = new Date(currentDate);
-          nextDate.setMonth(currentDate.getMonth() + 1);
-          nextDate.setDate(1);
-          while (nextDate.getDay() !== 4) {
-            nextDate.setDate(nextDate.getDate() + 1);
-          }
-          break;
-        
-        case 'first_friday':
-          nextDate = new Date(currentDate);
-          nextDate.setMonth(currentDate.getMonth() + 1);
-          nextDate.setDate(1);
-          while (nextDate.getDay() !== 5) {
-            nextDate.setDate(nextDate.getDate() + 1);
-          }
-          break;
-        
-        case 'last_monday':
-          nextDate = new Date(currentDate);
-          nextDate.setMonth(currentDate.getMonth() + 1);
-          nextDate.setDate(0); // Last day of current month
-          while (nextDate.getDay() !== 1) {
-            nextDate.setDate(nextDate.getDate() - 1);
-          }
-          break;
-        
-        case 'last_tuesday':
-          nextDate = new Date(currentDate);
-          nextDate.setMonth(currentDate.getMonth() + 1);
-          nextDate.setDate(0);
-          while (nextDate.getDay() !== 2) {
-            nextDate.setDate(nextDate.getDate() - 1);
-          }
-          break;
-        
-        case 'last_wednesday':
-          nextDate = new Date(currentDate);
-          nextDate.setMonth(currentDate.getMonth() + 1);
-          nextDate.setDate(0);
-          while (nextDate.getDay() !== 3) {
-            nextDate.setDate(nextDate.getDate() - 1);
-          }
-          break;
-        
-        case 'last_thursday':
-          nextDate = new Date(currentDate);
-          nextDate.setMonth(currentDate.getMonth() + 1);
-          nextDate.setDate(0);
-          while (nextDate.getDay() !== 4) {
-            nextDate.setDate(nextDate.getDate() - 1);
-          }
-          break;
-        
-        case 'last_friday':
-          nextDate = new Date(currentDate);
-          nextDate.setMonth(currentDate.getMonth() + 1);
-          nextDate.setDate(0);
-          while (nextDate.getDay() !== 5) {
-            nextDate.setDate(nextDate.getDate() - 1);
-          }
-          break;
-        
-        default:
-          return [task];
-      }
-
-      if (nextDate <= endDate) {
-        const newInstance = {
-          ...task,
-          id: `${task.id}_${nextDate.getFullYear()}_${nextDate.getMonth()}_${nextDate.getDate()}`,
-          date: nextDate.getDate(),
-          month: nextDate.getMonth(),
-          year: nextDate.getFullYear(),
-          parent_task_id: task.id,
-          is_recurring: false // Mark instances as non-recurring to prevent double generation
-        };
-        instances.push(newInstance);
-        currentDate = nextDate;
-        instanceCount++;
-      } else {
-        break;
-      }
-    }
-
-    return instances;
-  };
-
-  // Generate recurring instances when tasks or current date changes
-  useEffect(() => {
-    const instances = currentMonthTasks.flatMap(task => 
-      generateRecurringInstances(task)
-    );
-    console.log('Generated recurring instances:', instances);
-    setRecurringInstances(instances);
-  }, [currentMonthTasks, currentDate]);
 
   const removeCustomCategory = (category: string) => {
     setCustomCategories(customCategories.filter(c => c !== category));
@@ -1240,75 +1071,6 @@ const MMCCalendar = () => {
                     <option value="high">🔴 High</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Recurring</label>
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="is_recurring"
-                        checked={newTask.is_recurring}
-                        onChange={(e) => setNewTask((prev: any) => ({ 
-                          ...prev, 
-                          is_recurring: e.target.checked,
-                          recurring_pattern: e.target.checked ? prev.recurring_pattern || 'weekly' : '',
-                          recurring_end_date: e.target.checked ? prev.recurring_end_date : null
-                        }))}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
-                      <label htmlFor="is_recurring" className="text-sm text-gray-700">
-                        Make this task recurring
-                      </label>
-                    </div>
-                    
-                    {newTask.is_recurring && (
-                      <div className="ml-6 space-y-3 border-l-2 border-gray-200 pl-4">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Repeat every</label>
-                          <div className="flex space-x-2">
-                            <select
-                              value={newTask.recurring_pattern}
-                              onChange={(e) => setNewTask((prev: any) => ({ 
-                                ...prev, 
-                                recurring_pattern: e.target.value
-                              }))}
-                              className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                              <option value="daily">Day</option>
-                              <option value="weekly">Week</option>
-                              <option value="monthly">Month</option>
-                              <option value="first_monday">First Monday of month</option>
-                              <option value="first_tuesday">First Tuesday of month</option>
-                              <option value="first_wednesday">First Wednesday of month</option>
-                              <option value="first_thursday">First Thursday of month</option>
-                              <option value="first_friday">First Friday of month</option>
-                              <option value="last_monday">Last Monday of month</option>
-                              <option value="last_tuesday">Last Tuesday of month</option>
-                              <option value="last_wednesday">Last Wednesday of month</option>
-                              <option value="last_thursday">Last Thursday of month</option>
-                              <option value="last_friday">Last Friday of month</option>
-                            </select>
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">End date (optional)</label>
-                          <input
-                            type="date"
-                            value={newTask.recurring_end_date || ''}
-                            onChange={(e) => setNewTask((prev: any) => ({ 
-                              ...prev, 
-                              recurring_end_date: e.target.value || null
-                            }))}
-                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            min={new Date().toISOString().split('T')[0]}
-                          />
-                          <p className="text-xs text-gray-500 mt-1">Leave empty for no end date</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
               </div>
               
               <div>
@@ -1595,75 +1357,6 @@ const MMCCalendar = () => {
                 </div>
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Recurring</label>
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="edit_is_recurring"
-                      checked={editingTask.is_recurring || false}
-                      onChange={(e) => setEditingTask((prev: any) => ({ 
-                        ...prev, 
-                        is_recurring: e.target.checked,
-                        recurring_pattern: e.target.checked ? prev.recurring_pattern || 'weekly' : '',
-                        recurring_end_date: e.target.checked ? prev.recurring_end_date : null
-                      }))}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="edit_is_recurring" className="text-sm text-gray-700">
-                      Make this task recurring
-                    </label>
-                  </div>
-                  
-                  {(editingTask.is_recurring || false) && (
-                    <div className="ml-6 space-y-3 border-l-2 border-gray-200 pl-4">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Repeat every</label>
-                        <div className="flex space-x-2">
-                          <select
-                            value={editingTask.recurring_pattern || ''}
-                            onChange={(e) => setEditingTask((prev: any) => ({ 
-                              ...prev, 
-                              recurring_pattern: e.target.value
-                            }))}
-                            className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          >
-                            <option value="daily">Day</option>
-                            <option value="weekly">Week</option>
-                            <option value="monthly">Month</option>
-                            <option value="first_monday">First Monday of month</option>
-                            <option value="first_tuesday">First Tuesday of month</option>
-                            <option value="first_wednesday">First Wednesday of month</option>
-                            <option value="first_thursday">First Thursday of month</option>
-                            <option value="first_friday">First Friday of month</option>
-                            <option value="last_monday">Last Monday of month</option>
-                            <option value="last_tuesday">Last Tuesday of month</option>
-                            <option value="last_wednesday">Last Wednesday of month</option>
-                            <option value="last_thursday">Last Thursday of month</option>
-                            <option value="last_friday">Last Friday of month</option>
-                          </select>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">End date (optional)</label>
-                        <input
-                          type="date"
-                          value={editingTask.recurring_end_date || ''}
-                          onChange={(e) => setEditingTask((prev: any) => ({ 
-                            ...prev, 
-                            recurring_end_date: e.target.value || null
-                          }))}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          min={new Date().toISOString().split('T')[0]}
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Leave empty for no end date</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Comments</label>
