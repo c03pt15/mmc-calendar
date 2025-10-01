@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Plus, X, User, Calendar, Clock, UserCheck, Search, Moon, Sun, Download } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, User, Calendar, Clock, UserCheck, Search, Download } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 const MMCCalendar = () => {
@@ -24,7 +24,6 @@ const MMCCalendar = () => {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [dragOverDate, setDragOverDate] = useState<number | null>(null);
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [showAddCategory, setShowAddCategory] = useState(false);
@@ -476,9 +475,9 @@ const MMCCalendar = () => {
   };
 
   return (
-    <div className={`flex h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+    <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
-      <div className={`w-64 border-r p-4 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+      <div className="w-64 bg-white border-r border-gray-200 p-4">
         <div className="mb-6">
           <div className="flex items-center space-x-2 mb-4">
             <div className="w-8 h-8 flex items-center justify-center">
@@ -488,12 +487,12 @@ const MMCCalendar = () => {
                 className="w-full h-full object-contain"
               />
             </div>
-            <h1 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>MMC Calendar</h1>
+            <h1 className="text-lg font-semibold text-gray-900">MMC Calendar</h1>
           </div>
         </div>
         {/* Monthly Overview */}
         <div className="mb-6">
-          <h3 className={`text-sm font-medium mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Monthly Overview</h3>
+          <h3 className="text-sm font-medium text-gray-900 mb-3">Monthly Overview</h3>
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-green-50 rounded-lg p-3">
               <div className="text-2xl font-bold text-green-600">{upcomingCount}</div>
@@ -574,34 +573,6 @@ const MMCCalendar = () => {
         <div className="mb-6">
           <h3 className="text-sm font-medium text-gray-900 mb-3">Team Members</h3>
           
-          {/* Quick Filter Buttons */}
-          <div className="mb-3">
-            <div className="flex flex-wrap gap-1">
-              <button
-                onClick={() => setSelectedTeamMember(null)}
-                className={`px-2 py-1 text-xs rounded-full ${
-                  selectedTeamMember === null 
-                    ? 'bg-blue-100 text-blue-800' 
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                All
-              </button>
-              {teamMembers.map(member => (
-                <button
-                  key={member.id}
-                  onClick={() => handleTeamMemberClick(member.id)}
-                  className={`px-2 py-1 text-xs rounded-full ${
-                    selectedTeamMember === member.id 
-                      ? 'bg-blue-100 text-blue-800' 
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {member.name.split(' ').map(n => n[0]).join('')}
-                </button>
-              ))}
-            </div>
-          </div>
           
           <div className="space-y-3">
             {teamMembers.map(member => (
@@ -760,19 +731,12 @@ const MMCCalendar = () => {
                 <Plus className="w-4 h-4" />
                 <span>New Entry</span>
               </button>
-              <button
-                onClick={() => setIsDarkMode(!isDarkMode)}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-                title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-              >
-                {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </button>
               
               {/* Export Dropdown */}
               <div className="relative export-container">
                 <button
                   onClick={() => setShowExportMenu(!showExportMenu)}
-                  className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="p-2 rounded-lg hover:bg-gray-100"
                   title="Export data"
                 >
                   <Download className="w-5 h-5" />
