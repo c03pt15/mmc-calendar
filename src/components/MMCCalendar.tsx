@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Plus, X, User, Calendar, Clock, UserCheck, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, User, Calendar, Clock, UserCheck, Search, Moon, Sun } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 const MMCCalendar = () => {
@@ -23,6 +23,8 @@ const MMCCalendar = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [dragOverDate, setDragOverDate] = useState<number | null>(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [newTask, setNewTask] = useState<any>({
     title: '',
     description: '',
@@ -33,7 +35,11 @@ const MMCCalendar = () => {
     year: currentDate.getFullYear(),
     time: '09:00',
     assignee: 1,
-    status: 'planned'
+    status: 'planned',
+    priority: 'medium',
+    is_recurring: false,
+    recurring_pattern: '',
+    comments: ''
   });
 
   const teamMembers = [
@@ -50,6 +56,12 @@ const MMCCalendar = () => {
     socialMedia: { color: 'bg-green-100 text-green-800 border-green-200', type: 'Social' },
     campaigns: { color: 'bg-purple-100 text-purple-800 border-purple-200', type: 'Campaign' },
     emailMarketing: { color: 'bg-orange-100 text-orange-800 border-orange-200', type: 'Email' }
+  };
+
+  const priorityConfig = {
+    high: { color: 'bg-red-100 text-red-800 border-red-200', icon: '🔴', label: 'High' },
+    medium: { color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: '🟡', label: 'Medium' },
+    low: { color: 'bg-green-100 text-green-800 border-green-200', icon: '🟢', label: 'Low' }
   };
 
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
@@ -344,6 +356,46 @@ const MMCCalendar = () => {
     setDraggedTask(null);
   };
 
+  // Calendar drag & drop handlers
+  const handleCalendarDragStart = (e: React.DragEvent, task: any) => {
+    setDraggedTask(task);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleCalendarDragOver = (e: React.DragEvent, date: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverDate(date);
+  };
+
+  const handleCalendarDragLeave = () => {
+    setDragOverDate(null);
+  };
+
+  const handleCalendarDrop = async (e: React.DragEvent, newDate: number) => {
+    e.preventDefault();
+    if (draggedTask && draggedTask.date !== newDate) {
+      const newMonth = currentDate.getMonth();
+      const newYear = currentDate.getFullYear();
+      
+      // Check if the new date is valid for the current month
+      const daysInMonth = new Date(newYear, newMonth + 1, 0).getDate();
+      if (newDate <= daysInMonth) {
+        await supabase
+          .from('tasks')
+          .update({ 
+            date: newDate, 
+            month: newMonth, 
+            year: newYear 
+          })
+          .eq('id', draggedTask.id);
+        await refreshTasks();
+      }
+    }
+    setDraggedTask(null);
+    setDragOverDate(null);
+  };
+
   const getTeamMemberName = (id: number) => {
     return teamMembers.find(member => member.id === id)?.name || 'Unknown';
   };
@@ -374,7 +426,7 @@ const MMCCalendar = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className={`flex h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
       {/* Sidebar */}
       <div className="w-64 bg-white border-r border-gray-200 p-4">
         <div className="mb-6">
@@ -627,6 +679,13 @@ const MMCCalendar = () => {
                 <Plus className="w-4 h-4" />
                 <span>New Entry</span>
               </button>
+              <button
+                onClick={() => setIsDarkMode(!isDarkMode)}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </button>
             </div>
           </div>
         </div>
@@ -649,7 +708,12 @@ const MMCCalendar = () => {
                 {days.map((day, index) => (
                   <div
                     key={index}
-                    className="border-r border-b border-gray-200 last:border-r-0 p-2 min-h-[120px] relative"
+                    className={`border-r border-b border-gray-200 last:border-r-0 p-2 min-h-[120px] relative ${
+                      dragOverDate === day ? 'bg-blue-50 border-blue-300' : ''
+                    }`}
+                    onDragOver={day ? (e) => handleCalendarDragOver(e, day) : undefined}
+                    onDragLeave={day ? handleCalendarDragLeave : undefined}
+                    onDrop={day ? (e) => handleCalendarDrop(e, day) : undefined}
                   >
                     {day && (
                       <>
@@ -662,19 +726,28 @@ const MMCCalendar = () => {
                           {getTasksForDate(day).map(task => (
                             <div
                               key={task.id}
-                              className={`text-xs p-2 rounded border ${task.color} cursor-pointer hover:shadow-sm relative ${
+                              className={`text-xs p-2 rounded border ${task.color} cursor-move hover:shadow-sm relative ${
                                 task.status === 'completed' ? 'opacity-75' : ''
-                              }`}
+                              } ${draggedTask?.id === task.id ? 'opacity-50' : ''}`}
                               onClick={() => handleTaskClick(task)}
+                              draggable
+                              onDragStart={(e) => handleCalendarDragStart(e, task)}
                             >
                               {task.status === 'completed' && (
                                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                   <div className="w-full h-0.5 bg-gray-600 transform rotate-12"></div>
                                 </div>
                               )}
-                              <div className={`font-medium truncate ${
-                                task.status === 'completed' ? 'text-gray-500' : ''
-                              }`}>{task.title}</div>
+                              <div className="flex items-center justify-between">
+                                <div className={`font-medium truncate ${
+                                  task.status === 'completed' ? 'text-gray-500' : ''
+                                }`}>{task.title}</div>
+                                {task.priority && task.priority !== 'medium' && (
+                                  <span className="text-xs ml-1">
+                                    {priorityConfig[task.priority]?.icon || '🟡'}
+                                  </span>
+                                )}
+                              </div>
                               <div className={`${
                                 task.status === 'completed' ? 'text-gray-400' : 'text-gray-600'
                               }`}>{task.type}</div>
@@ -872,6 +945,49 @@ const MMCCalendar = () => {
                     ))}
                   </select>
                 </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                  <select
+                    value={newTask.priority}
+                    onChange={(e) => setNewTask((prev: any) => ({ ...prev, priority: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="low">🟢 Low</option>
+                    <option value="medium">🟡 Medium</option>
+                    <option value="high">🔴 High</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Recurring</label>
+                  <select
+                    value={newTask.recurring_pattern}
+                    onChange={(e) => setNewTask((prev: any) => ({ 
+                      ...prev, 
+                      recurring_pattern: e.target.value,
+                      is_recurring: e.target.value !== ''
+                    }))}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">No Recurrence</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Comments</label>
+                <textarea
+                  value={newTask.comments}
+                  onChange={(e) => setNewTask((prev: any) => ({ ...prev, comments: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={2}
+                  placeholder="Add any additional notes or comments..."
+                />
               </div>
             </div>
             <div className="flex space-x-3 mt-6">
