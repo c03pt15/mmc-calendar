@@ -604,9 +604,9 @@ const MMCCalendar = () => {
             {allFilteredTasks.slice(0, 3).map(task => (
               <div key={task.id} className="flex items-start space-x-2">
                 <div className={`w-2 h-2 rounded-full mt-2 ${
-                  task.status === 'completed' ? 'bg-green-400' :
-                  task.status === 'in-progress' ? 'bg-blue-400' : 
-                  task.status === 'review' ? 'bg-yellow-400' : 'bg-gray-400'
+                  task.status === 'completed' ? 'bg-blue-500' :
+                  task.status === 'in-progress' ? 'bg-yellow-500' : 
+                  task.status === 'review' ? 'bg-orange-500' : 'bg-green-500'
                 }`}></div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm text-gray-900">{task.title}</div>
@@ -1085,6 +1085,31 @@ const MMCCalendar = () => {
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
                     <option value="monthly">Monthly</option>
+                    <option value="first_monday">First Monday of Month</option>
+                    <option value="first_tuesday">First Tuesday of Month</option>
+                    <option value="first_wednesday">First Wednesday of Month</option>
+                    <option value="first_thursday">First Thursday of Month</option>
+                    <option value="first_friday">First Friday of Month</option>
+                    <option value="last_monday">Last Monday of Month</option>
+                    <option value="last_tuesday">Last Tuesday of Month</option>
+                    <option value="last_wednesday">Last Wednesday of Month</option>
+                    <option value="last_thursday">Last Thursday of Month</option>
+                    <option value="last_friday">Last Friday of Month</option>
+                    <option value="second_monday">Second Monday of Month</option>
+                    <option value="second_tuesday">Second Tuesday of Month</option>
+                    <option value="second_wednesday">Second Wednesday of Month</option>
+                    <option value="second_thursday">Second Thursday of Month</option>
+                    <option value="second_friday">Second Friday of Month</option>
+                    <option value="third_monday">Third Monday of Month</option>
+                    <option value="third_tuesday">Third Tuesday of Month</option>
+                    <option value="third_wednesday">Third Wednesday of Month</option>
+                    <option value="third_thursday">Third Thursday of Month</option>
+                    <option value="third_friday">Third Friday of Month</option>
+                    <option value="fourth_monday">Fourth Monday of Month</option>
+                    <option value="fourth_tuesday">Fourth Tuesday of Month</option>
+                    <option value="fourth_wednesday">Fourth Wednesday of Month</option>
+                    <option value="fourth_thursday">Fourth Thursday of Month</option>
+                    <option value="fourth_friday">Fourth Friday of Month</option>
                   </select>
                 </div>
               </div>
@@ -1371,6 +1396,49 @@ const MMCCalendar = () => {
                     <option value="high">🔴 High</option>
                   </select>
                 </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Recurring</label>
+                <select
+                  value={editingTask.recurring_pattern || ''}
+                  onChange={(e) => setEditingTask((prev: any) => ({ 
+                    ...prev, 
+                    recurring_pattern: e.target.value,
+                    is_recurring: e.target.value !== ''
+                  }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">No Recurrence</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="first_monday">First Monday of Month</option>
+                  <option value="first_tuesday">First Tuesday of Month</option>
+                  <option value="first_wednesday">First Wednesday of Month</option>
+                  <option value="first_thursday">First Thursday of Month</option>
+                  <option value="first_friday">First Friday of Month</option>
+                  <option value="last_monday">Last Monday of Month</option>
+                  <option value="last_tuesday">Last Tuesday of Month</option>
+                  <option value="last_wednesday">Last Wednesday of Month</option>
+                  <option value="last_thursday">Last Thursday of Month</option>
+                  <option value="last_friday">Last Friday of Month</option>
+                  <option value="second_monday">Second Monday of Month</option>
+                  <option value="second_tuesday">Second Tuesday of Month</option>
+                  <option value="second_wednesday">Second Wednesday of Month</option>
+                  <option value="second_thursday">Second Thursday of Month</option>
+                  <option value="second_friday">Second Friday of Month</option>
+                  <option value="third_monday">Third Monday of Month</option>
+                  <option value="third_tuesday">Third Tuesday of Month</option>
+                  <option value="third_wednesday">Third Wednesday of Month</option>
+                  <option value="third_thursday">Third Thursday of Month</option>
+                  <option value="third_friday">Third Friday of Month</option>
+                  <option value="fourth_monday">Fourth Monday of Month</option>
+                  <option value="fourth_tuesday">Fourth Tuesday of Month</option>
+                  <option value="fourth_wednesday">Fourth Wednesday of Month</option>
+                  <option value="fourth_thursday">Fourth Thursday of Month</option>
+                  <option value="fourth_friday">Fourth Friday of Month</option>
+                </select>
               </div>
               
               <div>
