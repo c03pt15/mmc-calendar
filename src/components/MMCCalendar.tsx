@@ -694,15 +694,15 @@ const MMCCalendar = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
-                  <select
+                  <input
+                    type="number"
                     value={newTask.year}
-                    onChange={(e) => setNewTask((prev: any) => ({ ...prev, year: parseInt(e.target.value) }))}
+                    onChange={(e) => setNewTask((prev: any) => ({ ...prev, year: parseInt(e.target.value) || new Date().getFullYear() }))}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value={2024}>2024</option>
-                    <option value={2025}>2025</option>
-                    <option value={2026}>2026</option>
-                  </select>
+                    min="2020"
+                    max="2030"
+                    placeholder="Enter year"
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -919,15 +919,15 @@ const MMCCalendar = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
-                  <select
+                  <input
+                    type="number"
                     value={editingTask.year}
-                    onChange={(e) => setEditingTask((prev: any) => ({ ...prev, year: parseInt(e.target.value) }))}
+                    onChange={(e) => setEditingTask((prev: any) => ({ ...prev, year: parseInt(e.target.value) || new Date().getFullYear() }))}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value={2024}>2024</option>
-                    <option value={2025}>2025</option>
-                    <option value={2026}>2026</option>
-                  </select>
+                    min="2020"
+                    max="2030"
+                    placeholder="Enter year"
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
