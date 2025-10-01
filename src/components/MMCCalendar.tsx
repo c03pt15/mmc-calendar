@@ -141,18 +141,30 @@ const MMCCalendar = () => {
   };
 
   const getTasksForDate = (date: number) => {
-    let tasks = recurringInstances.filter(task => task.date === date && selectedFilters[task.category]);
+    let tasks = recurringInstances.filter(task => 
+      task.date === date && 
+      task.month === currentDate.getMonth() && 
+      task.year === currentDate.getFullYear() &&
+      selectedFilters[task.category]
+    );
     if (selectedTeamMember) tasks = tasks.filter(task => task.assignee === selectedTeamMember);
     return tasks;
   };
 
   const getAllFilteredTasks = () => {
-    let tasks = recurringInstances.filter(task => selectedFilters[task.category]);
+    let tasks = recurringInstances.filter(task => 
+      task.month === currentDate.getMonth() && 
+      task.year === currentDate.getFullYear() &&
+      selectedFilters[task.category]
+    );
     if (selectedTeamMember) tasks = tasks.filter(task => task.assignee === selectedTeamMember);
     return tasks;
   };
 
-  const allTasksWithRecurring = recurringInstances;
+  const allTasksWithRecurring = recurringInstances.filter(task => 
+    task.month === currentDate.getMonth() && 
+    task.year === currentDate.getFullYear()
+  );
 
   const filterCounts = {
     blogPosts: allTasksWithRecurring.filter(t => t.category === 'blogPosts' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
@@ -317,7 +329,7 @@ const MMCCalendar = () => {
   };
 
   // Generate recurring task instances
-  const generateRecurringInstances = (task: any, currentMonth: number, currentYear: number) => {
+  const generateRecurringInstances = (task: any) => {
     if (!task.is_recurring || !task.recurring_pattern) return [task];
 
     const instances = [task];
@@ -459,17 +471,15 @@ const MMCCalendar = () => {
       }
     }
 
-    // Filter instances to only show those in the current month/year
-    return instances.filter(instance => 
-      instance.month === currentMonth && instance.year === currentYear
-    );
+    return instances;
   };
 
   // Generate recurring instances when tasks or current date changes
   useEffect(() => {
     const instances = currentMonthTasks.flatMap(task => 
-      generateRecurringInstances(task, currentDate.getMonth(), currentDate.getFullYear())
+      generateRecurringInstances(task)
     );
+    console.log('Generated recurring instances:', instances);
     setRecurringInstances(instances);
   }, [currentMonthTasks, currentDate]);
 
