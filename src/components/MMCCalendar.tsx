@@ -327,8 +327,8 @@ const MMCCalendar = () => {
         <div className="mb-6">
           <h3 className="text-sm font-medium text-gray-900 mb-3">Overview</h3>
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-gray-100 rounded-lg p-3">
-              <div className="text-2xl font-bold text-blue-600">{upcomingCount}</div>
+            <div className="bg-green-50 rounded-lg p-3">
+              <div className="text-2xl font-bold text-green-600">{upcomingCount}</div>
               <div className="text-xs text-gray-600">Upcoming</div>
             </div>
             <div className="bg-yellow-50 rounded-lg p-3">
@@ -339,8 +339,8 @@ const MMCCalendar = () => {
               <div className="text-2xl font-bold text-orange-600">{reviewCount}</div>
               <div className="text-xs text-gray-600">Under Review</div>
             </div>
-            <div className="bg-green-50 rounded-lg p-3">
-              <div className="text-2xl font-bold text-green-600">{completedCount}</div>
+            <div className="bg-blue-50 rounded-lg p-3">
+              <div className="text-2xl font-bold text-blue-600">{completedCount}</div>
               <div className="text-xs text-gray-600">Completed</div>
             </div>
           </div>
