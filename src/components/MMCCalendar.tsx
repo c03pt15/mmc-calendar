@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Plus, X, User, Calendar, Clock, UserCheck } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, User, Calendar, Clock, UserCheck, Search } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 const MMCCalendar = () => {
@@ -20,6 +20,9 @@ const MMCCalendar = () => {
   const [draggedTask, setDraggedTask] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [allTasks, setAllTasks] = useState<{ [key: string]: any[] }>({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
   const [newTask, setNewTask] = useState<any>({
     title: '',
     description: '',
@@ -226,6 +229,50 @@ const MMCCalendar = () => {
     setShowTaskModal(false);
     setShowNewEntryModal(true);
   };
+
+  // Search functionality
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    if (query.trim() === '') {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    const allTasksFlat = Object.values(allTasks).flat();
+    const results = allTasksFlat.filter(task => 
+      task.title.toLowerCase().includes(query.toLowerCase()) ||
+      task.description.toLowerCase().includes(query.toLowerCase()) ||
+      task.type.toLowerCase().includes(query.toLowerCase()) ||
+      getTeamMemberName(task.assignee).toLowerCase().includes(query.toLowerCase())
+    );
+    
+    setSearchResults(results);
+    setShowSearchResults(true);
+  };
+
+  const handleSearchResultClick = (task: any) => {
+    setSelectedTask(task);
+    setShowTaskModal(true);
+    setSearchQuery('');
+    setSearchResults([]);
+    setShowSearchResults(false);
+  };
+
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.search-container')) {
+        setShowSearchResults(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const handleSaveEditTask = async () => {
     try {
@@ -502,6 +549,55 @@ const MMCCalendar = () => {
               </button>
             </div>
             <div className="flex items-center space-x-4">
+              {/* Search Box */}
+              <div className="relative search-container">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Search tasks..."
+                    value={searchQuery}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    onFocus={() => searchQuery && setShowSearchResults(true)}
+                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+                  />
+                </div>
+                
+                {/* Search Results Dropdown */}
+                {showSearchResults && searchResults.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+                    {searchResults.map((task) => (
+                      <div
+                        key={task.id}
+                        onClick={() => handleSearchResultClick(task)}
+                        className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                      >
+                        <div className="font-medium text-gray-900">{task.title}</div>
+                        <div className="text-sm text-gray-600 truncate">{task.description}</div>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <span className={`text-xs px-2 py-1 rounded ${task.color}`}>
+                            {task.type}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {monthNames[task.month || currentDate.getMonth()]} {task.date}, {task.year || currentDate.getFullYear()}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {getTeamMemberName(task.assignee)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* No Results Message */}
+                {showSearchResults && searchResults.length === 0 && searchQuery && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-3">
+                    <div className="text-gray-500 text-sm">No tasks found matching "{searchQuery}"</div>
+                  </div>
+                )}
+              </div>
+
               <div className="flex bg-gray-100 rounded-lg p-1">
                 <button
                   className={`px-3 py-1 text-sm rounded-md ${
