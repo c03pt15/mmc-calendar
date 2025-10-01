@@ -311,8 +311,13 @@ const MMCCalendar = () => {
       <div className="w-64 bg-white border-r border-gray-200 p-4">
         <div className="mb-6">
           <div className="flex items-center space-x-2 mb-4">
-            <div className="w-8 h-8 bg-teal-600 rounded flex items-center justify-center text-white font-bold">
-              A
+            <div className="w-8 h-8 bg-teal-600 rounded flex flex-col items-center justify-center text-white relative overflow-hidden">
+              <div className="text-lg font-bold -mb-1">A</div>
+              <div className="w-full h-0.5 bg-gradient-to-r from-yellow-300 to-cyan-300 relative">
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-1 h-1 bg-white rounded-full"></div>
+                </div>
+              </div>
             </div>
             <h1 className="text-lg font-semibold text-gray-900">MMC Calendar</h1>
           </div>
