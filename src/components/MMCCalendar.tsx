@@ -59,28 +59,48 @@ const MMCCalendar = () => {
   // Fetch tasks from Supabase for the current month
   useEffect(() => {
     const fetchTasks = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('year', currentDate.getFullYear())
-        .eq('month', currentDate.getMonth());
-      if (!error) {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('tasks')
+          .select('*')
+          .eq('year', currentDate.getFullYear())
+          .eq('month', currentDate.getMonth());
+        
+        if (error) {
+          console.error('Error fetching tasks:', error);
+          alert(`Error loading tasks: ${error.message}`);
+          return;
+        }
+        
+        console.log('Tasks fetched successfully:', data);
         setAllTasks((prev) => ({ ...prev, [currentMonthKey]: data || [] }));
+      } catch (err) {
+        console.error('Unexpected error fetching tasks:', err);
+        alert(`Unexpected error: ${err}`);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     fetchTasks();
   }, [currentDate]);
 
   const refreshTasks = async () => {
-    const { data, error } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('year', currentDate.getFullYear())
-      .eq('month', currentDate.getMonth());
-    if (!error) {
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('year', currentDate.getFullYear())
+        .eq('month', currentDate.getMonth());
+      
+      if (error) {
+        console.error('Error refreshing tasks:', error);
+        return;
+      }
+      
       setAllTasks((prev) => ({ ...prev, [currentMonthKey]: data || [] }));
+    } catch (err) {
+      console.error('Unexpected error refreshing tasks:', err);
     }
   };
 
@@ -154,13 +174,30 @@ const MMCCalendar = () => {
   };
 
   const handleSaveNewTask = async () => {
-    const task = {
-      ...newTask,
-      color: categoryConfig[newTask.category].color
-    };
-    await supabase.from('tasks').insert([task]);
-    setShowNewEntryModal(false);
-    await refreshTasks();
+    try {
+      setLoading(true);
+      const task = {
+        ...newTask,
+        color: categoryConfig[newTask.category].color
+      };
+      
+      const { data, error } = await supabase.from('tasks').insert([task]);
+      
+      if (error) {
+        console.error('Error saving task:', error);
+        alert(`Error saving task: ${error.message}`);
+        return;
+      }
+      
+      console.log('Task saved successfully:', data);
+      setShowNewEntryModal(false);
+      await refreshTasks();
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      alert(`Unexpected error: ${err}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEditTask = () => {
@@ -170,19 +207,52 @@ const MMCCalendar = () => {
   };
 
   const handleSaveEditTask = async () => {
-    const updatedTask = { ...editingTask, color: categoryConfig[editingTask.category].color };
-    await supabase.from('tasks').update(updatedTask).eq('id', editingTask.id);
-    setShowEditModal(false);
-    setEditingTask(null);
-    await refreshTasks();
+    try {
+      setLoading(true);
+      const updatedTask = { ...editingTask, color: categoryConfig[editingTask.category].color };
+      
+      const { data, error } = await supabase.from('tasks').update(updatedTask).eq('id', editingTask.id);
+      
+      if (error) {
+        console.error('Error updating task:', error);
+        alert(`Error updating task: ${error.message}`);
+        return;
+      }
+      
+      console.log('Task updated successfully:', data);
+      setShowEditModal(false);
+      setEditingTask(null);
+      await refreshTasks();
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      alert(`Unexpected error: ${err}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDeleteTask = async () => {
     if (window.confirm('Are you sure you want to delete this task?')) {
-      await supabase.from('tasks').delete().eq('id', selectedTask.id);
-      setShowTaskModal(false);
-      setSelectedTask(null);
-      await refreshTasks();
+      try {
+        setLoading(true);
+        const { data, error } = await supabase.from('tasks').delete().eq('id', selectedTask.id);
+        
+        if (error) {
+          console.error('Error deleting task:', error);
+          alert(`Error deleting task: ${error.message}`);
+          return;
+        }
+        
+        console.log('Task deleted successfully:', data);
+        setShowTaskModal(false);
+        setSelectedTask(null);
+        await refreshTasks();
+      } catch (err) {
+        console.error('Unexpected error:', err);
+        alert(`Unexpected error: ${err}`);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
