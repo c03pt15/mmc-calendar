@@ -533,13 +533,26 @@ const MMCCalendar = () => {
                           {getTasksForDate(day).map(task => (
                             <div
                               key={task.id}
-                              className={`text-xs p-2 rounded border ${task.color} cursor-pointer hover:shadow-sm`}
+                              className={`text-xs p-2 rounded border ${task.color} cursor-pointer hover:shadow-sm relative ${
+                                task.status === 'completed' ? 'opacity-75' : ''
+                              }`}
                               onClick={() => handleTaskClick(task)}
                             >
-                              <div className="font-medium truncate">{task.title}</div>
-                              <div className="text-gray-600">{task.type}</div>
+                              {task.status === 'completed' && (
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                  <div className="w-full h-0.5 bg-gray-600 transform rotate-12"></div>
+                                </div>
+                              )}
+                              <div className={`font-medium truncate ${
+                                task.status === 'completed' ? 'text-gray-500' : ''
+                              }`}>{task.title}</div>
+                              <div className={`${
+                                task.status === 'completed' ? 'text-gray-400' : 'text-gray-600'
+                              }`}>{task.type}</div>
                               {task.time && (
-                                <div className="text-gray-500">{task.time}</div>
+                                <div className={`${
+                                  task.status === 'completed' ? 'text-gray-400' : 'text-gray-500'
+                                }`}>{task.time}</div>
                               )}
                             </div>
                           ))}
