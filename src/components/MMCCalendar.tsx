@@ -1072,45 +1072,72 @@ const MMCCalendar = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Recurring</label>
-                  <select
-                    value={newTask.recurring_pattern}
-                    onChange={(e) => setNewTask((prev: any) => ({ 
-                      ...prev, 
-                      recurring_pattern: e.target.value,
-                      is_recurring: e.target.value !== ''
-                    }))}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">No Recurrence</option>
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="first_monday">First Monday of Month</option>
-                    <option value="first_tuesday">First Tuesday of Month</option>
-                    <option value="first_wednesday">First Wednesday of Month</option>
-                    <option value="first_thursday">First Thursday of Month</option>
-                    <option value="first_friday">First Friday of Month</option>
-                    <option value="last_monday">Last Monday of Month</option>
-                    <option value="last_tuesday">Last Tuesday of Month</option>
-                    <option value="last_wednesday">Last Wednesday of Month</option>
-                    <option value="last_thursday">Last Thursday of Month</option>
-                    <option value="last_friday">Last Friday of Month</option>
-                    <option value="second_monday">Second Monday of Month</option>
-                    <option value="second_tuesday">Second Tuesday of Month</option>
-                    <option value="second_wednesday">Second Wednesday of Month</option>
-                    <option value="second_thursday">Second Thursday of Month</option>
-                    <option value="second_friday">Second Friday of Month</option>
-                    <option value="third_monday">Third Monday of Month</option>
-                    <option value="third_tuesday">Third Tuesday of Month</option>
-                    <option value="third_wednesday">Third Wednesday of Month</option>
-                    <option value="third_thursday">Third Thursday of Month</option>
-                    <option value="third_friday">Third Friday of Month</option>
-                    <option value="fourth_monday">Fourth Monday of Month</option>
-                    <option value="fourth_tuesday">Fourth Tuesday of Month</option>
-                    <option value="fourth_wednesday">Fourth Wednesday of Month</option>
-                    <option value="fourth_thursday">Fourth Thursday of Month</option>
-                    <option value="fourth_friday">Fourth Friday of Month</option>
-                  </select>
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="is_recurring"
+                        checked={newTask.is_recurring}
+                        onChange={(e) => setNewTask((prev: any) => ({ 
+                          ...prev, 
+                          is_recurring: e.target.checked,
+                          recurring_pattern: e.target.checked ? prev.recurring_pattern || 'weekly' : '',
+                          recurring_end_date: e.target.checked ? prev.recurring_end_date : null
+                        }))}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="is_recurring" className="text-sm text-gray-700">
+                        Make this task recurring
+                      </label>
+                    </div>
+                    
+                    {newTask.is_recurring && (
+                      <div className="ml-6 space-y-3 border-l-2 border-gray-200 pl-4">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Repeat every</label>
+                          <div className="flex space-x-2">
+                            <select
+                              value={newTask.recurring_pattern}
+                              onChange={(e) => setNewTask((prev: any) => ({ 
+                                ...prev, 
+                                recurring_pattern: e.target.value
+                              }))}
+                              className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="daily">Day</option>
+                              <option value="weekly">Week</option>
+                              <option value="monthly">Month</option>
+                              <option value="first_monday">First Monday of month</option>
+                              <option value="first_tuesday">First Tuesday of month</option>
+                              <option value="first_wednesday">First Wednesday of month</option>
+                              <option value="first_thursday">First Thursday of month</option>
+                              <option value="first_friday">First Friday of month</option>
+                              <option value="last_monday">Last Monday of month</option>
+                              <option value="last_tuesday">Last Tuesday of month</option>
+                              <option value="last_wednesday">Last Wednesday of month</option>
+                              <option value="last_thursday">Last Thursday of month</option>
+                              <option value="last_friday">Last Friday of month</option>
+                            </select>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">End date (optional)</label>
+                          <input
+                            type="date"
+                            value={newTask.recurring_end_date || ''}
+                            onChange={(e) => setNewTask((prev: any) => ({ 
+                              ...prev, 
+                              recurring_end_date: e.target.value || null
+                            }))}
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            min={new Date().toISOString().split('T')[0]}
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Leave empty for no end date</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
               
@@ -1400,45 +1427,72 @@ const MMCCalendar = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Recurring</label>
-                <select
-                  value={editingTask.recurring_pattern || ''}
-                  onChange={(e) => setEditingTask((prev: any) => ({ 
-                    ...prev, 
-                    recurring_pattern: e.target.value,
-                    is_recurring: e.target.value !== ''
-                  }))}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">No Recurrence</option>
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="first_monday">First Monday of Month</option>
-                  <option value="first_tuesday">First Tuesday of Month</option>
-                  <option value="first_wednesday">First Wednesday of Month</option>
-                  <option value="first_thursday">First Thursday of Month</option>
-                  <option value="first_friday">First Friday of Month</option>
-                  <option value="last_monday">Last Monday of Month</option>
-                  <option value="last_tuesday">Last Tuesday of Month</option>
-                  <option value="last_wednesday">Last Wednesday of Month</option>
-                  <option value="last_thursday">Last Thursday of Month</option>
-                  <option value="last_friday">Last Friday of Month</option>
-                  <option value="second_monday">Second Monday of Month</option>
-                  <option value="second_tuesday">Second Tuesday of Month</option>
-                  <option value="second_wednesday">Second Wednesday of Month</option>
-                  <option value="second_thursday">Second Thursday of Month</option>
-                  <option value="second_friday">Second Friday of Month</option>
-                  <option value="third_monday">Third Monday of Month</option>
-                  <option value="third_tuesday">Third Tuesday of Month</option>
-                  <option value="third_wednesday">Third Wednesday of Month</option>
-                  <option value="third_thursday">Third Thursday of Month</option>
-                  <option value="third_friday">Third Friday of Month</option>
-                  <option value="fourth_monday">Fourth Monday of Month</option>
-                  <option value="fourth_tuesday">Fourth Tuesday of Month</option>
-                  <option value="fourth_wednesday">Fourth Wednesday of Month</option>
-                  <option value="fourth_thursday">Fourth Thursday of Month</option>
-                  <option value="fourth_friday">Fourth Friday of Month</option>
-                </select>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="edit_is_recurring"
+                      checked={editingTask.is_recurring || false}
+                      onChange={(e) => setEditingTask((prev: any) => ({ 
+                        ...prev, 
+                        is_recurring: e.target.checked,
+                        recurring_pattern: e.target.checked ? prev.recurring_pattern || 'weekly' : '',
+                        recurring_end_date: e.target.checked ? prev.recurring_end_date : null
+                      }))}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="edit_is_recurring" className="text-sm text-gray-700">
+                      Make this task recurring
+                    </label>
+                  </div>
+                  
+                  {(editingTask.is_recurring || false) && (
+                    <div className="ml-6 space-y-3 border-l-2 border-gray-200 pl-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Repeat every</label>
+                        <div className="flex space-x-2">
+                          <select
+                            value={editingTask.recurring_pattern || ''}
+                            onChange={(e) => setEditingTask((prev: any) => ({ 
+                              ...prev, 
+                              recurring_pattern: e.target.value
+                            }))}
+                            className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="daily">Day</option>
+                            <option value="weekly">Week</option>
+                            <option value="monthly">Month</option>
+                            <option value="first_monday">First Monday of month</option>
+                            <option value="first_tuesday">First Tuesday of month</option>
+                            <option value="first_wednesday">First Wednesday of month</option>
+                            <option value="first_thursday">First Thursday of month</option>
+                            <option value="first_friday">First Friday of month</option>
+                            <option value="last_monday">Last Monday of month</option>
+                            <option value="last_tuesday">Last Tuesday of month</option>
+                            <option value="last_wednesday">Last Wednesday of month</option>
+                            <option value="last_thursday">Last Thursday of month</option>
+                            <option value="last_friday">Last Friday of month</option>
+                          </select>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">End date (optional)</label>
+                        <input
+                          type="date"
+                          value={editingTask.recurring_end_date || ''}
+                          onChange={(e) => setEditingTask((prev: any) => ({ 
+                            ...prev, 
+                            recurring_end_date: e.target.value || null
+                          }))}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          min={new Date().toISOString().split('T')[0]}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Leave empty for no end date</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
               
               <div>
