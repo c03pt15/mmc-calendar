@@ -485,6 +485,7 @@ const MMCCalendar = () => {
                 <Plus className="w-4 h-4" />
                 <span>New Entry</span>
               </button>
+              <div className="text-sm text-gray-500">MMC Content Calendar</div>
             </div>
           </div>
         </div>
