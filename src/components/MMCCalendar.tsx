@@ -142,20 +142,45 @@ const MMCCalendar = () => {
   const getTasksForDate = (date: number) => {
     let tasks = currentMonthTasks.filter(task => task.date === date && selectedFilters[task.category]);
     if (selectedTeamMember) tasks = tasks.filter(task => task.assignee === selectedTeamMember);
-    return tasks;
+    
+    // Generate recurring instances for the current date
+    const recurringInstances = tasks.flatMap(task => generateRecurringInstances(task))
+      .filter(instance => {
+        // Only show instances that match the current date and are within the current month/year
+        return instance.date === date && 
+               instance.month === currentDate.getMonth() && 
+               instance.year === currentDate.getFullYear();
+      });
+    
+    return recurringInstances;
   };
 
   const getAllFilteredTasks = () => {
     let tasks = currentMonthTasks.filter(task => selectedFilters[task.category]);
     if (selectedTeamMember) tasks = tasks.filter(task => task.assignee === selectedTeamMember);
-    return tasks;
+    
+    // Generate recurring instances for all tasks
+    const recurringInstances = tasks.flatMap(task => generateRecurringInstances(task))
+      .filter(instance => {
+        // Only show instances within the current month/year
+        return instance.month === currentDate.getMonth() && 
+               instance.year === currentDate.getFullYear();
+      });
+    
+    return recurringInstances;
   };
 
+  const allTasksWithRecurring = currentMonthTasks.flatMap(task => generateRecurringInstances(task))
+    .filter(instance => {
+      return instance.month === currentDate.getMonth() && 
+             instance.year === currentDate.getFullYear();
+    });
+
   const filterCounts = {
-    blogPosts: currentMonthTasks.filter(t => t.category === 'blogPosts' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
-    socialMedia: currentMonthTasks.filter(t => t.category === 'socialMedia' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
-    campaigns: currentMonthTasks.filter(t => t.category === 'campaigns' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
-    emailMarketing: currentMonthTasks.filter(t => t.category === 'emailMarketing' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length
+    blogPosts: allTasksWithRecurring.filter(t => t.category === 'blogPosts' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
+    socialMedia: allTasksWithRecurring.filter(t => t.category === 'socialMedia' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
+    campaigns: allTasksWithRecurring.filter(t => t.category === 'campaigns' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
+    emailMarketing: allTasksWithRecurring.filter(t => t.category === 'emailMarketing' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length
   };
 
   const allFilteredTasks = getAllFilteredTasks();
@@ -311,6 +336,152 @@ const MMCCalendar = () => {
       setNewCategoryName('');
       setShowAddCategory(false);
     }
+  };
+
+  // Generate recurring task instances
+  const generateRecurringInstances = (task: any) => {
+    if (!task.is_recurring || !task.recurring_pattern) return [task];
+
+    const instances = [task];
+    const startDate = new Date(task.year, task.month, task.date);
+    const endDate = task.recurring_end_date ? new Date(task.recurring_end_date) : new Date(startDate.getFullYear() + 1, startDate.getMonth(), startDate.getDate());
+    
+    let currentDate = new Date(startDate);
+    const maxInstances = 50; // Prevent infinite loops
+    let instanceCount = 0;
+
+    while (currentDate <= endDate && instanceCount < maxInstances) {
+      let nextDate: Date;
+
+      switch (task.recurring_pattern) {
+        case 'daily':
+          nextDate = new Date(currentDate);
+          nextDate.setDate(currentDate.getDate() + 1);
+          break;
+        
+        case 'weekly':
+          nextDate = new Date(currentDate);
+          nextDate.setDate(currentDate.getDate() + 7);
+          break;
+        
+        case 'monthly':
+          nextDate = new Date(currentDate);
+          nextDate.setMonth(currentDate.getMonth() + 1);
+          break;
+        
+        case 'first_monday':
+          nextDate = new Date(currentDate);
+          nextDate.setMonth(currentDate.getMonth() + 1);
+          nextDate.setDate(1);
+          while (nextDate.getDay() !== 1) {
+            nextDate.setDate(nextDate.getDate() + 1);
+          }
+          break;
+        
+        case 'first_tuesday':
+          nextDate = new Date(currentDate);
+          nextDate.setMonth(currentDate.getMonth() + 1);
+          nextDate.setDate(1);
+          while (nextDate.getDay() !== 2) {
+            nextDate.setDate(nextDate.getDate() + 1);
+          }
+          break;
+        
+        case 'first_wednesday':
+          nextDate = new Date(currentDate);
+          nextDate.setMonth(currentDate.getMonth() + 1);
+          nextDate.setDate(1);
+          while (nextDate.getDay() !== 3) {
+            nextDate.setDate(nextDate.getDate() + 1);
+          }
+          break;
+        
+        case 'first_thursday':
+          nextDate = new Date(currentDate);
+          nextDate.setMonth(currentDate.getMonth() + 1);
+          nextDate.setDate(1);
+          while (nextDate.getDay() !== 4) {
+            nextDate.setDate(nextDate.getDate() + 1);
+          }
+          break;
+        
+        case 'first_friday':
+          nextDate = new Date(currentDate);
+          nextDate.setMonth(currentDate.getMonth() + 1);
+          nextDate.setDate(1);
+          while (nextDate.getDay() !== 5) {
+            nextDate.setDate(nextDate.getDate() + 1);
+          }
+          break;
+        
+        case 'last_monday':
+          nextDate = new Date(currentDate);
+          nextDate.setMonth(currentDate.getMonth() + 1);
+          nextDate.setDate(0); // Last day of current month
+          while (nextDate.getDay() !== 1) {
+            nextDate.setDate(nextDate.getDate() - 1);
+          }
+          break;
+        
+        case 'last_tuesday':
+          nextDate = new Date(currentDate);
+          nextDate.setMonth(currentDate.getMonth() + 1);
+          nextDate.setDate(0);
+          while (nextDate.getDay() !== 2) {
+            nextDate.setDate(nextDate.getDate() - 1);
+          }
+          break;
+        
+        case 'last_wednesday':
+          nextDate = new Date(currentDate);
+          nextDate.setMonth(currentDate.getMonth() + 1);
+          nextDate.setDate(0);
+          while (nextDate.getDay() !== 3) {
+            nextDate.setDate(nextDate.getDate() - 1);
+          }
+          break;
+        
+        case 'last_thursday':
+          nextDate = new Date(currentDate);
+          nextDate.setMonth(currentDate.getMonth() + 1);
+          nextDate.setDate(0);
+          while (nextDate.getDay() !== 4) {
+            nextDate.setDate(nextDate.getDate() - 1);
+          }
+          break;
+        
+        case 'last_friday':
+          nextDate = new Date(currentDate);
+          nextDate.setMonth(currentDate.getMonth() + 1);
+          nextDate.setDate(0);
+          while (nextDate.getDay() !== 5) {
+            nextDate.setDate(nextDate.getDate() - 1);
+          }
+          break;
+        
+        default:
+          return [task];
+      }
+
+      if (nextDate <= endDate) {
+        const newInstance = {
+          ...task,
+          id: `${task.id}_${nextDate.getFullYear()}_${nextDate.getMonth()}_${nextDate.getDate()}`,
+          date: nextDate.getDate(),
+          month: nextDate.getMonth(),
+          year: nextDate.getFullYear(),
+          parent_task_id: task.id,
+          is_recurring: false // Mark instances as non-recurring to prevent double generation
+        };
+        instances.push(newInstance);
+        currentDate = nextDate;
+        instanceCount++;
+      } else {
+        break;
+      }
+    }
+
+    return instances;
   };
 
   const removeCustomCategory = (category: string) => {
