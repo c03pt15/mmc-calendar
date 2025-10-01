@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Plus, X, User, Calendar, Clock, UserCheck, Search, Moon, Sun } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, User, Calendar, Clock, UserCheck, Search, Moon, Sun, Download } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 const MMCCalendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [activeView, setActiveView] = useState('Calendar');
+  const [calendarView, setCalendarView] = useState('month'); // month, week, day
   const [selectedFilters, setSelectedFilters] = useState({
     blogPosts: true,
     socialMedia: true,
@@ -25,6 +26,7 @@ const MMCCalendar = () => {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [dragOverDate, setDragOverDate] = useState<number | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const [newTask, setNewTask] = useState<any>({
     title: '',
     description: '',
@@ -271,12 +273,50 @@ const MMCCalendar = () => {
     setShowSearchResults(false);
   };
 
-  // Close search results when clicking outside
+  // Export functionality
+  const exportToCSV = () => {
+    const allTasksFlat = Object.values(allTasks).flat();
+    const csvContent = [
+      ['Title', 'Description', 'Type', 'Category', 'Date', 'Month', 'Year', 'Time', 'Assignee', 'Status', 'Priority'],
+      ...allTasksFlat.map(task => [
+        task.title,
+        task.description,
+        task.type,
+        task.category,
+        task.date,
+        task.month + 1, // Convert to 1-based month
+        task.year,
+        task.time || '',
+        getTeamMemberName(task.assignee),
+        task.status,
+        task.priority || 'medium'
+      ])
+    ].map(row => row.map(field => `"${field}"`).join(',')).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mmc-calendar-${currentDate.getFullYear()}-${currentDate.getMonth() + 1}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const exportToPDF = () => {
+    // Simple PDF export using window.print() for now
+    // In a real app, you'd use a library like jsPDF
+    window.print();
+  };
+
+  // Close search results and export menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
       if (!target.closest('.search-container')) {
         setShowSearchResults(false);
+      }
+      if (!target.closest('.export-container')) {
+        setShowExportMenu(false);
       }
     };
 
@@ -523,6 +563,36 @@ const MMCCalendar = () => {
         {/* Team Members */}
         <div className="mb-6">
           <h3 className="text-sm font-medium text-gray-900 mb-3">Team Members</h3>
+          
+          {/* Quick Filter Buttons */}
+          <div className="mb-3">
+            <div className="flex flex-wrap gap-1">
+              <button
+                onClick={() => setSelectedTeamMember(null)}
+                className={`px-2 py-1 text-xs rounded-full ${
+                  selectedTeamMember === null 
+                    ? 'bg-blue-100 text-blue-800' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                All
+              </button>
+              {teamMembers.map(member => (
+                <button
+                  key={member.id}
+                  onClick={() => handleTeamMemberClick(member.id)}
+                  className={`px-2 py-1 text-xs rounded-full ${
+                    selectedTeamMember === member.id 
+                      ? 'bg-blue-100 text-blue-800' 
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {member.avatar}
+                </button>
+              ))}
+            </div>
+          </div>
+          
           <div className="space-y-3">
             {teamMembers.map(member => (
               <div 
@@ -672,6 +742,42 @@ const MMCCalendar = () => {
                   Kanban
                 </button>
               </div>
+              
+              {/* Calendar View Toggle */}
+              {activeView === 'Calendar' && (
+                <div className="flex bg-gray-100 rounded-lg p-1">
+                  <button
+                    className={`px-3 py-1 text-sm rounded-md ${
+                      calendarView === 'month' 
+                        ? 'bg-white text-gray-900 shadow-sm' 
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                    onClick={() => setCalendarView('month')}
+                  >
+                    Month
+                  </button>
+                  <button
+                    className={`px-3 py-1 text-sm rounded-md ${
+                      calendarView === 'week' 
+                        ? 'bg-white text-gray-900 shadow-sm' 
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                    onClick={() => setCalendarView('week')}
+                  >
+                    Week
+                  </button>
+                  <button
+                    className={`px-3 py-1 text-sm rounded-md ${
+                      calendarView === 'day' 
+                        ? 'bg-white text-gray-900 shadow-sm' 
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                    onClick={() => setCalendarView('day')}
+                  >
+                    Day
+                  </button>
+                </div>
+              )}
               <button 
                 className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
                 onClick={handleNewEntry}
@@ -686,6 +792,41 @@ const MMCCalendar = () => {
               >
                 {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
+              
+              {/* Export Dropdown */}
+              <div className="relative export-container">
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                  title="Export data"
+                >
+                  <Download className="w-5 h-5" />
+                </button>
+                {showExportMenu && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-50">
+                    <div className="py-1">
+                      <button
+                        onClick={() => {
+                          exportToCSV();
+                          setShowExportMenu(false);
+                        }}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        Export to CSV
+                      </button>
+                      <button
+                        onClick={() => {
+                          exportToPDF();
+                          setShowExportMenu(false);
+                        }}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        Export to PDF
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
