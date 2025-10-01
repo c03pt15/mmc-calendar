@@ -805,10 +805,10 @@ const MMCCalendar = () => {
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">STATUS</label>
                   <span className={`text-xs px-2 py-1 rounded capitalize ${
-                    selectedTask.status === 'completed' ? 'bg-green-100 text-green-800' :
-                    selectedTask.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
-                    selectedTask.status === 'review' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-gray-100 text-gray-800'
+                    selectedTask.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                    selectedTask.status === 'in-progress' ? 'bg-yellow-100 text-yellow-800' :
+                    selectedTask.status === 'review' ? 'bg-orange-100 text-orange-800' :
+                    'bg-green-100 text-green-800'
                   }`}>
                     {selectedTask.status.replace('-', ' ')}
                   </span>
