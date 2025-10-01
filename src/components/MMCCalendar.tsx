@@ -5,7 +5,6 @@ import { supabase } from '../supabaseClient';
 const MMCCalendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [activeView, setActiveView] = useState('Calendar');
-  const [calendarView, setCalendarView] = useState('month'); // month, week, day
   const [selectedFilters, setSelectedFilters] = useState({
     blogPosts: true,
     socialMedia: true,
@@ -305,11 +304,6 @@ const MMCCalendar = () => {
     window.URL.revokeObjectURL(url);
   };
 
-  const exportToPDF = () => {
-    // Simple PDF export using window.print() for now
-    // In a real app, you'd use a library like jsPDF
-    window.print();
-  };
 
   // Custom categories functionality
   const addCustomCategory = () => {
@@ -484,7 +478,7 @@ const MMCCalendar = () => {
   return (
     <div className={`flex h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
       {/* Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 p-4">
+      <div className={`w-64 border-r p-4 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
         <div className="mb-6">
           <div className="flex items-center space-x-2 mb-4">
             <div className="w-8 h-8 flex items-center justify-center">
@@ -494,12 +488,12 @@ const MMCCalendar = () => {
                 className="w-full h-full object-contain"
               />
             </div>
-            <h1 className="text-lg font-semibold text-gray-900">MMC Calendar</h1>
+            <h1 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>MMC Calendar</h1>
           </div>
         </div>
         {/* Monthly Overview */}
         <div className="mb-6">
-          <h3 className="text-sm font-medium text-gray-900 mb-3">Monthly Overview</h3>
+          <h3 className={`text-sm font-medium mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Monthly Overview</h3>
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-green-50 rounded-lg p-3">
               <div className="text-2xl font-bold text-green-600">{upcomingCount}</div>
@@ -603,7 +597,7 @@ const MMCCalendar = () => {
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
-                  {member.avatar}
+                  {member.name.split(' ').map(n => n[0]).join('')}
                 </button>
               ))}
             </div>
@@ -759,41 +753,6 @@ const MMCCalendar = () => {
                 </button>
               </div>
               
-              {/* Calendar View Toggle */}
-              {activeView === 'Calendar' && (
-                <div className="flex bg-gray-100 rounded-lg p-1">
-                  <button
-                    className={`px-3 py-1 text-sm rounded-md ${
-                      calendarView === 'month' 
-                        ? 'bg-white text-gray-900 shadow-sm' 
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                    onClick={() => setCalendarView('month')}
-                  >
-                    Month
-                  </button>
-                  <button
-                    className={`px-3 py-1 text-sm rounded-md ${
-                      calendarView === 'week' 
-                        ? 'bg-white text-gray-900 shadow-sm' 
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                    onClick={() => setCalendarView('week')}
-                  >
-                    Week
-                  </button>
-                  <button
-                    className={`px-3 py-1 text-sm rounded-md ${
-                      calendarView === 'day' 
-                        ? 'bg-white text-gray-900 shadow-sm' 
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                    onClick={() => setCalendarView('day')}
-                  >
-                    Day
-                  </button>
-                </div>
-              )}
               <button 
                 className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
                 onClick={handleNewEntry}
@@ -829,15 +788,6 @@ const MMCCalendar = () => {
                         className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       >
                         Export to CSV
-                      </button>
-                      <button
-                        onClick={() => {
-                          exportToPDF();
-                          setShowExportMenu(false);
-                        }}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      >
-                        Export to PDF
                       </button>
                     </div>
                   </div>
@@ -1228,7 +1178,7 @@ const MMCCalendar = () => {
                 <h4 className="font-medium text-gray-900 mb-2">{selectedTask.title}</h4>
                 <p className="text-gray-600 text-sm">{selectedTask.description}</p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">TYPE</label>
                   <span className={`text-xs px-2 py-1 rounded ${selectedTask.color}`}>
@@ -1244,6 +1194,12 @@ const MMCCalendar = () => {
                     'bg-green-100 text-green-800'
                   }`}>
                     {selectedTask.status.replace('-', ' ')}
+                  </span>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">PRIORITY</label>
+                  <span className={`text-xs px-2 py-1 rounded ${priorityConfig[selectedTask.priority]?.color || priorityConfig.medium.color}`}>
+                    {priorityConfig[selectedTask.priority]?.icon || '🟡'} {priorityConfig[selectedTask.priority]?.label || 'Medium'}
                   </span>
                 </div>
               </div>
@@ -1425,18 +1381,32 @@ const MMCCalendar = () => {
                   </select>
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select
-                  value={editingTask.status}
-                  onChange={(e) => setEditingTask((prev: any) => ({ ...prev, status: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="planned">Planned</option>
-                  <option value="in-progress">In Progress</option>
-                  <option value="review">Review</option>
-                  <option value="completed">Completed</option>
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <select
+                    value={editingTask.status}
+                    onChange={(e) => setEditingTask((prev: any) => ({ ...prev, status: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="planned">Planned</option>
+                    <option value="in-progress">In Progress</option>
+                    <option value="review">Review</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                  <select
+                    value={editingTask.priority || 'medium'}
+                    onChange={(e) => setEditingTask((prev: any) => ({ ...prev, priority: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="low">🟢 Low</option>
+                    <option value="medium">🟡 Medium</option>
+                    <option value="high">🔴 High</option>
+                  </select>
+                </div>
               </div>
               
               <div>
