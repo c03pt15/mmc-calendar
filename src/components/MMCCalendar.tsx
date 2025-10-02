@@ -873,6 +873,7 @@ const MMCCalendar = () => {
   };
 
   const handleTaskClick = (task: any) => {
+    console.log('Task clicked:', task);
     setSelectedTask(task);
     setShowTaskModal(true);
   };
@@ -2402,6 +2403,10 @@ const MMCCalendar = () => {
               </button>
             </div>
             <div className="space-y-4">
+              {/* Debug info - remove this later */}
+              <div className="bg-yellow-50 p-2 rounded text-xs">
+                <strong>Debug - Task Object:</strong> {JSON.stringify(selectedTask, null, 2)}
+              </div>
               <div>
                 <h4 className="font-medium text-gray-900 mb-2">{selectedTask.title || 'Unknown Task'}</h4>
                 <p className="text-gray-600 text-sm">{selectedTask.description || 'No description'}</p>
