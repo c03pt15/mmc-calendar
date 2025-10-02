@@ -922,14 +922,7 @@ const MMCCalendar = () => {
   };
 
   const handleTaskClick = (task: any) => {
-    const completeTask = ensureCompleteTaskData(task);
-    console.log('Task clicked - ID:', task.id, 'Title:', task.title);
-    console.log('Complete task data:', completeTask);
-    console.log('Type:', completeTask.type);
-    console.log('Assignee:', completeTask.assignee);
-    console.log('Created_at:', completeTask.created_at);
-    console.log('Created_by:', completeTask.created_by);
-    setSelectedTask(completeTask);
+    setSelectedTask(ensureCompleteTaskData(task));
     setShowTaskModal(true);
   };
 
@@ -2466,7 +2459,7 @@ const MMCCalendar = () => {
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">TYPE</label>
                   <span className={`text-xs px-2 py-1 rounded ${selectedTask.color || 'bg-gray-100'}`}>
-                    {selectedTask.type || 'Unknown'}
+                    {selectedTask.type || 'General'}
                   </span>
                 </div>
                 <div>
@@ -2490,12 +2483,25 @@ const MMCCalendar = () => {
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">ASSIGNED TO</label>
                 <div className="flex items-center space-x-2">
-                  <div className={`w-6 h-6 ${teamMembers.find(m => m.id === selectedTask.assignee)?.color || 'bg-gray-400'} rounded-full flex items-center justify-center text-white text-xs`}>
-                    {teamMembers.find(m => m.id === selectedTask.assignee)?.avatar || '?'}
-                  </div>
-                  <span className="text-sm text-gray-900">
-                    {getTeamMemberName(selectedTask.assignee) || 'Unknown User'}
-                  </span>
+                  {selectedTask.assignee ? (
+                    <>
+                      <div className={`w-6 h-6 ${teamMembers.find(m => m.id === selectedTask.assignee)?.color || 'bg-gray-400'} rounded-full flex items-center justify-center text-white text-xs`}>
+                        {teamMembers.find(m => m.id === selectedTask.assignee)?.avatar || '?'}
+                      </div>
+                      <span className="text-sm text-gray-900">
+                        {getTeamMemberName(selectedTask.assignee)}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-white text-xs">
+                        ?
+                      </div>
+                      <span className="text-sm text-gray-500">
+                        Unassigned
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
               <div>
@@ -2558,17 +2564,23 @@ const MMCCalendar = () => {
                 <label className="block text-xs font-medium text-gray-500 mb-1">CREATED</label>
                 <div className="flex items-center space-x-2">
                   <User className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-900">
-                    {selectedTask.created_at ? new Date(selectedTask.created_at).toLocaleDateString() : 'Unknown date'}
-                  </span>
-                  {selectedTask.created_at && (
+                  {selectedTask.created_at ? (
+                    <>
+                      <span className="text-sm text-gray-900">
+                        {new Date(selectedTask.created_at).toLocaleDateString()}
+                      </span>
+                      <span className="text-sm text-gray-500">
+                        at {new Date(selectedTask.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      {selectedTask.created_by && (
+                        <span className="text-sm text-gray-600">
+                          by {getTeamMemberName(selectedTask.created_by)}
+                        </span>
+                      )}
+                    </>
+                  ) : (
                     <span className="text-sm text-gray-500">
-                      at {new Date(selectedTask.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  )}
-                  {selectedTask.created_by && (
-                    <span className="text-sm text-gray-600">
-                      by {getTeamMemberName(selectedTask.created_by)}
+                      Date not available
                     </span>
                   )}
                 </div>
