@@ -1283,16 +1283,17 @@ const MMCCalendar = () => {
                                 key={day}
                                 type="button"
                                 onClick={() => {
-                                  const newDays = newTask.recurring_days.includes(index) 
-                                    ? newTask.recurring_days.filter((d: number) => d !== index)
-                                    : [...newTask.recurring_days, index];
+                                  const currentDays = newTask.recurring_days || [];
+                                  const newDays = currentDays.includes(index) 
+                                    ? currentDays.filter((d: number) => d !== index)
+                                    : [...currentDays, index];
                                   setNewTask((prev: any) => ({ 
                                     ...prev, 
                                     recurring_days: newDays
                                   }));
                                 }}
                                 className={`w-8 h-8 rounded-full text-xs font-medium ${
-                                  newTask.recurring_days.includes(index)
+                                  (newTask.recurring_days || []).includes(index)
                                     ? 'bg-blue-600 text-white'
                                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                                 }`}
