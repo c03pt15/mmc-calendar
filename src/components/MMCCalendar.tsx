@@ -31,12 +31,14 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
         if (currentDate.getMonth() === targetMonth && currentDate.getFullYear() === targetYear) {
           const newInstance = {
             ...task,
-            id: `${task.id}_${currentDate.getFullYear()}_${currentDate.getMonth()}_${currentDate.getDate()}`,
+            id: task.id, // Keep original ID for database compatibility
             date: currentDate.getDate(),
             month: currentDate.getMonth(),
             year: currentDate.getFullYear(),
             parent_task_id: task.id,
-            is_recurring: false
+            is_recurring: false,
+            is_recurring_instance: true, // Flag to identify this as a recurring instance
+            instance_key: `${task.id}_${currentDate.getFullYear()}_${currentDate.getMonth()}_${currentDate.getDate()}` // Unique key for display
           };
           instances.push(newInstance);
         }
@@ -454,7 +456,10 @@ const MMCCalendar = () => {
       setLoading(true);
       const updatedTask = { ...editingTask, color: categoryConfig[editingTask.category].color };
       
-      const { data, error } = await supabase.from('tasks').update(updatedTask).eq('id', editingTask.id);
+      // If this is a recurring instance, we need to update the original task
+      const taskIdToUpdate = editingTask.is_recurring_instance ? editingTask.parent_task_id : editingTask.id;
+      
+      const { data, error } = await supabase.from('tasks').update(updatedTask).eq('id', taskIdToUpdate);
       
       if (error) {
         console.error('Error updating task:', error);
@@ -478,7 +483,11 @@ const MMCCalendar = () => {
     if (window.confirm('Are you sure you want to delete this task?')) {
       try {
         setLoading(true);
-        const { data, error } = await supabase.from('tasks').delete().eq('id', selectedTask.id);
+        
+        // If this is a recurring instance, we need to delete the original task
+        const taskIdToDelete = selectedTask.is_recurring_instance ? selectedTask.parent_task_id : selectedTask.id;
+        
+        const { data, error } = await supabase.from('tasks').delete().eq('id', taskIdToDelete);
         
         if (error) {
           console.error('Error deleting task:', error);
