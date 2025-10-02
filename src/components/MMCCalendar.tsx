@@ -302,22 +302,29 @@ const MMCCalendar = () => {
   }, [allTasksFlat, currentDate.getMonth(), currentDate.getFullYear(), deletedInstances]);
 
   const getTasksForDate = useCallback((date: number) => {
-    let tasks = allTasksWithRecurring.filter(task => task.date === date && selectedFilters[task.category]);
+    let tasks = allTasksWithRecurring.filter(task => 
+      task.date === date && 
+      selectedFilters[task.category] &&
+      task.status !== 'deleted' // Exclude deleted tasks
+    );
     if (selectedTeamMember) tasks = tasks.filter(task => task.assignee === selectedTeamMember);
     return tasks;
   }, [allTasksWithRecurring, selectedFilters, selectedTeamMember]);
 
   const getAllFilteredTasks = useCallback(() => {
-    let tasks = allTasksWithRecurring.filter(task => selectedFilters[task.category]);
+    let tasks = allTasksWithRecurring.filter(task => 
+      selectedFilters[task.category] &&
+      task.status !== 'deleted' // Exclude deleted tasks
+    );
     if (selectedTeamMember) tasks = tasks.filter(task => task.assignee === selectedTeamMember);
     return tasks;
   }, [allTasksWithRecurring, selectedFilters, selectedTeamMember]);
 
   const filterCounts = {
-    blogPosts: allTasksWithRecurring.filter(t => t.category === 'blogPosts' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
-    socialMedia: allTasksWithRecurring.filter(t => t.category === 'socialMedia' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
-    campaigns: allTasksWithRecurring.filter(t => t.category === 'campaigns' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
-    emailMarketing: allTasksWithRecurring.filter(t => t.category === 'emailMarketing' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length
+    blogPosts: allTasksWithRecurring.filter(t => t.category === 'blogPosts' && t.status !== 'deleted' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
+    socialMedia: allTasksWithRecurring.filter(t => t.category === 'socialMedia' && t.status !== 'deleted' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
+    campaigns: allTasksWithRecurring.filter(t => t.category === 'campaigns' && t.status !== 'deleted' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
+    emailMarketing: allTasksWithRecurring.filter(t => t.category === 'emailMarketing' && t.status !== 'deleted' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length
   };
 
   const allFilteredTasks = getAllFilteredTasks();
@@ -584,14 +591,40 @@ const MMCCalendar = () => {
               return;
             }
           } else {
-            // Delete single instance by adding it to deletedInstances
+            // For single instance deletion, we need to create a "deleted instance" record
+            // Since we can't easily delete individual instances from recurring patterns,
+            // we'll create a special task record to mark this instance as deleted
             const instanceKey = selectedTask.instance_key || `${selectedTask.parent_task_id || selectedTask.id}_${selectedTask.year}_${selectedTask.month}_${selectedTask.date}`;
-            setDeletedInstances(prev => new Set([...prev, instanceKey]));
             
-            // Close the modal and refresh
-            setShowTaskModal(false);
-            setSelectedTask(null);
-            return; // Don't call refreshTasks() since we're just hiding the instance
+            // Create a "deleted" task record to mark this instance as deleted
+            const deletedInstance = {
+              title: `[DELETED] ${selectedTask.title}`,
+              description: selectedTask.description,
+              type: selectedTask.type,
+              category: selectedTask.category,
+              date: selectedTask.date,
+              month: selectedTask.month,
+              year: selectedTask.year,
+              time: selectedTask.time,
+              assignee: selectedTask.assignee,
+              status: 'deleted', // Special status to mark as deleted
+              color: selectedTask.color,
+              priority: selectedTask.priority,
+              is_recurring: false,
+              parent_task_id: selectedTask.parent_task_id || selectedTask.id,
+              instance_key: instanceKey,
+              is_recurring_instance: true,
+              is_deleted_instance: true // Flag to identify this as a deleted instance
+            };
+            
+            const result = await supabase.from('tasks').insert([deletedInstance]);
+            data = result.data;
+            
+            if (result.error) {
+              console.error('Error marking instance as deleted:', result.error);
+              alert(`Error deleting task instance: ${result.error.message}`);
+              return;
+            }
           }
           
           console.log('Task deleted successfully:', data);
