@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   depends_on_task_id INTEGER,
   comments TEXT,
   instance_key TEXT,
+  is_recurring_instance BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
