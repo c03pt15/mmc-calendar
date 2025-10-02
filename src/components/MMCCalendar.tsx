@@ -18,6 +18,12 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
         return;
       }
       
+      // Skip modified instances - they should not generate their own recurring instances
+      // Modified instances are only used to override specific instances of their parent task
+      if (task.is_modified_instance) {
+        return;
+      }
+      
       if (!task.is_recurring || !task.recurring_pattern) {
         // For non-recurring tasks, only add them if they're in the target month
         if (task.month === targetMonth && task.year === targetYear) {
@@ -44,6 +50,96 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
           
           // Skip this instance if it's been deleted (check both deletedInstances set and database records)
           if (deletedInstances.has(instanceKey)) {
+            // Calculate next occurrence before skipping
+            let nextDate: Date;
+            const interval = (task.recurring_interval && typeof task.recurring_interval === 'number') ? task.recurring_interval : 1;
+            const unit = (task.recurring_unit && typeof task.recurring_unit === 'string') ? task.recurring_unit : 'week';
+            
+            switch (task.recurring_pattern) {
+              case 'daily':
+                nextDate = new Date(currentDate);
+                nextDate.setDate(currentDate.getDate() + interval);
+                break;
+              case 'weekly':
+                nextDate = new Date(currentDate);
+                nextDate.setDate(currentDate.getDate() + (7 * interval));
+                break;
+              case 'monthly':
+                nextDate = new Date(currentDate);
+                nextDate.setMonth(currentDate.getMonth() + interval);
+                break;
+              case 'yearly':
+                nextDate = new Date(currentDate);
+                nextDate.setFullYear(currentDate.getFullYear() + interval);
+                break;
+              case 'weekdays':
+                nextDate = new Date(currentDate);
+                nextDate.setDate(currentDate.getDate() + 1);
+                break;
+              case 'custom_days':
+                if (task.recurring_days && task.recurring_days.length > 0) {
+                  nextDate = new Date(currentDate);
+                  nextDate.setDate(currentDate.getDate() + 1);
+                } else {
+                  nextDate = new Date(currentDate);
+                  nextDate.setDate(currentDate.getDate() + 1);
+                }
+                break;
+              case '1st_day_of_month':
+                nextDate = new Date(currentDate);
+                nextDate.setMonth(currentDate.getMonth() + interval);
+                const firstDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+                const firstDayOfWeek = firstDay.getDay();
+                const targetDay1st = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+                const daysToAdd1st = (targetDay1st - firstDayOfWeek + 7) % 7;
+                nextDate = new Date(firstDay);
+                nextDate.setDate(firstDay.getDate() + daysToAdd1st);
+                break;
+              case '2nd_day_of_month':
+                nextDate = new Date(currentDate);
+                nextDate.setMonth(currentDate.getMonth() + interval);
+                const secondDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+                const secondDayOfWeek = secondDay.getDay();
+                const targetDay2nd = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+                const daysToAdd2nd = (targetDay2nd - secondDayOfWeek + 7) % 7;
+                nextDate = new Date(secondDay);
+                nextDate.setDate(secondDay.getDate() + daysToAdd2nd + 7); // Add 7 days for 2nd occurrence
+                break;
+              case '3rd_day_of_month':
+                nextDate = new Date(currentDate);
+                nextDate.setMonth(currentDate.getMonth() + interval);
+                const thirdDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+                const thirdDayOfWeek = thirdDay.getDay();
+                const targetDay3rd = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+                const daysToAdd3rd = (targetDay3rd - thirdDayOfWeek + 7) % 7;
+                nextDate = new Date(thirdDay);
+                nextDate.setDate(thirdDay.getDate() + daysToAdd3rd + 14); // Add 14 days for 3rd occurrence
+                break;
+              case '4th_day_of_month':
+                nextDate = new Date(currentDate);
+                nextDate.setMonth(currentDate.getMonth() + interval);
+                const fourthDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+                const fourthDayOfWeek = fourthDay.getDay();
+                const targetDay4th = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+                const daysToAdd4th = (targetDay4th - fourthDayOfWeek + 7) % 7;
+                nextDate = new Date(fourthDay);
+                nextDate.setDate(fourthDay.getDate() + daysToAdd4th + 21); // Add 21 days for 4th occurrence
+                break;
+              case 'last_day_of_month':
+                nextDate = new Date(currentDate);
+                nextDate.setMonth(currentDate.getMonth() + interval);
+                const lastDay = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0);
+                const lastDayOfWeek = lastDay.getDay();
+                const targetDayLast = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+                const daysToSubtract = (lastDayOfWeek - targetDayLast + 7) % 7;
+                nextDate = new Date(lastDay);
+                nextDate.setDate(lastDay.getDate() - daysToSubtract);
+                break;
+              default:
+                nextDate = new Date(currentDate);
+                nextDate.setDate(currentDate.getDate() + 1);
+            }
+            
             currentDate = nextDate;
             instanceCount++;
             continue;
@@ -57,23 +153,136 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
           );
           
           if (hasDeletedInstance) {
+            // Calculate next occurrence before skipping
+            let nextDate: Date;
+            const interval = (task.recurring_interval && typeof task.recurring_interval === 'number') ? task.recurring_interval : 1;
+            const unit = (task.recurring_unit && typeof task.recurring_unit === 'string') ? task.recurring_unit : 'week';
+            
+            switch (task.recurring_pattern) {
+              case 'daily':
+                nextDate = new Date(currentDate);
+                nextDate.setDate(currentDate.getDate() + interval);
+                break;
+              case 'weekly':
+                nextDate = new Date(currentDate);
+                nextDate.setDate(currentDate.getDate() + (7 * interval));
+                break;
+              case 'monthly':
+                nextDate = new Date(currentDate);
+                nextDate.setMonth(currentDate.getMonth() + interval);
+                break;
+              case 'yearly':
+                nextDate = new Date(currentDate);
+                nextDate.setFullYear(currentDate.getFullYear() + interval);
+                break;
+              case 'weekdays':
+                nextDate = new Date(currentDate);
+                nextDate.setDate(currentDate.getDate() + 1);
+                break;
+              case 'custom_days':
+                if (task.recurring_days && task.recurring_days.length > 0) {
+                  nextDate = new Date(currentDate);
+                  nextDate.setDate(currentDate.getDate() + 1);
+                } else {
+                  nextDate = new Date(currentDate);
+                  nextDate.setDate(currentDate.getDate() + 1);
+                }
+                break;
+              case '1st_day_of_month':
+                nextDate = new Date(currentDate);
+                nextDate.setMonth(currentDate.getMonth() + interval);
+                const firstDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+                const firstDayOfWeek = firstDay.getDay();
+                const targetDay1st = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+                const daysToAdd1st = (targetDay1st - firstDayOfWeek + 7) % 7;
+                nextDate = new Date(firstDay);
+                nextDate.setDate(firstDay.getDate() + daysToAdd1st);
+                break;
+              case '2nd_day_of_month':
+                nextDate = new Date(currentDate);
+                nextDate.setMonth(currentDate.getMonth() + interval);
+                const secondDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+                const secondDayOfWeek = secondDay.getDay();
+                const targetDay2nd = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+                const daysToAdd2nd = (targetDay2nd - secondDayOfWeek + 7) % 7;
+                nextDate = new Date(secondDay);
+                nextDate.setDate(secondDay.getDate() + daysToAdd2nd + 7); // Add 7 days for 2nd occurrence
+                break;
+              case '3rd_day_of_month':
+                nextDate = new Date(currentDate);
+                nextDate.setMonth(currentDate.getMonth() + interval);
+                const thirdDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+                const thirdDayOfWeek = thirdDay.getDay();
+                const targetDay3rd = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+                const daysToAdd3rd = (targetDay3rd - thirdDayOfWeek + 7) % 7;
+                nextDate = new Date(thirdDay);
+                nextDate.setDate(thirdDay.getDate() + daysToAdd3rd + 14); // Add 14 days for 3rd occurrence
+                break;
+              case '4th_day_of_month':
+                nextDate = new Date(currentDate);
+                nextDate.setMonth(currentDate.getMonth() + interval);
+                const fourthDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+                const fourthDayOfWeek = fourthDay.getDay();
+                const targetDay4th = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+                const daysToAdd4th = (targetDay4th - fourthDayOfWeek + 7) % 7;
+                nextDate = new Date(fourthDay);
+                nextDate.setDate(fourthDay.getDate() + daysToAdd4th + 21); // Add 21 days for 4th occurrence
+                break;
+              case 'last_day_of_month':
+                nextDate = new Date(currentDate);
+                nextDate.setMonth(currentDate.getMonth() + interval);
+                const lastDay = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0);
+                const lastDayOfWeek = lastDay.getDay();
+                const targetDayLast = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+                const daysToSubtract = (lastDayOfWeek - targetDayLast + 7) % 7;
+                nextDate = new Date(lastDay);
+                nextDate.setDate(lastDay.getDate() - daysToSubtract);
+                break;
+              default:
+                nextDate = new Date(currentDate);
+                nextDate.setDate(currentDate.getDate() + 1);
+            }
+            
             currentDate = nextDate;
             instanceCount++;
             continue;
           }
           
-          const newInstance = {
-            ...task,
-            id: task.id, // Keep original ID for database compatibility
-            date: currentDate.getDate(),
-            month: currentDate.getMonth(),
-            year: currentDate.getFullYear(),
-            parent_task_id: task.id,
-            is_recurring: false,
-            is_recurring_instance: true, // Flag to identify this as a recurring instance
-            instance_key: instanceKey // Unique key for display
-          };
-          instances.push(newInstance);
+          // Check if there's a modified instance record for this specific instance
+          const modifiedInstance = tasks.find(t => 
+            t.is_modified_instance && 
+            t.parent_task_id === task.id && 
+            t.instance_key === instanceKey
+          );
+          
+          if (modifiedInstance) {
+            // If there's a modified instance, use it instead of generating from original task
+            const newInstance = {
+              ...modifiedInstance,
+              date: currentDate.getDate(),
+              month: currentDate.getMonth(),
+              year: currentDate.getFullYear(),
+              parent_task_id: task.id,
+              is_recurring: false,
+              is_recurring_instance: true,
+              instance_key: instanceKey
+            };
+            instances.push(newInstance);
+          } else {
+            // Only generate from original task if no modified instance exists
+            const newInstance = {
+              ...task,
+              id: task.id,
+              date: currentDate.getDate(),
+              month: currentDate.getMonth(),
+              year: currentDate.getFullYear(),
+              parent_task_id: task.id,
+              is_recurring: false,
+              is_recurring_instance: true,
+              instance_key: instanceKey
+            };
+            instances.push(newInstance);
+          }
         }
 
         // Calculate next occurrence based on pattern
@@ -199,6 +408,7 @@ const MMCCalendar = () => {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [preSelectedDate, setPreSelectedDate] = useState<{date: number, month: number, year: number} | null>(null);
   const [deletedInstances, setDeletedInstances] = useState<Set<string>>(new Set());
+  const [editMode, setEditMode] = useState<'single' | 'all'>('single'); // For recurring task editing
   const [newTask, setNewTask] = useState<any>({
     title: '',
     description: '',
@@ -304,8 +514,14 @@ const MMCCalendar = () => {
       
       setAllTasks(groupedTasks);
       
-      // Clear deleted instances since we're refreshing from database
-      setDeletedInstances(new Set());
+      // Rebuild deleted instances from database records
+      const deletedInstanceKeys = new Set<string>();
+      (data || []).forEach(task => {
+        if (task.is_deleted_instance && task.instance_key) {
+          deletedInstanceKeys.add(task.instance_key);
+        }
+      });
+      setDeletedInstances(deletedInstanceKeys);
     } catch (err) {
       console.error('Unexpected error refreshing tasks:', err);
     }
@@ -329,20 +545,27 @@ const MMCCalendar = () => {
   };
 
   // Get all tasks from all months for recurring generation
+  // Filter out modified instances and deleted instances since they'll be handled through the recurring generation process
   const allTasksFlat = useMemo(() => {
-    return Object.values(allTasks).flat();
+    return Object.values(allTasks).flat().filter(task => 
+      !task.is_modified_instance && 
+      !task.is_deleted_instance && 
+      task.status !== 'deleted'
+    );
   }, [allTasks]);
 
   // Use useMemo to generate recurring instances safely
   const allTasksWithRecurring = useMemo(() => {
     try {
-      return generateRecurringInstances(allTasksFlat, currentDate.getMonth(), currentDate.getFullYear(), deletedInstances);
+      // Include all tasks (including modified instances) for the recurring generation process
+      const allTasksIncludingModified = Object.values(allTasks).flat();
+      return generateRecurringInstances(allTasksIncludingModified, currentDate.getMonth(), currentDate.getFullYear(), deletedInstances);
     } catch (error) {
       console.error('Error generating recurring instances:', error);
       // Return just the flat tasks as fallback
       return allTasksFlat || [];
     }
-  }, [allTasksFlat, currentDate.getMonth(), currentDate.getFullYear(), deletedInstances]);
+  }, [allTasks, currentDate.getMonth(), currentDate.getFullYear(), deletedInstances]);
 
   const getTasksForDate = useCallback((date: number) => {
     let tasks = allTasksWithRecurring.filter(task => 
@@ -486,8 +709,40 @@ const MMCCalendar = () => {
 
   const handleEditTask = () => {
     setEditingTask({ ...selectedTask });
+    setEditMode('single'); // Default to single instance editing
     setShowTaskModal(false);
     setShowEditModal(true);
+  };
+
+  const handleEditRecurringTask = async () => {
+    try {
+      setLoading(true);
+      
+      // Get the original recurring task (not the instance)
+      const taskIdToEdit = selectedTask.is_recurring_instance ? selectedTask.parent_task_id : selectedTask.id;
+      
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('id', taskIdToEdit)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching recurring task:', error);
+        alert(`Error loading recurring task: ${error.message}`);
+        return;
+      }
+      
+      setEditingTask(data);
+      setEditMode('all'); // Set to edit all instances
+      setShowTaskModal(false);
+      setShowEditModal(true);
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      alert(`Unexpected error: ${err}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDuplicateTask = () => {
@@ -606,18 +861,73 @@ const MMCCalendar = () => {
       setLoading(true);
       const updatedTask = { ...editingTask, color: categoryConfig[editingTask.category].color };
       
-      // If this is a recurring instance, we need to update the original task
-      const taskIdToUpdate = editingTask.is_recurring_instance ? editingTask.parent_task_id : editingTask.id;
+      const isRecurring = editingTask.is_recurring || editingTask.is_recurring_instance;
       
-      const { data, error } = await supabase.from('tasks').update(updatedTask).eq('id', taskIdToUpdate);
-      
-      if (error) {
-        console.error('Error updating task:', error);
-        alert(`Error updating task: ${error.message}`);
-        return;
+      if (isRecurring && editMode === 'single') {
+        // For single instance editing of recurring tasks, create a modified instance record
+        const instanceKey = editingTask.instance_key || `${editingTask.parent_task_id || editingTask.id}_${editingTask.year}_${editingTask.month}_${editingTask.date}`;
+        
+        // Create a "modified" task record to override this specific instance
+        const modifiedInstance = {
+          ...updatedTask,
+          // Remove id field entirely - let database auto-generate
+          parent_task_id: editingTask.parent_task_id || editingTask.id,
+          instance_key: instanceKey,
+          is_recurring: false,
+          is_recurring_instance: true,
+          is_modified_instance: true // Flag to identify this as a modified instance
+        };
+        
+        // Remove id from the object to avoid null constraint violation
+        delete modifiedInstance.id;
+        
+        // First, check if there's already a modified instance for this date
+        const { data: existingModified } = await supabase
+          .from('tasks')
+          .select('id')
+          .eq('parent_task_id', modifiedInstance.parent_task_id)
+          .eq('instance_key', instanceKey)
+          .eq('is_modified_instance', true)
+          .single();
+        
+        if (existingModified) {
+          // Update existing modified instance
+          const { error } = await supabase
+            .from('tasks')
+            .update(modifiedInstance)
+            .eq('id', existingModified.id);
+          
+          if (error) {
+            console.error('Error updating modified instance:', error);
+            alert(`Error updating task: ${error.message}`);
+            return;
+          }
+        } else {
+          // Create new modified instance
+          const { error } = await supabase
+            .from('tasks')
+            .insert([modifiedInstance]);
+          
+          if (error) {
+            console.error('Error creating modified instance:', error);
+            alert(`Error updating task: ${error.message}`);
+            return;
+          }
+        }
+      } else {
+        // For regular tasks or editing all recurring instances
+        const taskIdToUpdate = editingTask.is_recurring_instance ? editingTask.parent_task_id : editingTask.id;
+        
+        const { data, error } = await supabase.from('tasks').update(updatedTask).eq('id', taskIdToUpdate);
+        
+        if (error) {
+          console.error('Error updating task:', error);
+          alert(`Error updating task: ${error.message}`);
+          return;
+        }
       }
       
-      console.log('Task updated successfully:', data);
+      console.log('Task updated successfully');
       setShowEditModal(false);
       setEditingTask(null);
       await refreshTasks();
@@ -688,6 +998,9 @@ const MMCCalendar = () => {
               alert(`Error deleting task instance: ${result.error.message}`);
               return;
             }
+            
+            // Update local deletedInstances state
+            setDeletedInstances(prev => new Set([...prev, instanceKey]));
           }
           
           console.log('Task deleted successfully:', data);
@@ -1284,7 +1597,7 @@ const MMCCalendar = () => {
       {/* New Entry Modal */}
       {showNewEntryModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-[600px] max-w-[90vw] mx-4">
+          <div className="bg-white rounded-lg p-6 w-[800px] max-w-[95vw] mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-gray-900">
                 New Entry
@@ -1658,7 +1971,7 @@ const MMCCalendar = () => {
           onClick={() => setShowTaskModal(false)}
         >
           <div 
-            className="bg-white rounded-lg p-6 w-[600px] max-w-[90vw] mx-4"
+            className="bg-white rounded-lg p-6 w-[800px] max-w-[95vw] mx-4 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
@@ -1787,6 +2100,12 @@ const MMCCalendar = () => {
                   >
                     Delete All
                   </button>
+                  <button
+                    onClick={() => handleEditRecurringTask()}
+                    className="px-4 py-2 border border-blue-300 text-blue-700 rounded-md hover:bg-blue-50"
+                  >
+                    Edit Recurring Task
+                  </button>
                 </>
               ) : (
                 <button
@@ -1821,7 +2140,7 @@ const MMCCalendar = () => {
       {/* Edit Task Modal */}
       {showEditModal && editingTask && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-[600px] max-w-[90vw] mx-4">
+          <div className="bg-white rounded-lg p-6 w-[800px] max-w-[95vw] mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-gray-900">Edit Task</h3>
               <button
@@ -1831,6 +2150,42 @@ const MMCCalendar = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
+            
+            {/* Edit Mode Selection for Recurring Tasks */}
+            {(editingTask.is_recurring || editingTask.is_recurring_instance) && (
+              <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+                <h4 className="text-sm font-medium text-gray-900 mb-3">Edit Mode</h4>
+                <div className="space-y-2">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="editMode"
+                      value="single"
+                      checked={editMode === 'single'}
+                      onChange={(e) => setEditMode(e.target.value as 'single' | 'all')}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">
+                      Edit this occurrence only (other occurrences will remain unchanged)
+                    </span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="editMode"
+                      value="all"
+                      checked={editMode === 'all'}
+                      onChange={(e) => setEditMode(e.target.value as 'single' | 'all')}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">
+                      Edit all occurrences of this recurring task
+                    </span>
+                  </label>
+                </div>
+              </div>
+            )}
+            
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
