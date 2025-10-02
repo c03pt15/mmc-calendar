@@ -239,10 +239,16 @@ const MMCCalendar = () => {
   };
 
   const allFilteredTasks = getAllFilteredTasks();
-  const upcomingCount = allFilteredTasks.filter(t => t.status === 'planned').length;
-  const inProgressCount = allFilteredTasks.filter(t => t.status === 'in-progress').length;
-  const reviewCount = allFilteredTasks.filter(t => t.status === 'review').length;
-  const completedCount = allFilteredTasks.filter(t => t.status === 'completed').length;
+  
+  // Filter tasks to only include those for the current month
+  const currentMonthFilteredTasks = allFilteredTasks.filter(task => 
+    task.month === currentDate.getMonth() && task.year === currentDate.getFullYear()
+  );
+  
+  const upcomingCount = currentMonthFilteredTasks.filter(t => t.status === 'planned').length;
+  const inProgressCount = currentMonthFilteredTasks.filter(t => t.status === 'in-progress').length;
+  const reviewCount = currentMonthFilteredTasks.filter(t => t.status === 'review').length;
+  const completedCount = currentMonthFilteredTasks.filter(t => t.status === 'completed').length;
 
   const toggleFilter = (filter: string) => {
     setSelectedFilters(prev => ({ ...prev, [filter]: !prev[filter] }));
