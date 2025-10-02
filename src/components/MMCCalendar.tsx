@@ -873,29 +873,37 @@ const MMCCalendar = () => {
 
   // Helper function to ensure complete task data
   const ensureCompleteTaskData = (task: any) => {
+    // If this is a recurring instance, try to find the original task data
+    let originalTask = task;
+    if (task.is_recurring_instance && task.parent_task_id) {
+      // Look for the original task in allTasks
+      const allTasksFlat = Object.values(allTasks).flat();
+      const parentTask = allTasksFlat.find(t => t.id === task.parent_task_id);
+      if (parentTask) {
+        originalTask = parentTask;
+      }
+    }
+    
     return {
       ...task,
-      // Ensure all required fields are present with fallbacks
-      type: task.type || 'Unknown',
-      status: task.status || 'planned',
-      priority: task.priority || 'medium',
-      assignee: task.assignee || null,
-      description: task.description || '',
-      color: task.color || 'bg-gray-100',
-      time: task.time || '',
-      category: task.category || 'Unknown',
-      created_at: task.created_at || null,
-      created_by: task.created_by || null,
-      tags: task.tags || [],
-      comments: task.comments || null
+      // Use original task data for missing fields, with fallbacks
+      type: task.type || originalTask.type || 'Unknown',
+      status: task.status || originalTask.status || 'planned',
+      priority: task.priority || originalTask.priority || 'medium',
+      assignee: task.assignee || originalTask.assignee || null,
+      description: task.description || originalTask.description || '',
+      color: task.color || originalTask.color || 'bg-gray-100',
+      time: task.time || originalTask.time || '',
+      category: task.category || originalTask.category || 'Unknown',
+      created_at: task.created_at || originalTask.created_at || null,
+      created_by: task.created_by || originalTask.created_by || null,
+      tags: task.tags || originalTask.tags || [],
+      comments: task.comments || originalTask.comments || null
     };
   };
 
   const handleTaskClick = (task: any) => {
-    console.log('Task being clicked:', task);
-    const completeTask = ensureCompleteTaskData(task);
-    console.log('Complete task after processing:', completeTask);
-    setSelectedTask(completeTask);
+    setSelectedTask(ensureCompleteTaskData(task));
     setShowTaskModal(true);
   };
 
@@ -2424,10 +2432,6 @@ const MMCCalendar = () => {
               </button>
             </div>
             <div className="space-y-4">
-              {/* Debug info - remove this later */}
-              <div className="bg-yellow-50 p-2 rounded text-xs">
-                <strong>Debug - selectedTask:</strong> {JSON.stringify(selectedTask, null, 2)}
-              </div>
               <div>
                 <h4 className="font-medium text-gray-900 mb-2">{selectedTask.title || 'Unknown Task'}</h4>
                 <p className="text-gray-600 text-sm">{selectedTask.description || 'No description'}</p>
