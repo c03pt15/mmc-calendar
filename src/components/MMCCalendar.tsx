@@ -575,11 +575,6 @@ const MMCCalendar = () => {
     );
     if (selectedTeamMember) tasks = tasks.filter(task => task.assignee === selectedTeamMember);
     
-    // Debug: Log recurring tasks
-    const recurringTasks = tasks.filter(task => task.is_recurring);
-    if (recurringTasks.length > 0) {
-      console.log('Recurring tasks found for date', date, ':', recurringTasks.map(t => ({ title: t.title, is_recurring: t.is_recurring })));
-    }
     
     // Sort tasks by time (earliest to latest)
     return tasks.sort((a, b) => {
@@ -1139,11 +1134,6 @@ const MMCCalendar = () => {
   const getTasksByStatus = (status: string) => {
     const tasks = getAllFilteredTasks().filter(task => task.status === status);
     
-    // Debug: Log recurring tasks in kanban
-    const recurringTasks = tasks.filter(task => task.is_recurring);
-    if (recurringTasks.length > 0) {
-      console.log('Recurring tasks found in kanban status', status, ':', recurringTasks.map(t => ({ title: t.title, is_recurring: t.is_recurring })));
-    }
     
     return tasks;
   };
