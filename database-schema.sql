@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   parent_task_id INTEGER,
   depends_on_task_id INTEGER,
   comments TEXT,
+  instance_key TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
