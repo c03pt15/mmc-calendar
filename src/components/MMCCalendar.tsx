@@ -878,11 +878,15 @@ const MMCCalendar = () => {
   };
 
   const handleTaskClick = (task: any) => {
+    console.log('=== TASK CLICKED ===');
     console.log('Task clicked - full object:', task);
     console.log('Task clicked - keys:', Object.keys(task));
     console.log('Task clicked - type:', task.type);
     console.log('Task clicked - status:', task.status);
     console.log('Task clicked - priority:', task.priority);
+    console.log('Task clicked - is_recurring_instance:', task.is_recurring_instance);
+    console.log('Task clicked - parent_task_id:', task.parent_task_id);
+    console.log('=== END TASK CLICKED ===');
     setSelectedTask(task);
     setShowTaskModal(true);
   };
