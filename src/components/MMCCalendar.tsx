@@ -878,7 +878,11 @@ const MMCCalendar = () => {
   };
 
   const handleTaskClick = (task: any) => {
-    console.log('Task clicked:', task);
+    console.log('Task clicked - full object:', task);
+    console.log('Task clicked - keys:', Object.keys(task));
+    console.log('Task clicked - type:', task.type);
+    console.log('Task clicked - status:', task.status);
+    console.log('Task clicked - priority:', task.priority);
     setSelectedTask(task);
     setShowTaskModal(true);
   };
