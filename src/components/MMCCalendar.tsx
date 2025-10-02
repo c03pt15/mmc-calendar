@@ -892,7 +892,10 @@ const MMCCalendar = () => {
   };
 
   const handleTaskClick = (task: any) => {
-    setSelectedTask(ensureCompleteTaskData(task));
+    console.log('Task being clicked:', task);
+    const completeTask = ensureCompleteTaskData(task);
+    console.log('Complete task after processing:', completeTask);
+    setSelectedTask(completeTask);
     setShowTaskModal(true);
   };
 
@@ -2421,6 +2424,10 @@ const MMCCalendar = () => {
               </button>
             </div>
             <div className="space-y-4">
+              {/* Debug info - remove this later */}
+              <div className="bg-yellow-50 p-2 rounded text-xs">
+                <strong>Debug - selectedTask:</strong> {JSON.stringify(selectedTask, null, 2)}
+              </div>
               <div>
                 <h4 className="font-medium text-gray-900 mb-2">{selectedTask.title || 'Unknown Task'}</h4>
                 <p className="text-gray-600 text-sm">{selectedTask.description || 'No description'}</p>
