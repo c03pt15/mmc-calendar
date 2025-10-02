@@ -879,7 +879,7 @@ const MMCCalendar = () => {
     
     if (completeTask) {
       // Use the complete task data, but preserve any instance-specific data
-      return {
+      const result = {
         ...completeTask,
         // Preserve instance-specific data if this is a recurring instance
         date: task.date || completeTask.date,
@@ -887,21 +887,33 @@ const MMCCalendar = () => {
         year: task.year || completeTask.year,
         instance_key: task.instance_key || completeTask.instance_key,
         is_recurring_instance: task.is_recurring_instance || completeTask.is_recurring_instance,
-        parent_task_id: task.parent_task_id || completeTask.parent_task_id
+        parent_task_id: task.parent_task_id || completeTask.parent_task_id,
+        // Provide better fallbacks for null values
+        type: completeTask.type || 'Task',
+        assignee: completeTask.assignee || null,
+        created_at: completeTask.created_at || null,
+        created_by: completeTask.created_by || null,
+        description: completeTask.description || 'No description',
+        color: completeTask.color || 'bg-gray-100',
+        time: completeTask.time || '',
+        category: completeTask.category || 'General',
+        tags: completeTask.tags || [],
+        comments: completeTask.comments || null
       };
+      return result;
     }
     
     // Fallback to the original task with defaults
     return {
       ...task,
-      type: task.type || 'Unknown',
+      type: task.type || 'Task',
       status: task.status || 'planned',
       priority: task.priority || 'medium',
       assignee: task.assignee || null,
-      description: task.description || '',
+      description: task.description || 'No description',
       color: task.color || 'bg-gray-100',
       time: task.time || '',
-      category: task.category || 'Unknown',
+      category: task.category || 'General',
       created_at: task.created_at || null,
       created_by: task.created_by || null,
       tags: task.tags || [],
@@ -910,7 +922,14 @@ const MMCCalendar = () => {
   };
 
   const handleTaskClick = (task: any) => {
-    setSelectedTask(ensureCompleteTaskData(task));
+    const completeTask = ensureCompleteTaskData(task);
+    console.log('Task clicked - ID:', task.id, 'Title:', task.title);
+    console.log('Complete task data:', completeTask);
+    console.log('Type:', completeTask.type);
+    console.log('Assignee:', completeTask.assignee);
+    console.log('Created_at:', completeTask.created_at);
+    console.log('Created_by:', completeTask.created_by);
+    setSelectedTask(completeTask);
     setShowTaskModal(true);
   };
 
