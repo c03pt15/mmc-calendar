@@ -6,24 +6,9 @@ import { supabase } from '../supabaseClient';
 const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYear: number, deletedInstances: Set<string>) => {
   const instances: any[] = [];
   
-  // Safety check for tasks array
-  if (!Array.isArray(tasks)) {
-    console.warn('generateRecurringInstances: tasks is not an array', tasks);
-    return instances;
-  }
-  
-  try {
-    tasks.forEach(task => {
-    // Comprehensive safety checks for task structure
+  tasks.forEach(task => {
+    // Safety check for task structure
     if (!task || typeof task !== 'object') {
-      return;
-    }
-    
-    // Check for required properties
-    if (typeof task.id === 'undefined' || 
-        typeof task.month === 'undefined' || 
-        typeof task.year === 'undefined' ||
-        typeof task.date === 'undefined') {
       return;
     }
     
@@ -40,13 +25,6 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
       return;
     }
 
-    // Additional safety checks for recurring properties
-    if (typeof task.recurring_interval !== 'number' || 
-        typeof task.recurring_unit !== 'string' ||
-        !Array.isArray(task.recurring_days)) {
-      return;
-    }
-    
     const startDate = new Date(task.year, task.month, task.date);
     const endDate = task.recurring_end_date ? new Date(task.recurring_end_date) : new Date(startDate.getFullYear() + 1, startDate.getMonth(), startDate.getDate());
     const targetMonthStart = new Date(targetYear, targetMonth, 1);
@@ -72,8 +50,6 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
           
           // Check if there's a deleted instance record for this specific instance
           const hasDeletedInstance = tasks.some(t => 
-            t && 
-            typeof t === 'object' &&
             t.is_deleted_instance && 
             t.parent_task_id === task.id && 
             t.instance_key === instanceKey
@@ -185,12 +161,8 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
         instanceCount++;
       }
     }
-    });
-  } catch (error) {
-    console.error('Error in generateRecurringInstances:', error);
-    console.error('Tasks data:', tasks);
-  }
-  
+  });
+
   return instances;
 };
 
@@ -351,25 +323,12 @@ const MMCCalendar = () => {
 
   // Get all tasks from all months for recurring generation
   const allTasksFlat = useMemo(() => {
-    try {
-      if (!allTasks || typeof allTasks !== 'object') {
-        return [];
-      }
-      return Object.values(allTasks).flat().filter(task => task && typeof task === 'object');
-    } catch (error) {
-      console.error('Error in allTasksFlat useMemo:', error);
-      return [];
-    }
+    return Object.values(allTasks).flat();
   }, [allTasks]);
 
   // Use useMemo to generate recurring instances safely
   const allTasksWithRecurring = useMemo(() => {
-    try {
-      return generateRecurringInstances(allTasksFlat, currentDate.getMonth(), currentDate.getFullYear(), deletedInstances);
-    } catch (error) {
-      console.error('Error in allTasksWithRecurring useMemo:', error);
-      return [];
-    }
+    return generateRecurringInstances(allTasksFlat, currentDate.getMonth(), currentDate.getFullYear(), deletedInstances);
   }, [allTasksFlat, currentDate.getMonth(), currentDate.getFullYear(), deletedInstances]);
 
   const getTasksForDate = useCallback((date: number) => {
