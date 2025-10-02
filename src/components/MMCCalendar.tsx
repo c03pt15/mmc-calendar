@@ -476,29 +476,38 @@ const MMCCalendar = () => {
       
       if (error) {
         console.error('Error loading activities:', error);
+        // If activities table doesn't exist, just set empty array and mark as loaded
+        setRecentActivities([]);
+        setActivitiesLoaded(true);
         return;
       }
       
       if (data) {
         const formattedActivities = data.map(activity => ({
-          id: activity.id,
-          type: activity.type,
+          id: activity.id || Date.now() + Math.random(),
+          type: activity.type || 'unknown',
           task: {
-            id: activity.task_id,
-            title: activity.task_title
+            id: activity.task_id || null,
+            title: activity.task_title || 'Unknown Task'
           },
-          message: activity.message,
-          user: activity.user_name,
-          timestamp: new Date(activity.created_at),
-          oldStatus: activity.old_status,
-          newStatus: activity.new_status
+          message: activity.message || 'Unknown activity',
+          user: activity.user_name || 'Unknown User',
+          timestamp: new Date(activity.created_at || new Date()),
+          oldStatus: activity.old_status || null,
+          newStatus: activity.new_status || null
         }));
         
         setRecentActivities(formattedActivities);
         setActivitiesLoaded(true);
+      } else {
+        setRecentActivities([]);
+        setActivitiesLoaded(true);
       }
     } catch (err) {
       console.error('Error loading activities:', err);
+      // Set empty array and mark as loaded to prevent infinite retries
+      setRecentActivities([]);
+      setActivitiesLoaded(true);
     }
   }, []);
 
@@ -723,19 +732,32 @@ const MMCCalendar = () => {
       const { data, error } = await supabase
         .from('activities')
         .insert([{
-          type: activity.type,
-          task_id: activity.task?.id,
-          task_title: activity.task?.title || '',
-          message: activity.message,
-          user_id: activity.userId || activity.user,
-          user_name: activity.user,
-          old_status: activity.oldStatus,
-          new_status: activity.newStatus
+          type: activity.type || 'unknown',
+          task_id: activity.task?.id || null,
+          task_title: activity.task?.title || 'Unknown Task',
+          message: activity.message || 'Unknown activity',
+          user_id: activity.userId || activity.user || 'unknown',
+          user_name: activity.user || 'Unknown User',
+          old_status: activity.oldStatus || null,
+          new_status: activity.newStatus || null
         }])
         .select();
       
       if (error) {
         console.error('Error saving activity:', error);
+        // If activities table doesn't exist, just add to local state
+        const newActivity = {
+          id: Date.now() + Math.random(),
+          type: activity.type || 'unknown',
+          task: activity.task || { id: null, title: 'Unknown Task' },
+          message: activity.message || 'Unknown activity',
+          user: activity.user || 'Unknown User',
+          timestamp: new Date(),
+          oldStatus: activity.oldStatus || null,
+          newStatus: activity.newStatus || null
+        };
+        
+        setRecentActivities(prev => [newActivity, ...prev].slice(0, 20));
         return;
       }
       
@@ -743,19 +765,32 @@ const MMCCalendar = () => {
       if (data && data[0]) {
         const newActivity = {
           id: data[0].id,
-          type: activity.type,
-          task: activity.task,
-          message: activity.message,
-          user: activity.user,
+          type: activity.type || 'unknown',
+          task: activity.task || { id: null, title: 'Unknown Task' },
+          message: activity.message || 'Unknown activity',
+          user: activity.user || 'Unknown User',
           timestamp: new Date(data[0].created_at),
-          oldStatus: activity.oldStatus,
-          newStatus: activity.newStatus
+          oldStatus: activity.oldStatus || null,
+          newStatus: activity.newStatus || null
         };
         
         setRecentActivities(prev => [newActivity, ...prev].slice(0, 20));
       }
     } catch (err) {
       console.error('Error adding activity:', err);
+      // Fallback: add to local state only
+      const newActivity = {
+        id: Date.now() + Math.random(),
+        type: activity.type || 'unknown',
+        task: activity.task || { id: null, title: 'Unknown Task' },
+        message: activity.message || 'Unknown activity',
+        user: activity.user || 'Unknown User',
+        timestamp: new Date(),
+        oldStatus: activity.oldStatus || null,
+        newStatus: activity.newStatus || null
+      };
+      
+      setRecentActivities(prev => [newActivity, ...prev].slice(0, 20));
     }
   }, []);
 
@@ -3111,9 +3146,11 @@ const MMCCalendar = () => {
                         key={activity.id}
                         className="p-3 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
                         onClick={() => {
-                          setSelectedTask(activity.task);
-                          setShowTaskModal(true);
-                          setShowDrawer(false);
+                          if (activity.task && activity.task.id) {
+                            setSelectedTask(activity.task);
+                            setShowTaskModal(true);
+                            setShowDrawer(false);
+                          }
                         }}
                       >
                         <div className="flex items-start justify-between">
@@ -3133,9 +3170,9 @@ const MMCCalendar = () => {
                                 {activity.timestamp.toLocaleTimeString()}
                               </span>
                             </div>
-                            <h4 className="font-medium text-gray-900 text-sm">{activity.message}</h4>
+                            <h4 className="font-medium text-gray-900 text-sm">{activity.message || 'Unknown activity'}</h4>
                             <p className="text-xs text-gray-600 mt-1">
-                              by {activity.user}
+                              by {activity.user || 'Unknown User'}
                             </p>
                             {activity.type === 'status_changed' && (
                               <div className="flex items-center mt-2 space-x-2">
