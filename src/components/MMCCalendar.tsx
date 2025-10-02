@@ -8,7 +8,10 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
   
   tasks.forEach(task => {
     if (!task.is_recurring || !task.recurring_pattern) {
-      instances.push(task);
+      // For non-recurring tasks, only add them if they're in the target month
+      if (task.month === targetMonth && task.year === targetYear) {
+        instances.push(task);
+      }
       return;
     }
 
@@ -61,9 +64,6 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
         currentDate = nextDate;
         instanceCount++;
       }
-    } else {
-      // If not recurring or doesn't overlap, just add the original task
-      instances.push(task);
     }
   });
 
