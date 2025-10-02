@@ -209,10 +209,15 @@ const MMCCalendar = () => {
     return new Date(year, month + 1, 0).getDate();
   };
 
+  // Get all tasks from all months for recurring generation
+  const allTasksFlat = useMemo(() => {
+    return Object.values(allTasks).flat();
+  }, [allTasks]);
+
   // Use useMemo to generate recurring instances safely
   const allTasksWithRecurring = useMemo(() => {
-    return generateRecurringInstances(currentMonthTasks, currentDate.getMonth(), currentDate.getFullYear());
-  }, [currentMonthTasks, currentDate.getMonth(), currentDate.getFullYear()]);
+    return generateRecurringInstances(allTasksFlat, currentDate.getMonth(), currentDate.getFullYear());
+  }, [allTasksFlat, currentDate.getMonth(), currentDate.getFullYear()]);
 
   const getTasksForDate = useCallback((date: number) => {
     let tasks = allTasksWithRecurring.filter(task => task.date === date && selectedFilters[task.category]);
