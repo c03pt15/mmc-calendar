@@ -270,7 +270,6 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
             instances.push(newInstance);
           } else {
             // Only generate from original task if no modified instance exists
-            console.log('Creating instance from task:', task);
             const newInstance = {
               ...task,
               id: task.id,
@@ -282,7 +281,6 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
               is_recurring_instance: true,
               instance_key: instanceKey
             };
-            console.log('Created instance:', newInstance);
             instances.push(newInstance);
           }
         }
@@ -559,8 +557,6 @@ const MMCCalendar = () => {
         return;
       }
       
-      console.log('Raw task data from database:', data);
-      
       // Group tasks by month-year
       const groupedTasks: { [key: string]: any[] } = {};
       (data || []).forEach(task => {
@@ -570,8 +566,6 @@ const MMCCalendar = () => {
         }
         groupedTasks[key].push(task);
       });
-      
-      console.log('Grouped tasks:', groupedTasks);
       setAllTasks(groupedTasks);
       
       // Rebuild deleted instances from database records
@@ -877,17 +871,28 @@ const MMCCalendar = () => {
     setShowNewEntryModal(true);
   };
 
+  // Helper function to ensure complete task data
+  const ensureCompleteTaskData = (task: any) => {
+    return {
+      ...task,
+      // Ensure all required fields are present with fallbacks
+      type: task.type || 'Unknown',
+      status: task.status || 'planned',
+      priority: task.priority || 'medium',
+      assignee: task.assignee || null,
+      description: task.description || '',
+      color: task.color || 'bg-gray-100',
+      time: task.time || '',
+      category: task.category || 'Unknown',
+      created_at: task.created_at || null,
+      created_by: task.created_by || null,
+      tags: task.tags || [],
+      comments: task.comments || null
+    };
+  };
+
   const handleTaskClick = (task: any) => {
-    console.log('=== TASK CLICKED ===');
-    console.log('Task clicked - full object:', task);
-    console.log('Task clicked - keys:', Object.keys(task));
-    console.log('Task clicked - type:', task.type);
-    console.log('Task clicked - status:', task.status);
-    console.log('Task clicked - priority:', task.priority);
-    console.log('Task clicked - is_recurring_instance:', task.is_recurring_instance);
-    console.log('Task clicked - parent_task_id:', task.parent_task_id);
-    console.log('=== END TASK CLICKED ===');
-    setSelectedTask(task);
+    setSelectedTask(ensureCompleteTaskData(task));
     setShowTaskModal(true);
   };
 
@@ -1023,7 +1028,7 @@ const MMCCalendar = () => {
   };
 
   const handleSearchResultClick = (task: any) => {
-    setSelectedTask(task);
+    setSelectedTask(ensureCompleteTaskData(task));
     setShowTaskModal(true);
     setSearchQuery('');
     setSearchResults([]);
@@ -1519,7 +1524,7 @@ const MMCCalendar = () => {
                 key={task.id} 
                 className="flex items-start space-x-3 p-2 bg-white rounded-md border border-red-100 hover:bg-red-25 transition-colors cursor-pointer"
                 onClick={() => {
-                  setSelectedTask(task);
+                  setSelectedTask(ensureCompleteTaskData(task));
                   setShowTaskModal(true);
                 }}
               >
@@ -1560,7 +1565,7 @@ const MMCCalendar = () => {
                 key={task.id} 
                 className="flex items-start space-x-3 p-2 bg-white rounded-md border border-orange-100 hover:bg-orange-25 transition-colors cursor-pointer"
                 onClick={() => {
-                  setSelectedTask(task);
+                  setSelectedTask(ensureCompleteTaskData(task));
                   setShowTaskModal(true);
                 }}
               >
@@ -2416,10 +2421,6 @@ const MMCCalendar = () => {
               </button>
             </div>
             <div className="space-y-4">
-              {/* Debug info - remove this later */}
-              <div className="bg-yellow-50 p-2 rounded text-xs">
-                <strong>Debug - Task Object:</strong> {JSON.stringify(selectedTask, null, 2)}
-              </div>
               <div>
                 <h4 className="font-medium text-gray-900 mb-2">{selectedTask.title || 'Unknown Task'}</h4>
                 <p className="text-gray-600 text-sm">{selectedTask.description || 'No description'}</p>
@@ -3075,7 +3076,7 @@ const MMCCalendar = () => {
                           key={task.id}
                           className="p-3 bg-red-50 border border-red-200 rounded-lg cursor-pointer hover:bg-red-100 transition-colors"
                           onClick={() => {
-                            setSelectedTask(task);
+                            setSelectedTask(ensureCompleteTaskData(task));
                             setShowTaskModal(true);
                             setShowDrawer(false);
                           }}
@@ -3121,7 +3122,7 @@ const MMCCalendar = () => {
                           key={task.id}
                           className="p-3 bg-orange-50 border border-orange-200 rounded-lg cursor-pointer hover:bg-orange-100 transition-colors"
                           onClick={() => {
-                            setSelectedTask(task);
+                            setSelectedTask(ensureCompleteTaskData(task));
                             setShowTaskModal(true);
                             setShowDrawer(false);
                           }}
@@ -3165,7 +3166,7 @@ const MMCCalendar = () => {
                         className="p-3 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
                         onClick={() => {
                           if (activity.task && activity.task.id) {
-                            setSelectedTask(activity.task);
+                            setSelectedTask(ensureCompleteTaskData(activity.task));
                             setShowTaskModal(true);
                             setShowDrawer(false);
                           }
