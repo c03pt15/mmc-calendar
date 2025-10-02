@@ -403,9 +403,6 @@ const MMCCalendar = () => {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [dragOverDate, setDragOverDate] = useState<number | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const [customCategories, setCustomCategories] = useState<string[]>([]);
-  const [showAddCategory, setShowAddCategory] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
   const [preSelectedDate, setPreSelectedDate] = useState<{date: number, month: number, year: number} | null>(null);
   const [deletedInstances, setDeletedInstances] = useState<Set<string>>(new Set());
   const [editMode, setEditMode] = useState<'single' | 'all'>('single'); // For recurring task editing
@@ -429,7 +426,11 @@ const MMCCalendar = () => {
     recurring_end_date: null,
     comments: '',
     tags: [],
-    created_by: 1
+    created_by: 1,
+    is_all_day: false,
+    is_multiday: false,
+    start_date: null,
+    end_date: null
   });
 
   const teamMembers = [
@@ -544,6 +545,18 @@ const MMCCalendar = () => {
     return new Date(year, month + 1, 0).getDate();
   };
 
+  // Helper function to check if a multi-day task spans a specific date
+  const isTaskOnDate = (task: any, date: number, month: number, year: number) => {
+    if (task.is_multiday && task.start_date && task.end_date) {
+      const startDate = new Date(task.start_date);
+      const endDate = new Date(task.end_date);
+      const checkDate = new Date(year, month, date);
+      
+      return checkDate >= startDate && checkDate <= endDate;
+    }
+    return task.date === date && task.month === month && task.year === year;
+  };
+
   // Get all tasks from all months for recurring generation
   // Filter out modified instances and deleted instances since they'll be handled through the recurring generation process
   const allTasksFlat = useMemo(() => {
@@ -569,26 +582,52 @@ const MMCCalendar = () => {
 
   const getTasksForDate = useCallback((date: number) => {
     let tasks = allTasksWithRecurring.filter(task => 
-      task.date === date && 
+      isTaskOnDate(task, date, currentDate.getMonth(), currentDate.getFullYear()) && 
       selectedFilters[task.category] &&
       task.status !== 'deleted' // Exclude deleted tasks
     );
     if (selectedTeamMember) tasks = tasks.filter(task => task.assignee === selectedTeamMember);
     
+    // Group tasks by type for proper ordering
+    const multiDayTasks: any[] = [];
+    const allDayTasks: any[] = [];
+    const tasksByTime: { [key: string]: any[] } = {};
     
-    // Sort tasks by time (earliest to latest)
-    return tasks.sort((a, b) => {
-      // If both tasks have time, sort by time
-      if (a.time && b.time) {
-        return a.time.localeCompare(b.time);
+    tasks.forEach(task => {
+      if (task.is_multiday) {
+        multiDayTasks.push(task);
+      } else if (task.is_all_day) {
+        allDayTasks.push(task);
+      } else {
+        const timeKey = task.time || 'no-time';
+        if (!tasksByTime[timeKey]) {
+          tasksByTime[timeKey] = [];
+        }
+        tasksByTime[timeKey].push(task);
       }
-      // If only one has time, prioritize the one with time
-      if (a.time && !b.time) return -1;
-      if (!a.time && b.time) return 1;
-      // If neither has time, maintain original order
-      return 0;
     });
-  }, [allTasksWithRecurring, selectedFilters, selectedTeamMember]);
+    
+    // Sort multi-day tasks by title
+    multiDayTasks.sort((a, b) => a.title.localeCompare(b.title));
+    
+    // Sort all-day tasks by title
+    allDayTasks.sort((a, b) => a.title.localeCompare(b.title));
+    
+    // Sort timed tasks by time, then by title for conflicts
+    const sortedTimedTasks: any[] = [];
+    Object.keys(tasksByTime).sort((a, b) => {
+      if (a === 'no-time') return 1;
+      if (b === 'no-time') return -1;
+      return a.localeCompare(b);
+    }).forEach(timeKey => {
+      const timeTasks = tasksByTime[timeKey];
+      timeTasks.sort((a, b) => a.title.localeCompare(b.title));
+      sortedTimedTasks.push(...timeTasks);
+    });
+    
+    // Return multi-day tasks first, then all-day tasks, then timed tasks
+    return [...multiDayTasks, ...allDayTasks, ...sortedTimedTasks];
+  }, [allTasksWithRecurring, selectedFilters, selectedTeamMember, currentDate]);
 
   const getAllFilteredTasks = useCallback(() => {
     let tasks = allTasksWithRecurring.filter(task => 
@@ -836,19 +875,6 @@ const MMCCalendar = () => {
   };
 
 
-  // Custom categories functionality
-  const addCustomCategory = () => {
-    if (newCategoryName.trim() && !customCategories.includes(newCategoryName.trim())) {
-      setCustomCategories([...customCategories, newCategoryName.trim()]);
-      setNewCategoryName('');
-      setShowAddCategory(false);
-    }
-  };
-
-
-  const removeCustomCategory = (category: string) => {
-    setCustomCategories(customCategories.filter(c => c !== category));
-  };
 
 
   // Close search results and export menu when clicking outside
@@ -1467,17 +1493,58 @@ const MMCCalendar = () => {
                           {day}
                         </div>
                         <div className="space-y-1">
-                          {getTasksForDate(day).map(task => (
-                            <div
-                              key={task.id}
-                              className={`text-xs p-2 rounded border ${task.color} cursor-move hover:shadow-sm relative ${
-                                task.status === 'completed' ? 'opacity-75' : ''
-                              } ${draggedTask?.id === task.id ? 'opacity-50' : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleTaskClick(task);
-                              }}
-                              draggable
+                          {/* Multi-day tasks as continuous bars at the top */}
+                          {getTasksForDate(day).filter(task => task.is_multiday).map((task, index) => {
+                            const isStart = task.start_date && new Date(task.start_date).getDate() === day;
+                            const isEnd = task.end_date && new Date(task.end_date).getDate() === day;
+                            const isMiddle = !isStart && !isEnd;
+                            
+                            return (
+                              <div
+                                key={`multiday-${task.id}-${day}`}
+                                className={`h-6 ${task.color} cursor-pointer hover:opacity-80 relative flex items-center border-t-2 ${
+                                  task.status === 'completed' ? 'opacity-50' : ''
+                                } ${draggedTask?.id === task.id ? 'opacity-50' : ''} rounded-none`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleTaskClick(task);
+                                }}
+                                title={`${task.title}${isStart ? ' (Start)' : isEnd ? ' (End)' : ''}`}
+                                style={{
+                                  marginLeft: isStart ? '0' : '-1px',
+                                  marginRight: isEnd ? '0' : '-1px',
+                                  zIndex: 10
+                                }}
+                              >
+                                <div className="flex items-center justify-center w-full px-2">
+                                  <div className="text-xs font-medium truncate text-center">
+                                    {task.title}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          
+                          {/* Regular tasks */}
+                          {getTasksForDate(day).filter(task => !task.is_multiday).map((task, index) => {
+                            // Check for time conflicts
+                            const hasTimeConflict = !task.is_all_day && getTasksForDate(day).filter(t => 
+                              !t.is_all_day && !t.is_multiday && t.time === task.time && t.id !== task.id
+                            ).length > 0;
+                            
+                            return (
+                              <div
+                                key={task.id}
+                                className={`text-xs p-2 rounded border ${task.color} cursor-move hover:shadow-sm relative ${
+                                  task.status === 'completed' ? 'opacity-75' : ''
+                                } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${
+                                  task.is_all_day ? 'border-2 border-dashed border-gray-400 bg-opacity-50' : ''
+                                } ${hasTimeConflict ? 'border-l-4 border-l-red-400' : ''}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleTaskClick(task);
+                                }}
+                                draggable
                               onDragStart={(e) => handleCalendarDragStart(e, task)}
                             >
                               {task.status === 'completed' && (
@@ -1503,7 +1570,11 @@ const MMCCalendar = () => {
                               <div className={`${
                                 task.status === 'completed' ? 'text-gray-400' : 'text-gray-600'
                               }`}>{task.type}</div>
-                              {task.time && (
+                              {task.is_all_day ? (
+                                <div className={`${
+                                  task.status === 'completed' ? 'text-gray-400' : 'text-gray-500'
+                                }`}>All Day</div>
+                              ) : task.time && (
                                 <div className={`${
                                   task.status === 'completed' ? 'text-gray-400' : 'text-gray-500'
                                 }`}>{task.time}</div>
@@ -1524,7 +1595,8 @@ const MMCCalendar = () => {
                                 </div>
                               )}
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                         {day === today && isCurrentMonth && (
                           <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 rounded-full"></div>
@@ -1581,7 +1653,22 @@ const MMCCalendar = () => {
                               </span>
                             </div>
                           </div>
-                          {task.time && (
+                          {task.is_multiday ? (
+                            <div className="flex items-center space-x-2 mb-2">
+                              <Calendar className="w-4 h-4 text-gray-400" />
+                              <span className="text-xs text-gray-500">
+                                {task.start_date && task.end_date ? 
+                                  `${new Date(task.start_date).toLocaleDateString()} - ${new Date(task.end_date).toLocaleDateString()}` : 
+                                  'Multi-Day'
+                                }
+                              </span>
+                            </div>
+                          ) : task.is_all_day ? (
+                            <div className="flex items-center space-x-2 mb-2">
+                              <Calendar className="w-4 h-4 text-gray-400" />
+                              <span className="text-xs text-gray-500">All Day</span>
+                            </div>
+                          ) : task.time && (
                             <div className="flex items-center space-x-2 mb-2">
                               <Clock className="w-4 h-4 text-gray-400" />
                               <span className="text-xs text-gray-500">{task.time}</span>
@@ -1640,7 +1727,7 @@ const MMCCalendar = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
                 <input
@@ -1657,7 +1744,7 @@ const MMCCalendar = () => {
                   value={newTask.description}
                   onChange={(e) => setNewTask((prev: any) => ({ ...prev, description: e.target.value }))}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows={3}
+                  rows={2}
                   placeholder="Enter task description"
                 />
               </div>
@@ -1687,38 +1774,106 @@ const MMCCalendar = () => {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Day</label>
+              <div className="space-y-3">
+                <div className="flex items-center">
                   <input
-                    type="number"
-                    min="1"
-                    max={getDaysInMonthCount(newTask.year, newTask.month)}
-                    value={newTask.date}
-                    onChange={(e) => setNewTask((prev: any) => ({ ...prev, date: parseInt(e.target.value) }))}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    type="checkbox"
+                    id="is_multiday"
+                    checked={newTask.is_multiday}
+                    onChange={(e) => setNewTask((prev: any) => ({ 
+                      ...prev, 
+                      is_multiday: e.target.checked,
+                      is_all_day: e.target.checked ? false : prev.is_all_day,
+                      time: e.target.checked ? '' : prev.time || '09:00'
+                    }))}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
+                  <label htmlFor="is_multiday" className="ml-2 text-sm font-medium text-gray-700">
+                    Multi-Day Task
+                  </label>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
-                  <input
-                    type="time"
-                    value={newTask.time}
-                    onChange={(e) => setNewTask((prev: any) => ({ ...prev, time: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+                
+                {newTask.is_multiday ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                      <input
+                        type="date"
+                        value={newTask.start_date || ''}
+                        onChange={(e) => setNewTask((prev: any) => ({ 
+                          ...prev, 
+                          start_date: e.target.value,
+                          date: e.target.value ? new Date(e.target.value).getDate() : prev.date,
+                          month: e.target.value ? new Date(e.target.value).getMonth() : prev.month,
+                          year: e.target.value ? new Date(e.target.value).getFullYear() : prev.year
+                        }))}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                      <input
+                        type="date"
+                        value={newTask.end_date || ''}
+                        onChange={(e) => setNewTask((prev: any) => ({ ...prev, end_date: e.target.value }))}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Day</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max={getDaysInMonthCount(newTask.year, newTask.month)}
+                        value={newTask.date}
+                        onChange={(e) => setNewTask((prev: any) => ({ ...prev, date: parseInt(e.target.value) }))}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
+                      <div className="space-y-2">
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id="is_all_day"
+                            checked={newTask.is_all_day}
+                            onChange={(e) => setNewTask((prev: any) => ({ 
+                              ...prev, 
+                              is_all_day: e.target.checked,
+                              time: e.target.checked ? '' : prev.time || '09:00'
+                            }))}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          />
+                          <label htmlFor="is_all_day" className="ml-2 text-sm text-gray-700">
+                            All Day Event
+                          </label>
+                        </div>
+                        {!newTask.is_all_day && (
+                          <input
+                            type="time"
+                            value={newTask.time}
+                            onChange={(e) => setNewTask((prev: any) => ({ ...prev, time: e.target.value }))}
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                  <div className="flex space-x-2">
                   <select
                     value={newTask.category || ''}
                     onChange={(e) => setNewTask((prev: any) => ({ 
                       ...prev, 
                       category: e.target.value,
-                      type: categoryConfig[e.target.value]?.type || 'Custom'
+                      type: categoryConfig[e.target.value].type
                     }))}
                     className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
@@ -1727,45 +1882,7 @@ const MMCCalendar = () => {
                     <option value="socialMedia">Social Media</option>
                     <option value="campaigns">Campaigns</option>
                     <option value="emailMarketing">Email Marketing</option>
-                    {customCategories.map(category => (
-                      <option key={category} value={category}>{category}</option>
-                    ))}
                   </select>
-                    <button
-                      onClick={() => setShowAddCategory(!showAddCategory)}
-                      className="px-3 py-2 bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200 text-sm"
-                      title="Add custom category"
-                    >
-                      +
-                    </button>
-                  </div>
-                  {showAddCategory && (
-                    <div className="mt-2 flex space-x-2">
-                      <input
-                        type="text"
-                        value={newCategoryName}
-                        onChange={(e) => setNewCategoryName(e.target.value)}
-                        placeholder="New category name"
-                        className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        onKeyPress={(e) => e.key === 'Enter' && addCustomCategory()}
-                      />
-                      <button
-                        onClick={addCustomCategory}
-                        className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
-                      >
-                        Add
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowAddCategory(false);
-                          setNewCategoryName('');
-                        }}
-                        className="px-3 py-2 bg-gray-300 text-gray-600 rounded-md hover:bg-gray-400 text-sm"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
@@ -2057,7 +2174,22 @@ const MMCCalendar = () => {
                   <span className="text-sm text-gray-900">
                     {monthNames[selectedTask.month || currentDate.getMonth()]} {selectedTask.date}, {selectedTask.year || currentDate.getFullYear()}
                   </span>
-                  {selectedTask.time && (
+                  {selectedTask.is_multiday ? (
+                    <>
+                      <Calendar className="w-4 h-4 text-gray-400 ml-4" />
+                      <span className="text-sm text-gray-900">
+                        {selectedTask.start_date && selectedTask.end_date ? 
+                          `${new Date(selectedTask.start_date).toLocaleDateString()} - ${new Date(selectedTask.end_date).toLocaleDateString()}` : 
+                          'Multi-Day'
+                        }
+                      </span>
+                    </>
+                  ) : selectedTask.is_all_day ? (
+                    <>
+                      <Calendar className="w-4 h-4 text-gray-400 ml-4" />
+                      <span className="text-sm text-gray-900">All Day</span>
+                    </>
+                  ) : selectedTask.time && (
                     <>
                       <Clock className="w-4 h-4 text-gray-400 ml-4" />
                       <span className="text-sm text-gray-900">{selectedTask.time}</span>
@@ -2259,27 +2391,96 @@ const MMCCalendar = () => {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Day</label>
+              <div className="space-y-4">
+                <div className="flex items-center">
                   <input
-                    type="number"
-                    min="1"
-                    max={getDaysInMonthCount(editingTask.year, editingTask.month)}
-                    value={editingTask.date}
-                    onChange={(e) => setEditingTask((prev: any) => ({ ...prev, date: parseInt(e.target.value) }))}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    type="checkbox"
+                    id="edit_is_multiday"
+                    checked={editingTask.is_multiday}
+                    onChange={(e) => setEditingTask((prev: any) => ({ 
+                      ...prev, 
+                      is_multiday: e.target.checked,
+                      is_all_day: e.target.checked ? false : prev.is_all_day,
+                      time: e.target.checked ? '' : prev.time || '09:00'
+                    }))}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
+                  <label htmlFor="edit_is_multiday" className="ml-2 text-sm font-medium text-gray-700">
+                    Multi-Day Task
+                  </label>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
-                  <input
-                    type="time"
-                    value={editingTask.time}
-                    onChange={(e) => setEditingTask((prev: any) => ({ ...prev, time: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+                
+                {editingTask.is_multiday ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                      <input
+                        type="date"
+                        value={editingTask.start_date || ''}
+                        onChange={(e) => setEditingTask((prev: any) => ({ 
+                          ...prev, 
+                          start_date: e.target.value,
+                          date: e.target.value ? new Date(e.target.value).getDate() : prev.date,
+                          month: e.target.value ? new Date(e.target.value).getMonth() : prev.month,
+                          year: e.target.value ? new Date(e.target.value).getFullYear() : prev.year
+                        }))}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                      <input
+                        type="date"
+                        value={editingTask.end_date || ''}
+                        onChange={(e) => setEditingTask((prev: any) => ({ ...prev, end_date: e.target.value }))}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Day</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max={getDaysInMonthCount(editingTask.year, editingTask.month)}
+                        value={editingTask.date}
+                        onChange={(e) => setEditingTask((prev: any) => ({ ...prev, date: parseInt(e.target.value) }))}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
+                      <div className="space-y-2">
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id="edit_is_all_day"
+                            checked={editingTask.is_all_day}
+                            onChange={(e) => setEditingTask((prev: any) => ({ 
+                              ...prev, 
+                              is_all_day: e.target.checked,
+                              time: e.target.checked ? '' : prev.time || '09:00'
+                            }))}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          />
+                          <label htmlFor="edit_is_all_day" className="ml-2 text-sm text-gray-700">
+                            All Day Event
+                          </label>
+                        </div>
+                        {!editingTask.is_all_day && (
+                          <input
+                            type="time"
+                            value={editingTask.time}
+                            onChange={(e) => setEditingTask((prev: any) => ({ ...prev, time: e.target.value }))}
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
