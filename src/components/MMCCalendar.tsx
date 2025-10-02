@@ -574,7 +574,19 @@ const MMCCalendar = () => {
       task.status !== 'deleted' // Exclude deleted tasks
     );
     if (selectedTeamMember) tasks = tasks.filter(task => task.assignee === selectedTeamMember);
-    return tasks;
+    
+    // Sort tasks by time (earliest to latest)
+    return tasks.sort((a, b) => {
+      // If both tasks have time, sort by time
+      if (a.time && b.time) {
+        return a.time.localeCompare(b.time);
+      }
+      // If only one has time, prioritize the one with time
+      if (a.time && !b.time) return -1;
+      if (!a.time && b.time) return 1;
+      // If neither has time, maintain original order
+      return 0;
+    });
   }, [allTasksWithRecurring, selectedFilters, selectedTeamMember]);
 
   const getAllFilteredTasks = useCallback(() => {
