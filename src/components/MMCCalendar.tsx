@@ -28,6 +28,7 @@ const MMCCalendar = () => {
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [preSelectedDate, setPreSelectedDate] = useState<{date: number, month: number, year: number} | null>(null);
   const [newTask, setNewTask] = useState<any>({
     title: '',
     description: '',
@@ -173,6 +174,7 @@ const MMCCalendar = () => {
   };
 
   const handleNewEntry = () => {
+    setPreSelectedDate(null);
     setNewTask({
       title: '',
       description: '',
@@ -183,7 +185,32 @@ const MMCCalendar = () => {
       year: currentDate.getFullYear(),
       time: '09:00',
       assignee: 1,
-      status: 'planned'
+      status: 'planned',
+      priority: 'medium',
+      comments: ''
+    });
+    setShowNewEntryModal(true);
+  };
+
+  const handleDayClick = (day: number) => {
+    setPreSelectedDate({
+      date: day,
+      month: currentDate.getMonth(),
+      year: currentDate.getFullYear()
+    });
+    setNewTask({
+      title: '',
+      description: '',
+      type: 'Blog',
+      category: 'blogPosts',
+      date: day,
+      month: currentDate.getMonth(),
+      year: currentDate.getFullYear(),
+      time: '09:00',
+      assignee: 1,
+      status: 'planned',
+      priority: 'medium',
+      comments: ''
     });
     setShowNewEntryModal(true);
   };
@@ -780,9 +807,10 @@ const MMCCalendar = () => {
                 {days.map((day, index) => (
                   <div
                     key={index}
-                    className={`border-r border-b border-gray-200 last:border-r-0 p-2 min-h-[120px] relative ${
+                    className={`border-r border-b border-gray-200 last:border-r-0 p-2 min-h-[120px] relative cursor-pointer hover:bg-gray-50 ${
                       dragOverDate === day ? 'bg-blue-50 border-blue-300' : ''
                     }`}
+                    onClick={day ? () => handleDayClick(day) : undefined}
                     onDragOver={day ? (e) => handleCalendarDragOver(e, day) : undefined}
                     onDragLeave={day ? handleCalendarDragLeave : undefined}
                     onDrop={day ? (e) => handleCalendarDrop(e, day) : undefined}
@@ -801,7 +829,10 @@ const MMCCalendar = () => {
                               className={`text-xs p-2 rounded border ${task.color} cursor-move hover:shadow-sm relative ${
                                 task.status === 'completed' ? 'opacity-75' : ''
                               } ${draggedTask?.id === task.id ? 'opacity-50' : ''}`}
-                              onClick={() => handleTaskClick(task)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTaskClick(task);
+                              }}
                               draggable
                               onDragStart={(e) => handleCalendarDragStart(e, task)}
                             >
@@ -910,7 +941,14 @@ const MMCCalendar = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-[600px] max-w-[90vw] mx-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">New Entry</h3>
+              <h3 className="text-lg font-medium text-gray-900">
+                New Entry
+                {preSelectedDate && (
+                  <span className="text-sm text-blue-600 ml-2">
+                    (for {monthNames[preSelectedDate.month]} {preSelectedDate.date}, {preSelectedDate.year})
+                  </span>
+                )}
+              </h3>
               <button
                 onClick={() => setShowNewEntryModal(false)}
                 className="text-gray-400 hover:text-gray-600"
