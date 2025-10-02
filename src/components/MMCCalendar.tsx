@@ -528,25 +528,28 @@ const MMCCalendar = () => {
         try {
           setLoading(true);
           
+          let data;
           if (deleteAll) {
             // Delete the original recurring task (deletes all instances)
             const taskIdToDelete = selectedTask.is_recurring_instance ? selectedTask.parent_task_id : selectedTask.id;
-            const { data, error } = await supabase.from('tasks').delete().eq('id', taskIdToDelete);
+            const result = await supabase.from('tasks').delete().eq('id', taskIdToDelete);
+            data = result.data;
             
-            if (error) {
-              console.error('Error deleting recurring task:', error);
-              alert(`Error deleting recurring task: ${error.message}`);
+            if (result.error) {
+              console.error('Error deleting recurring task:', result.error);
+              alert(`Error deleting recurring task: ${result.error.message}`);
               return;
             }
           } else {
             // For now, we'll delete the original task since we don't have individual instance deletion
             // In a more advanced system, you'd create a separate table for instances
             const taskIdToDelete = selectedTask.is_recurring_instance ? selectedTask.parent_task_id : selectedTask.id;
-            const { data, error } = await supabase.from('tasks').delete().eq('id', taskIdToDelete);
+            const result = await supabase.from('tasks').delete().eq('id', taskIdToDelete);
+            data = result.data;
             
-            if (error) {
-              console.error('Error deleting task:', error);
-              alert(`Error deleting task: ${error.message}`);
+            if (result.error) {
+              console.error('Error deleting task:', result.error);
+              alert(`Error deleting task: ${result.error.message}`);
               return;
             }
           }
@@ -567,15 +570,15 @@ const MMCCalendar = () => {
       if (window.confirm('Are you sure you want to delete this task?')) {
         try {
           setLoading(true);
-          const { data, error } = await supabase.from('tasks').delete().eq('id', selectedTask.id);
+          const result = await supabase.from('tasks').delete().eq('id', selectedTask.id);
           
-          if (error) {
-            console.error('Error deleting task:', error);
-            alert(`Error deleting task: ${error.message}`);
+          if (result.error) {
+            console.error('Error deleting task:', result.error);
+            alert(`Error deleting task: ${result.error.message}`);
             return;
           }
           
-          console.log('Task deleted successfully:', data);
+          console.log('Task deleted successfully:', result.data);
           setShowTaskModal(false);
           setSelectedTask(null);
           await refreshTasks();
