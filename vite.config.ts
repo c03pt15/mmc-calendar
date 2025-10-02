@@ -1,9 +1,9 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig(({ command }) => ({
+export default defineConfig(({ command, mode }) => ({
   plugins: [react()],
-  base: command === 'build' ? '/mmc-calendar/' : '/', // Different base paths for dev and build
+  base: mode === 'production' && process.env.VERCEL ? '/' : command === 'build' ? '/mmc-calendar/' : '/', // Different base paths for dev, GitHub Pages, and Vercel
   define: {
     // Define environment variables for production builds
     'import.meta.env.VITE_SUPABASE_URL': JSON.stringify('https://zmbptzxjuuveqmcevtaz.supabase.co'),

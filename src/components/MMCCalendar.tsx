@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Plus, X, User, Calendar, Clock, UserCheck, Search, Download } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, User, Calendar, Clock, UserCheck, Search, Download, Repeat } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 // Pure function for generating recurring instances - outside component to avoid circular dependencies
@@ -263,7 +263,7 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
               month: currentDate.getMonth(),
               year: currentDate.getFullYear(),
               parent_task_id: task.id,
-              is_recurring: false,
+              is_recurring: true,
               is_recurring_instance: true,
               instance_key: instanceKey
             };
@@ -277,7 +277,7 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
               month: currentDate.getMonth(),
               year: currentDate.getFullYear(),
               parent_task_id: task.id,
-              is_recurring: false,
+              is_recurring: true,
               is_recurring_instance: true,
               instance_key: instanceKey
             };
@@ -574,6 +574,12 @@ const MMCCalendar = () => {
       task.status !== 'deleted' // Exclude deleted tasks
     );
     if (selectedTeamMember) tasks = tasks.filter(task => task.assignee === selectedTeamMember);
+    
+    // Debug: Log recurring tasks
+    const recurringTasks = tasks.filter(task => task.is_recurring);
+    if (recurringTasks.length > 0) {
+      console.log('Recurring tasks found for date', date, ':', recurringTasks.map(t => ({ title: t.title, is_recurring: t.is_recurring })));
+    }
     
     // Sort tasks by time (earliest to latest)
     return tasks.sort((a, b) => {
@@ -1131,7 +1137,15 @@ const MMCCalendar = () => {
   ];
 
   const getTasksByStatus = (status: string) => {
-    return getAllFilteredTasks().filter(task => task.status === status);
+    const tasks = getAllFilteredTasks().filter(task => task.status === status);
+    
+    // Debug: Log recurring tasks in kanban
+    const recurringTasks = tasks.filter(task => task.is_recurring);
+    if (recurringTasks.length > 0) {
+      console.log('Recurring tasks found in kanban status', status, ':', recurringTasks.map(t => ({ title: t.title, is_recurring: t.is_recurring })));
+    }
+    
+    return tasks;
   };
 
   const navigateMonth = (direction: number) => {
@@ -1485,11 +1499,16 @@ const MMCCalendar = () => {
                                 <div className={`font-medium truncate ${
                                   task.status === 'completed' ? 'text-gray-500' : ''
                                 }`}>{task.title}</div>
-                                {task.priority && task.priority !== 'medium' && (
-                                  <span className="text-xs ml-1">
-                                    {priorityConfig[task.priority]?.icon || '🟡'}
-                                  </span>
-                                )}
+                                <div className="flex items-center space-x-1">
+                                  {task.is_recurring && (
+                                    <Repeat className="w-3 h-3 text-blue-500" title="Recurring task" />
+                                  )}
+                                  {task.priority && task.priority !== 'medium' && (
+                                    <span className="text-xs ml-1">
+                                      {priorityConfig[task.priority]?.icon || '🟡'}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                               <div className={`${
                                 task.status === 'completed' ? 'text-gray-400' : 'text-gray-600'
@@ -1554,7 +1573,12 @@ const MMCCalendar = () => {
                           onDragStart={(e) => handleDragStart(e, task)}
                           onClick={() => handleTaskClick(task)}
                         >
-                          <div className="font-medium text-gray-900 mb-2">{task.title}</div>
+                          <div className="font-medium text-gray-900 mb-2 flex items-center space-x-2">
+                            <span>{task.title}</span>
+                            {task.is_recurring && (
+                              <Repeat className="w-4 h-4 text-blue-500" title="Recurring task" />
+                            )}
+                          </div>
                           <div className="text-sm text-gray-600 mb-3">{task.description}</div>
                           <div className="flex items-center justify-between mb-2">
                             <span className={`text-xs px-2 py-1 rounded ${task.color}`}>

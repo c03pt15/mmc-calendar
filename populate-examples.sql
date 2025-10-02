@@ -48,3 +48,9 @@ INSERT INTO tasks (title, description, type, category, date, month, year, time, 
 ('Brand Guidelines Update', 'Update brand guidelines for digital assets', 'Campaign', 'campaigns', 13, 10, 2025, '14:30', 3, 'review', 'bg-purple-100 text-purple-800 border-purple-200', ARRAY['brand', 'guidelines', 'update'], 3),
 ('Customer Feedback Analysis', 'Analyze customer feedback from social media', 'Social', 'socialMedia', 21, 9, 2025, '13:15', 1, 'completed', 'bg-green-100 text-green-800 border-green-200', ARRAY['feedback', 'analysis', 'customer'], 1),
 ('Newsletter Design Refresh', 'Redesign monthly newsletter template', 'Email', 'emailMarketing', 4, 10, 2025, '11:45', 5, 'planned', 'bg-orange-100 text-orange-800 border-orange-200', ARRAY['newsletter', 'design', 'refresh'], 5);
+
+-- Add some recurring tasks for testing
+INSERT INTO tasks (title, description, type, category, date, month, year, time, assignee, status, color, tags, created_by, is_recurring, recurring_pattern, recurring_interval, recurring_unit) VALUES
+('Weekly Team Standup', 'Daily team standup meeting', 'Campaign', 'campaigns', 15, 9, 2025, '09:00', 3, 'planned', 'bg-purple-100 text-purple-800 border-purple-200', ARRAY['standup', 'meeting', 'weekly'], 3, true, 'weekly', 1, 'week'),
+('Monthly Social Media Report', 'Generate monthly social media analytics report', 'Social', 'socialMedia', 1, 9, 2025, '10:00', 1, 'planned', 'bg-green-100 text-green-800 border-green-200', ARRAY['report', 'analytics', 'monthly'], 1, true, 'monthly', 1, 'month'),
+('Daily Content Review', 'Review and approve daily social media content', 'Social', 'socialMedia', 20, 9, 2025, '16:00', 6, 'in-progress', 'bg-green-100 text-green-800 border-green-200', ARRAY['content', 'review', 'daily'], 6, true, 'daily', 1, 'day');
