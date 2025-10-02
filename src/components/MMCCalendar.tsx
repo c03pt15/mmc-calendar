@@ -396,17 +396,17 @@ const MMCCalendar = () => {
       title: '',
       description: '',
       type: 'Blog',
-      category: 'blogPosts',
+      category: '',
       date: 1,
       month: currentDate.getMonth(),
       year: currentDate.getFullYear(),
       time: '09:00',
-      assignee: 1,
+      assignee: null,
       status: 'planned',
       priority: 'medium',
       comments: '',
       tags: [],
-      created_by: 1
+      created_by: null
     });
     setShowNewEntryModal(true);
   };
@@ -421,15 +421,17 @@ const MMCCalendar = () => {
       title: '',
       description: '',
       type: 'Blog',
-      category: 'blogPosts',
+      category: '',
       date: day,
       month: currentDate.getMonth(),
       year: currentDate.getFullYear(),
       time: '09:00',
-      assignee: 1,
+      assignee: null,
       status: 'planned',
       priority: 'medium',
-      comments: ''
+      comments: '',
+      tags: [],
+      created_by: null
     });
     setShowNewEntryModal(true);
   };
@@ -442,10 +444,25 @@ const MMCCalendar = () => {
   const handleSaveNewTask = async () => {
     try {
       setLoading(true);
+      
+      // Validate required fields
+      if (!newTask.category) {
+        alert('Please select a category');
+        return;
+      }
+      if (!newTask.assignee) {
+        alert('Please select an assignee');
+        return;
+      }
+      if (!newTask.created_by) {
+        alert('Please select who created this task');
+        return;
+      }
+      
       const task = {
         ...newTask,
         color: categoryConfig[newTask.category].color,
-        created_by: newTask.created_by || newTask.assignee // Use selected creator or fallback to assignee
+        created_by: newTask.created_by
       };
       
       const { data, error } = await supabase.from('tasks').insert([task]);
@@ -1357,23 +1374,24 @@ const MMCCalendar = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
                   <div className="flex space-x-2">
-                    <select
-                      value={newTask.category}
-                      onChange={(e) => setNewTask((prev: any) => ({ 
-                        ...prev, 
-                        category: e.target.value,
-                        type: categoryConfig[e.target.value]?.type || 'Custom'
-                      }))}
-                      className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="blogPosts">Blog Posts</option>
-                      <option value="socialMedia">Social Media</option>
-                      <option value="campaigns">Campaigns</option>
-                      <option value="emailMarketing">Email Marketing</option>
-                      {customCategories.map(category => (
-                        <option key={category} value={category}>{category}</option>
-                      ))}
-                    </select>
+                  <select
+                    value={newTask.category || ''}
+                    onChange={(e) => setNewTask((prev: any) => ({ 
+                      ...prev, 
+                      category: e.target.value,
+                      type: categoryConfig[e.target.value]?.type || 'Custom'
+                    }))}
+                    className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select Category</option>
+                    <option value="blogPosts">Blog Posts</option>
+                    <option value="socialMedia">Social Media</option>
+                    <option value="campaigns">Campaigns</option>
+                    <option value="emailMarketing">Email Marketing</option>
+                    {customCategories.map(category => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
+                  </select>
                     <button
                       onClick={() => setShowAddCategory(!showAddCategory)}
                       className="px-3 py-2 bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200 text-sm"
@@ -1413,10 +1431,11 @@ const MMCCalendar = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
                   <select
-                    value={newTask.assignee}
-                    onChange={(e) => setNewTask((prev: any) => ({ ...prev, assignee: parseInt(e.target.value) }))}
+                    value={newTask.assignee || ''}
+                    onChange={(e) => setNewTask((prev: any) => ({ ...prev, assignee: e.target.value ? parseInt(e.target.value) : null }))}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
+                    <option value="">Select Assignee</option>
                     {teamMembers.map(member => (
                       <option key={member.id} value={member.id}>{member.name}</option>
                     ))}
@@ -1427,10 +1446,11 @@ const MMCCalendar = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Created by</label>
                 <select
-                  value={newTask.created_by || newTask.assignee}
-                  onChange={(e) => setNewTask((prev: any) => ({ ...prev, created_by: parseInt(e.target.value) }))}
+                  value={newTask.created_by || ''}
+                  onChange={(e) => setNewTask((prev: any) => ({ ...prev, created_by: e.target.value ? parseInt(e.target.value) : null }))}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
+                  <option value="">Select Created by</option>
                   {teamMembers.map(member => (
                     <option key={member.id} value={member.id}>{member.name}</option>
                   ))}
