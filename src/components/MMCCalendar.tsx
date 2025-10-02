@@ -7,23 +7,24 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
   const instances: any[] = [];
   
   tasks.forEach(task => {
-    // Safety check for task structure
-    if (!task || typeof task !== 'object') {
-      return;
-    }
-    
-    // Skip deleted tasks
-    if (task.is_deleted_instance || task.status === 'deleted') {
-      return;
-    }
-    
-    if (!task.is_recurring || !task.recurring_pattern) {
-      // For non-recurring tasks, only add them if they're in the target month
-      if (task.month === targetMonth && task.year === targetYear) {
-        instances.push(task);
+    try {
+      // Basic safety check for task structure
+      if (!task || typeof task !== 'object') {
+        return;
       }
-      return;
-    }
+      
+      // Skip deleted tasks
+      if (task.is_deleted_instance || task.status === 'deleted') {
+        return;
+      }
+      
+      if (!task.is_recurring || !task.recurring_pattern) {
+        // For non-recurring tasks, only add them if they're in the target month
+        if (task.month === targetMonth && task.year === targetYear) {
+          instances.push(task);
+        }
+        return;
+      }
 
     const startDate = new Date(task.year, task.month, task.date);
     const endDate = task.recurring_end_date ? new Date(task.recurring_end_date) : new Date(startDate.getFullYear() + 1, startDate.getMonth(), startDate.getDate());
@@ -160,6 +161,10 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
         currentDate = nextDate;
         instanceCount++;
       }
+    }
+    } catch (error) {
+      console.error('Error processing task in generateRecurringInstances:', error, task);
+      // Continue with next task instead of crashing
     }
   });
 
@@ -328,7 +333,13 @@ const MMCCalendar = () => {
 
   // Use useMemo to generate recurring instances safely
   const allTasksWithRecurring = useMemo(() => {
-    return generateRecurringInstances(allTasksFlat, currentDate.getMonth(), currentDate.getFullYear(), deletedInstances);
+    try {
+      return generateRecurringInstances(allTasksFlat, currentDate.getMonth(), currentDate.getFullYear(), deletedInstances);
+    } catch (error) {
+      console.error('Error generating recurring instances:', error);
+      // Return just the flat tasks as fallback
+      return allTasksFlat || [];
+    }
   }, [allTasksFlat, currentDate.getMonth(), currentDate.getFullYear(), deletedInstances]);
 
   const getTasksForDate = useCallback((date: number) => {
