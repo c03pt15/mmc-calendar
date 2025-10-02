@@ -405,6 +405,7 @@ const MMCCalendar = () => {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showDrawer, setShowDrawer] = useState(false);
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [activitiesLoaded, setActivitiesLoaded] = useState(false);
   const [preSelectedDate, setPreSelectedDate] = useState<{date: number, month: number, year: number} | null>(null);
   const [deletedInstances, setDeletedInstances] = useState<Set<string>>(new Set());
   const [editMode, setEditMode] = useState<'single' | 'all'>('single'); // For recurring task editing
@@ -464,6 +465,43 @@ const MMCCalendar = () => {
   const currentMonthKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
   const currentMonthTasks = allTasks[currentMonthKey] || [];
 
+  // Function to load activities from database
+  const loadActivities = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('activities')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(20);
+      
+      if (error) {
+        console.error('Error loading activities:', error);
+        return;
+      }
+      
+      if (data) {
+        const formattedActivities = data.map(activity => ({
+          id: activity.id,
+          type: activity.type,
+          task: {
+            id: activity.task_id,
+            title: activity.task_title
+          },
+          message: activity.message,
+          user: activity.user_name,
+          timestamp: new Date(activity.created_at),
+          oldStatus: activity.old_status,
+          newStatus: activity.new_status
+        }));
+        
+        setRecentActivities(formattedActivities);
+        setActivitiesLoaded(true);
+      }
+    } catch (err) {
+      console.error('Error loading activities:', err);
+    }
+  }, []);
+
   // Fetch tasks from Supabase for the current month
   useEffect(() => {
     const fetchTasks = async () => {
@@ -483,6 +521,11 @@ const MMCCalendar = () => {
         
         console.log('Tasks fetched successfully:', data);
         setAllTasks((prev) => ({ ...prev, [currentMonthKey]: data || [] }));
+        
+        // Load activities after tasks are loaded
+        if (!activitiesLoaded) {
+          await loadActivities();
+        }
       } catch (err) {
         console.error('Unexpected error fetching tasks:', err);
         alert(`Unexpected error: ${err}`);
@@ -491,7 +534,7 @@ const MMCCalendar = () => {
       }
     };
     fetchTasks();
-  }, [currentDate]);
+  }, [currentDate, loadActivities, activitiesLoaded]);
 
   const refreshTasks = async () => {
     try {
@@ -673,16 +716,47 @@ const MMCCalendar = () => {
     });
   }, [allTasksWithRecurring]);
 
-  // Function to add activity to recent activities
-  const addActivity = useCallback((activity: any) => {
-    setRecentActivities(prev => {
-      const newActivity = {
-        ...activity,
-        id: Date.now() + Math.random(), // Unique ID
-        timestamp: new Date()
-      };
-      return [newActivity, ...prev].slice(0, 20); // Keep last 20 activities
-    });
+  // Function to add activity to database and local state
+  const addActivity = useCallback(async (activity: any) => {
+    try {
+      // Save to database
+      const { data, error } = await supabase
+        .from('activities')
+        .insert([{
+          type: activity.type,
+          task_id: activity.task?.id,
+          task_title: activity.task?.title || '',
+          message: activity.message,
+          user_id: activity.userId || activity.user,
+          user_name: activity.user,
+          old_status: activity.oldStatus,
+          new_status: activity.newStatus
+        }])
+        .select();
+      
+      if (error) {
+        console.error('Error saving activity:', error);
+        return;
+      }
+      
+      // Update local state
+      if (data && data[0]) {
+        const newActivity = {
+          id: data[0].id,
+          type: activity.type,
+          task: activity.task,
+          message: activity.message,
+          user: activity.user,
+          timestamp: new Date(data[0].created_at),
+          oldStatus: activity.oldStatus,
+          newStatus: activity.newStatus
+        };
+        
+        setRecentActivities(prev => [newActivity, ...prev].slice(0, 20));
+      }
+    } catch (err) {
+      console.error('Error adding activity:', err);
+    }
   }, []);
 
   const getRecentActivities = useCallback(() => {
@@ -807,7 +881,8 @@ const MMCCalendar = () => {
         type: 'task_created',
         task: task,
         message: `Created new task: ${task.title}`,
-        user: teamMembers.find(m => m.id === task.created_by)?.name || 'Unknown'
+        user: teamMembers.find(m => m.id === task.created_by)?.name || 'Unknown',
+        userId: task.created_by
       });
       
       setShowNewEntryModal(false);
@@ -1034,7 +1109,8 @@ const MMCCalendar = () => {
         type: 'task_updated',
         task: updatedTask,
         message: `Updated task: ${updatedTask.title}`,
-        user: teamMembers.find(m => m.id === updatedTask.created_by)?.name || 'Unknown'
+        user: teamMembers.find(m => m.id === updatedTask.created_by)?.name || 'Unknown',
+        userId: updatedTask.created_by
       });
       
       setShowEditModal(false);
@@ -1172,6 +1248,7 @@ const MMCCalendar = () => {
         task: draggedTask,
         message: `Changed status from ${draggedTask.status} to ${newStatus}`,
         user: teamMembers.find(m => m.id === draggedTask.created_by)?.name || 'Unknown',
+        userId: draggedTask.created_by,
         oldStatus: draggedTask.status,
         newStatus: newStatus
       });
