@@ -7,6 +7,11 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
   const instances: any[] = [];
   
   tasks.forEach(task => {
+    // Safety check for task structure
+    if (!task || typeof task !== 'object') {
+      return;
+    }
+    
     if (!task.is_recurring || !task.recurring_pattern) {
       // For non-recurring tasks, only add them if they're in the target month
       if (task.month === targetMonth && task.year === targetYear) {
@@ -45,8 +50,8 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
 
         // Calculate next occurrence based on pattern
         let nextDate: Date;
-        const interval = task.recurring_interval || 1;
-        const unit = task.recurring_unit || 'week';
+        const interval = (task.recurring_interval && typeof task.recurring_interval === 'number') ? task.recurring_interval : 1;
+        const unit = (task.recurring_unit && typeof task.recurring_unit === 'string') ? task.recurring_unit : 'week';
         
         switch (unit) {
           case 'day':
