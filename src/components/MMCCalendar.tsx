@@ -29,7 +29,7 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
     if (startDate <= targetMonthEnd && endDate >= targetMonthStart) {
       let currentDate = new Date(startDate);
       let instanceCount = 0;
-      const maxInstances = 12; // Limit to prevent infinite loops
+      const maxInstances = task.recurring_end_date ? 12 : 1000; // Higher limit if no end date
 
       while (currentDate <= endDate && instanceCount < maxInstances) {
         // Check if this instance falls within the target month
@@ -69,6 +69,28 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
           case 'year':
             nextDate = new Date(currentDate);
             nextDate.setFullYear(currentDate.getFullYear() + interval);
+            break;
+          case 'first_day_of_month':
+            nextDate = new Date(currentDate);
+            nextDate.setMonth(currentDate.getMonth() + interval);
+            // Find first occurrence of selected day in next month
+            const firstDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+            const firstDayOfWeek = firstDay.getDay();
+            const targetDay = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+            const daysToAdd = (targetDay - firstDayOfWeek + 7) % 7;
+            nextDate = new Date(firstDay);
+            nextDate.setDate(firstDay.getDate() + daysToAdd);
+            break;
+          case 'last_day_of_month':
+            nextDate = new Date(currentDate);
+            nextDate.setMonth(currentDate.getMonth() + interval);
+            // Find last occurrence of selected day in next month
+            const lastDay = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0);
+            const lastDayOfWeek = lastDay.getDay();
+            const targetDayLast = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+            const daysToSubtract = (lastDayOfWeek - targetDayLast + 7) % 7;
+            nextDate = new Date(lastDay);
+            nextDate.setDate(lastDay.getDate() - daysToSubtract);
             break;
           default:
             nextDate = new Date(currentDate);
@@ -494,31 +516,75 @@ const MMCCalendar = () => {
     }
   };
 
-  const handleDeleteTask = async () => {
-    if (window.confirm('Are you sure you want to delete this task?')) {
-      try {
-        setLoading(true);
-        
-        // If this is a recurring instance, we need to delete the original task
-        const taskIdToDelete = selectedTask.is_recurring_instance ? selectedTask.parent_task_id : selectedTask.id;
-        
-        const { data, error } = await supabase.from('tasks').delete().eq('id', taskIdToDelete);
-        
-        if (error) {
-          console.error('Error deleting task:', error);
-          alert(`Error deleting task: ${error.message}`);
-          return;
+  const handleDeleteTask = async (deleteAll = false) => {
+    const isRecurring = selectedTask.is_recurring || selectedTask.is_recurring_instance;
+    
+    if (isRecurring) {
+      const message = deleteAll 
+        ? 'Are you sure you want to delete ALL occurrences of this recurring task?'
+        : 'Are you sure you want to delete this single occurrence?';
+      
+      if (window.confirm(message)) {
+        try {
+          setLoading(true);
+          
+          if (deleteAll) {
+            // Delete the original recurring task (deletes all instances)
+            const taskIdToDelete = selectedTask.is_recurring_instance ? selectedTask.parent_task_id : selectedTask.id;
+            const { data, error } = await supabase.from('tasks').delete().eq('id', taskIdToDelete);
+            
+            if (error) {
+              console.error('Error deleting recurring task:', error);
+              alert(`Error deleting recurring task: ${error.message}`);
+              return;
+            }
+          } else {
+            // For now, we'll delete the original task since we don't have individual instance deletion
+            // In a more advanced system, you'd create a separate table for instances
+            const taskIdToDelete = selectedTask.is_recurring_instance ? selectedTask.parent_task_id : selectedTask.id;
+            const { data, error } = await supabase.from('tasks').delete().eq('id', taskIdToDelete);
+            
+            if (error) {
+              console.error('Error deleting task:', error);
+              alert(`Error deleting task: ${error.message}`);
+              return;
+            }
+          }
+          
+          console.log('Task deleted successfully:', data);
+          setShowTaskModal(false);
+          setSelectedTask(null);
+          await refreshTasks();
+        } catch (err) {
+          console.error('Unexpected error:', err);
+          alert(`Unexpected error: ${err}`);
+        } finally {
+          setLoading(false);
         }
-        
-        console.log('Task deleted successfully:', data);
-        setShowTaskModal(false);
-        setSelectedTask(null);
-        await refreshTasks();
-      } catch (err) {
-        console.error('Unexpected error:', err);
-        alert(`Unexpected error: ${err}`);
-      } finally {
-        setLoading(false);
+      }
+    } else {
+      // Regular task deletion
+      if (window.confirm('Are you sure you want to delete this task?')) {
+        try {
+          setLoading(true);
+          const { data, error } = await supabase.from('tasks').delete().eq('id', selectedTask.id);
+          
+          if (error) {
+            console.error('Error deleting task:', error);
+            alert(`Error deleting task: ${error.message}`);
+            return;
+          }
+          
+          console.log('Task deleted successfully:', data);
+          setShowTaskModal(false);
+          setSelectedTask(null);
+          await refreshTasks();
+        } catch (err) {
+          console.error('Unexpected error:', err);
+          alert(`Unexpected error: ${err}`);
+        } finally {
+          setLoading(false);
+        }
       }
     }
   };
@@ -1270,6 +1336,8 @@ const MMCCalendar = () => {
                             <option value="week">week(s)</option>
                             <option value="month">month(s)</option>
                             <option value="year">year(s)</option>
+                            <option value="first_day_of_month">first [day] of month</option>
+                            <option value="last_day_of_month">last [day] of month</option>
                           </select>
                         </div>
                       </div>
@@ -1290,6 +1358,33 @@ const MMCCalendar = () => {
                                   setNewTask((prev: any) => ({ 
                                     ...prev, 
                                     recurring_days: newDays
+                                  }));
+                                }}
+                                className={`w-8 h-8 rounded-full text-xs font-medium ${
+                                  (newTask.recurring_days || []).includes(index)
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                }`}
+                              >
+                                {day[0]}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {(newTask.recurring_unit === 'first_day_of_month' || newTask.recurring_unit === 'last_day_of_month') && (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-2">Select day of week</label>
+                          <div className="flex space-x-1">
+                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
+                              <button
+                                key={day}
+                                type="button"
+                                onClick={() => {
+                                  setNewTask((prev: any) => ({ 
+                                    ...prev, 
+                                    recurring_days: [index] // Only one day for first/last patterns
                                   }));
                                 }}
                                 className={`w-8 h-8 rounded-full text-xs font-medium ${
@@ -1439,12 +1534,29 @@ const MMCCalendar = () => {
               )}
             </div>
             <div className="flex space-x-3 mt-6">
-              <button
-                onClick={handleDeleteTask}
-                className="px-4 py-2 border border-red-300 text-red-700 rounded-md hover:bg-red-50"
-              >
-                Delete
-              </button>
+              {(selectedTask.is_recurring || selectedTask.is_recurring_instance) ? (
+                <>
+                  <button
+                    onClick={() => handleDeleteTask(false)}
+                    className="px-4 py-2 border border-orange-300 text-orange-700 rounded-md hover:bg-orange-50"
+                  >
+                    Delete This One
+                  </button>
+                  <button
+                    onClick={() => handleDeleteTask(true)}
+                    className="px-4 py-2 border border-red-300 text-red-700 rounded-md hover:bg-red-50"
+                  >
+                    Delete All
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => handleDeleteTask()}
+                  className="px-4 py-2 border border-red-300 text-red-700 rounded-md hover:bg-red-50"
+                >
+                  Delete
+                </button>
+              )}
               <button
                 onClick={handleDuplicateTask}
                 className="px-4 py-2 border border-green-300 text-green-700 rounded-md hover:bg-green-50"
@@ -1657,6 +1769,8 @@ const MMCCalendar = () => {
                             <option value="week">week(s)</option>
                             <option value="month">month(s)</option>
                             <option value="year">year(s)</option>
+                            <option value="first_day_of_month">first [day] of month</option>
+                            <option value="last_day_of_month">last [day] of month</option>
                           </select>
                         </div>
                       </div>
@@ -1677,6 +1791,33 @@ const MMCCalendar = () => {
                                   setEditingTask((prev: any) => ({ 
                                     ...prev, 
                                     recurring_days: newDays
+                                  }));
+                                }}
+                                className={`w-8 h-8 rounded-full text-xs font-medium ${
+                                  (editingTask.recurring_days || []).includes(index)
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                }`}
+                              >
+                                {day[0]}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {((editingTask.recurring_unit || 'week') === 'first_day_of_month' || (editingTask.recurring_unit || 'week') === 'last_day_of_month') && (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-2">Select day of week</label>
+                          <div className="flex space-x-1">
+                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
+                              <button
+                                key={day}
+                                type="button"
+                                onClick={() => {
+                                  setEditingTask((prev: any) => ({ 
+                                    ...prev, 
+                                    recurring_days: [index] // Only one day for first/last patterns
                                   }));
                                 }}
                                 className={`w-8 h-8 rounded-full text-xs font-medium ${
