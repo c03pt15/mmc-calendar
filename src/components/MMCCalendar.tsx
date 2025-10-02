@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, Plus, X, User, Calendar, Clock, UserCheck, S
 import { supabase } from '../supabaseClient';
 
 // Pure function for generating recurring instances - outside component to avoid circular dependencies
-const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYear: number) => {
+const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYear: number, deletedInstances: Set<string>) => {
   const instances: any[] = [];
   
   tasks.forEach(task => {
@@ -34,6 +34,15 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
       while (currentDate <= endDate && instanceCount < maxInstances) {
         // Check if this instance falls within the target month
         if (currentDate.getMonth() === targetMonth && currentDate.getFullYear() === targetYear) {
+          const instanceKey = `${task.id}_${currentDate.getFullYear()}_${currentDate.getMonth()}_${currentDate.getDate()}`;
+          
+          // Skip this instance if it's been deleted
+          if (deletedInstances.has(instanceKey)) {
+            currentDate = nextDate;
+            instanceCount++;
+            continue;
+          }
+          
           const newInstance = {
             ...task,
             id: task.id, // Keep original ID for database compatibility
@@ -43,7 +52,7 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
             parent_task_id: task.id,
             is_recurring: false,
             is_recurring_instance: true, // Flag to identify this as a recurring instance
-            instance_key: `${task.id}_${currentDate.getFullYear()}_${currentDate.getMonth()}_${currentDate.getDate()}` // Unique key for display
+            instance_key: instanceKey // Unique key for display
           };
           instances.push(newInstance);
         }
@@ -133,6 +142,7 @@ const MMCCalendar = () => {
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [preSelectedDate, setPreSelectedDate] = useState<{date: number, month: number, year: number} | null>(null);
+  const [deletedInstances, setDeletedInstances] = useState<Set<string>>(new Set());
   const [newTask, setNewTask] = useState<any>({
     title: '',
     description: '',
@@ -255,8 +265,8 @@ const MMCCalendar = () => {
 
   // Use useMemo to generate recurring instances safely
   const allTasksWithRecurring = useMemo(() => {
-    return generateRecurringInstances(allTasksFlat, currentDate.getMonth(), currentDate.getFullYear());
-  }, [allTasksFlat, currentDate.getMonth(), currentDate.getFullYear()]);
+    return generateRecurringInstances(allTasksFlat, currentDate.getMonth(), currentDate.getFullYear(), deletedInstances);
+  }, [allTasksFlat, currentDate.getMonth(), currentDate.getFullYear(), deletedInstances]);
 
   const getTasksForDate = useCallback((date: number) => {
     let tasks = allTasksWithRecurring.filter(task => task.date === date && selectedFilters[task.category]);
@@ -541,17 +551,14 @@ const MMCCalendar = () => {
               return;
             }
           } else {
-            // For now, we'll delete the original task since we don't have individual instance deletion
-            // In a more advanced system, you'd create a separate table for instances
-            const taskIdToDelete = selectedTask.is_recurring_instance ? selectedTask.parent_task_id : selectedTask.id;
-            const result = await supabase.from('tasks').delete().eq('id', taskIdToDelete);
-            data = result.data;
+            // Delete single instance by adding it to deletedInstances
+            const instanceKey = selectedTask.instance_key || `${selectedTask.parent_task_id || selectedTask.id}_${selectedTask.year}_${selectedTask.month}_${selectedTask.date}`;
+            setDeletedInstances(prev => new Set([...prev, instanceKey]));
             
-            if (result.error) {
-              console.error('Error deleting task:', result.error);
-              alert(`Error deleting task: ${result.error.message}`);
-              return;
-            }
+            // Close the modal and refresh
+            setShowTaskModal(false);
+            setSelectedTask(null);
+            return; // Don't call refreshTasks() since we're just hiding the instance
           }
           
           console.log('Task deleted successfully:', data);
