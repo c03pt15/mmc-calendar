@@ -626,7 +626,9 @@ const MMCCalendar = () => {
     try {
       // Include all tasks (including modified instances) for the recurring generation process
       const allTasksIncludingModified = Object.values(allTasks).flat();
-      return generateRecurringInstances(allTasksIncludingModified, currentDate.getMonth(), currentDate.getFullYear(), deletedInstances);
+      const result = generateRecurringInstances(allTasksIncludingModified, currentDate.getMonth(), currentDate.getFullYear(), deletedInstances);
+      console.log('allTasksWithRecurring result:', result);
+      return result;
     } catch (error) {
       console.error('Error generating recurring instances:', error);
       // Return just the flat tasks as fallback
@@ -641,6 +643,8 @@ const MMCCalendar = () => {
       task.status !== 'deleted' // Exclude deleted tasks
     );
     if (selectedTeamMember) tasks = tasks.filter(task => task.assignee === selectedTeamMember);
+    
+    console.log(`getTasksForDate(${date}):`, tasks);
     
     // Group tasks by type for proper ordering
     const multiDayTasks: any[] = [];
