@@ -403,6 +403,8 @@ const MMCCalendar = () => {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [dragOverDate, setDragOverDate] = useState<number | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showDrawer, setShowDrawer] = useState(false);
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [preSelectedDate, setPreSelectedDate] = useState<{date: number, month: number, year: number} | null>(null);
   const [deletedInstances, setDeletedInstances] = useState<Set<string>>(new Set());
   const [editMode, setEditMode] = useState<'single' | 'all'>('single'); // For recurring task editing
@@ -638,6 +640,56 @@ const MMCCalendar = () => {
     return tasks;
   }, [allTasksWithRecurring, selectedFilters, selectedTeamMember]);
 
+  // Helper functions for drawer content
+  const getOverdueTasks = useCallback(() => {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+    const currentDate = today.getDate();
+    
+    return allTasksWithRecurring.filter(task => {
+      if (task.status === 'completed' || task.status === 'deleted') return false;
+      
+      const taskDate = new Date(task.year, task.month, task.date);
+      const todayDate = new Date(currentYear, currentMonth, currentDate);
+      
+      return taskDate < todayDate;
+    }).sort((a, b) => {
+      const dateA = new Date(a.year, a.month, a.date);
+      const dateB = new Date(b.year, b.month, b.date);
+      return dateA.getTime() - dateB.getTime();
+    });
+  }, [allTasksWithRecurring]);
+
+  const getHighPriorityTasks = useCallback(() => {
+    return allTasksWithRecurring.filter(task => 
+      task.priority === 'high' && 
+      task.status !== 'completed' && 
+      task.status !== 'deleted'
+    ).sort((a, b) => {
+      const dateA = new Date(a.year, a.month, a.date);
+      const dateB = new Date(b.year, b.month, b.date);
+      return dateA.getTime() - dateB.getTime();
+    });
+  }, [allTasksWithRecurring]);
+
+  // Function to add activity to recent activities
+  const addActivity = useCallback((activity: any) => {
+    setRecentActivities(prev => {
+      const newActivity = {
+        ...activity,
+        id: Date.now() + Math.random(), // Unique ID
+        timestamp: new Date()
+      };
+      return [newActivity, ...prev].slice(0, 20); // Keep last 20 activities
+    });
+  }, []);
+
+  const getRecentActivities = useCallback(() => {
+    // Return the stored recent activities, sorted by timestamp
+    return recentActivities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 10);
+  }, [recentActivities]);
+
   const filterCounts = {
     blogPosts: allTasksWithRecurring.filter(t => t.category === 'blogPosts' && t.status !== 'deleted' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
     socialMedia: allTasksWithRecurring.filter(t => t.category === 'socialMedia' && t.status !== 'deleted' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
@@ -749,6 +801,15 @@ const MMCCalendar = () => {
       }
       
       console.log('Task saved successfully:', data);
+      
+      // Add activity for new task creation
+      addActivity({
+        type: 'task_created',
+        task: task,
+        message: `Created new task: ${task.title}`,
+        user: teamMembers.find(m => m.id === task.created_by)?.name || 'Unknown'
+      });
+      
       setShowNewEntryModal(false);
       await refreshTasks();
     } catch (err) {
@@ -967,6 +1028,15 @@ const MMCCalendar = () => {
       }
       
       console.log('Task updated successfully');
+      
+      // Add activity for task update
+      addActivity({
+        type: 'task_updated',
+        task: updatedTask,
+        message: `Updated task: ${updatedTask.title}`,
+        user: teamMembers.find(m => m.id === updatedTask.created_by)?.name || 'Unknown'
+      });
+      
       setShowEditModal(false);
       setEditingTask(null);
       await refreshTasks();
@@ -1095,6 +1165,17 @@ const MMCCalendar = () => {
     e.preventDefault();
     if (draggedTask && draggedTask.status !== newStatus) {
       await supabase.from('tasks').update({ status: newStatus }).eq('id', draggedTask.id);
+      
+      // Add activity for status change
+      addActivity({
+        type: 'status_changed',
+        task: draggedTask,
+        message: `Changed status from ${draggedTask.status} to ${newStatus}`,
+        user: teamMembers.find(m => m.id === draggedTask.created_by)?.name || 'Unknown',
+        oldStatus: draggedTask.status,
+        newStatus: newStatus
+      });
+      
       await refreshTasks();
     }
     setDraggedTask(null);
@@ -1295,27 +1376,85 @@ const MMCCalendar = () => {
             ))}
           </div>
         </div>
-        {/* Recent Activity */}
-        <div>
-          <h3 className="text-sm font-medium text-gray-900 mb-3">Recent Activity</h3>
+        {/* Past Due Events */}
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+          <div className="flex items-center mb-3">
+            <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
+            <h3 className="text-sm font-semibold text-red-800">Past Due Events</h3>
+            {getOverdueTasks().length > 0 && (
+              <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs font-medium rounded-full">
+                {getOverdueTasks().length}
+              </span>
+            )}
+          </div>
           <div className="space-y-3">
-            {allFilteredTasks.slice(0, 3).map(task => (
-              <div key={task.id} className="flex items-start space-x-2">
-                <div className={`w-2 h-2 rounded-full mt-2 ${
-                  task.status === 'completed' ? 'bg-blue-500' :
-                  task.status === 'in-progress' ? 'bg-yellow-500' : 
-                  task.status === 'review' ? 'bg-orange-500' : 'bg-green-500'
-                }`}></div>
+            {getOverdueTasks().slice(0, 3).map(task => (
+              <div 
+                key={task.id} 
+                className="flex items-start space-x-3 p-2 bg-white rounded-md border border-red-100 hover:bg-red-25 transition-colors cursor-pointer"
+                onClick={() => {
+                  setSelectedTask(task);
+                  setShowTaskModal(true);
+                }}
+              >
+                <div className="w-2 h-2 rounded-full mt-2 bg-red-500 flex-shrink-0"></div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm text-gray-900">{task.title}</div>
-                  <div className="text-xs text-gray-500">
-                    {task.status === 'completed' ? 'completed' : 
-                     task.status === 'in-progress' ? 'in progress' :
-                     task.status === 'review' ? 'ready for review' : 'planned'}
+                  <div className="text-sm font-medium text-gray-900">{task.title}</div>
+                  <div className="text-xs text-red-600 font-medium mt-1">
+                    {monthNames[task.month]} {task.date} - Overdue
                   </div>
                 </div>
               </div>
             ))}
+            {getOverdueTasks().length === 0 && (
+              <div className="text-center py-4">
+                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <span className="text-green-600 text-sm">✓</span>
+                </div>
+                <div className="text-xs text-gray-500">No overdue tasks</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* High Priority Tasks */}
+        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+          <div className="flex items-center mb-3">
+            <div className="w-2 h-2 bg-orange-500 rounded-full mr-2"></div>
+            <h3 className="text-sm font-semibold text-orange-800">High Priority</h3>
+            {getHighPriorityTasks().length > 0 && (
+              <span className="ml-2 px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-full">
+                {getHighPriorityTasks().length}
+              </span>
+            )}
+          </div>
+          <div className="space-y-3">
+            {getHighPriorityTasks().slice(0, 3).map(task => (
+              <div 
+                key={task.id} 
+                className="flex items-start space-x-3 p-2 bg-white rounded-md border border-orange-100 hover:bg-orange-25 transition-colors cursor-pointer"
+                onClick={() => {
+                  setSelectedTask(task);
+                  setShowTaskModal(true);
+                }}
+              >
+                <div className="w-2 h-2 rounded-full mt-2 bg-orange-500 flex-shrink-0"></div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-gray-900">{task.title}</div>
+                  <div className="text-xs text-orange-600 font-medium mt-1">
+                    {monthNames[task.month]} {task.date} - High Priority
+                  </div>
+                </div>
+              </div>
+            ))}
+            {getHighPriorityTasks().length === 0 && (
+              <div className="text-center py-4">
+                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <span className="text-green-600 text-sm">✓</span>
+                </div>
+                <div className="text-xs text-gray-500">No high priority tasks</div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1350,6 +1489,30 @@ const MMCCalendar = () => {
               </button>
             </div>
             <div className="flex items-center space-x-4">
+              {/* Drawer Toggle Button */}
+              <button
+                onClick={() => setShowDrawer(!showDrawer)}
+                className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Open task overview"
+              >
+                <div className="w-6 h-6 relative">
+                  {/* Dashboard/Grid Icon */}
+                  <div className="grid grid-cols-2 gap-0.5 w-full h-full">
+                    <div className="bg-current rounded-sm"></div>
+                    <div className="bg-current rounded-sm"></div>
+                    <div className="bg-current rounded-sm"></div>
+                    <div className="bg-current rounded-sm"></div>
+                  </div>
+                </div>
+                {(getOverdueTasks().length > 0 || getHighPriorityTasks().length > 0) && (
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center">
+                    <span className="text-xs text-white font-bold">
+                      {getOverdueTasks().length + getHighPriorityTasks().length}
+                    </span>
+                  </div>
+                )}
+              </button>
+              
               {/* Search Box */}
               <div className="relative search-container">
                 <div className="relative">
@@ -2736,6 +2899,215 @@ const MMCCalendar = () => {
               >
                 Save Changes
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Task Overview Drawer */}
+      {showDrawer && (
+        <div className="fixed inset-0 z-50 overflow-hidden">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
+            onClick={() => setShowDrawer(false)}
+          />
+          
+          {/* Drawer */}
+          <div className="absolute right-0 top-0 h-full w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out">
+            <div className="flex flex-col h-full">
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
+                <h2 className="text-xl font-semibold text-gray-900">Task Overview</h2>
+                <button
+                  onClick={() => setShowDrawer(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {/* Overdue Tasks */}
+                {getOverdueTasks().length > 0 && (
+                  <div>
+                    <div className="flex items-center mb-3">
+                      <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
+                      <h3 className="text-lg font-medium text-gray-900">Overdue Tasks</h3>
+                      <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs font-medium rounded-full">
+                        {getOverdueTasks().length}
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      {getOverdueTasks().slice(0, 5).map((task) => (
+                        <div
+                          key={task.id}
+                          className="p-3 bg-red-50 border border-red-200 rounded-lg cursor-pointer hover:bg-red-100 transition-colors"
+                          onClick={() => {
+                            setSelectedTask(task);
+                            setShowTaskModal(true);
+                            setShowDrawer(false);
+                          }}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-gray-900 text-sm">{task.title}</h4>
+                              <p className="text-xs text-gray-600 mt-1">{task.description}</p>
+                              <div className="flex items-center mt-2 space-x-2">
+                                <span className={`text-xs px-2 py-1 rounded ${task.color}`}>
+                                  {task.type}
+                                </span>
+                                <span className="text-xs text-red-600 font-medium">
+                                  {monthNames[task.month]} {task.date}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="ml-2">
+                              <div className={`w-6 h-6 ${teamMembers.find(m => m.id === task.assignee)?.color} rounded-full flex items-center justify-center text-white text-xs`}>
+                                {teamMembers.find(m => m.id === task.assignee)?.avatar}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* High Priority Tasks */}
+                {getHighPriorityTasks().length > 0 && (
+                  <div>
+                    <div className="flex items-center mb-3">
+                      <div className="w-2 h-2 bg-orange-500 rounded-full mr-2"></div>
+                      <h3 className="text-lg font-medium text-gray-900">High Priority</h3>
+                      <span className="ml-2 px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-full">
+                        {getHighPriorityTasks().length}
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      {getHighPriorityTasks().slice(0, 5).map((task) => (
+                        <div
+                          key={task.id}
+                          className="p-3 bg-orange-50 border border-orange-200 rounded-lg cursor-pointer hover:bg-orange-100 transition-colors"
+                          onClick={() => {
+                            setSelectedTask(task);
+                            setShowTaskModal(true);
+                            setShowDrawer(false);
+                          }}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-gray-900 text-sm">{task.title}</h4>
+                              <p className="text-xs text-gray-600 mt-1">{task.description}</p>
+                              <div className="flex items-center mt-2 space-x-2">
+                                <span className={`text-xs px-2 py-1 rounded ${task.color}`}>
+                                  {task.type}
+                                </span>
+                                <span className="text-xs text-orange-600 font-medium">
+                                  {monthNames[task.month]} {task.date}
+                                </span>
+                                <span className="text-xs">🔴</span>
+                              </div>
+                            </div>
+                            <div className="ml-2">
+                              <div className={`w-6 h-6 ${teamMembers.find(m => m.id === task.assignee)?.color} rounded-full flex items-center justify-center text-white text-xs`}>
+                                {teamMembers.find(m => m.id === task.assignee)?.avatar}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recent Activities */}
+                <div>
+                  <div className="flex items-center mb-3">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                    <h3 className="text-lg font-medium text-gray-900">Recent Activities</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {getRecentActivities().slice(0, 5).map((activity) => (
+                      <div
+                        key={activity.id}
+                        className="p-3 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+                        onClick={() => {
+                          setSelectedTask(activity.task);
+                          setShowTaskModal(true);
+                          setShowDrawer(false);
+                        }}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <span className={`text-xs px-2 py-1 rounded ${
+                                activity.type === 'task_created' ? 'bg-green-100 text-green-800' :
+                                activity.type === 'task_updated' ? 'bg-blue-100 text-blue-800' :
+                                activity.type === 'status_changed' ? 'bg-purple-100 text-purple-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {activity.type === 'task_created' ? 'Created' :
+                                 activity.type === 'task_updated' ? 'Updated' :
+                                 activity.type === 'status_changed' ? 'Status Changed' : 'Activity'}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {activity.timestamp.toLocaleTimeString()}
+                              </span>
+                            </div>
+                            <h4 className="font-medium text-gray-900 text-sm">{activity.message}</h4>
+                            <p className="text-xs text-gray-600 mt-1">
+                              by {activity.user}
+                            </p>
+                            {activity.type === 'status_changed' && (
+                              <div className="flex items-center mt-2 space-x-2">
+                                <span className="text-xs text-gray-500">From:</span>
+                                <span className={`text-xs px-2 py-1 rounded ${
+                                  activity.oldStatus === 'completed' ? 'bg-green-100 text-green-800' :
+                                  activity.oldStatus === 'in-progress' ? 'bg-blue-100 text-blue-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {activity.oldStatus}
+                                </span>
+                                <span className="text-xs text-gray-500">→</span>
+                                <span className={`text-xs px-2 py-1 rounded ${
+                                  activity.newStatus === 'completed' ? 'bg-green-100 text-green-800' :
+                                  activity.newStatus === 'in-progress' ? 'bg-blue-100 text-blue-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {activity.newStatus}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {getRecentActivities().length === 0 && (
+                      <div className="text-center py-4">
+                        <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                          <span className="text-gray-400 text-sm">📝</span>
+                        </div>
+                        <div className="text-xs text-gray-500">No recent activities</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Empty State */}
+                {getOverdueTasks().length === 0 && getHighPriorityTasks().length === 0 && (
+                  <div className="text-center py-8">
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-lg">✓</span>
+                      </div>
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">All caught up!</h3>
+                    <p className="text-gray-500 text-sm">No overdue tasks or high priority items at the moment.</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
