@@ -566,7 +566,6 @@ const MMCCalendar = () => {
         }
         groupedTasks[key].push(task);
       });
-      console.log('Setting allTasks:', groupedTasks);
       setAllTasks(groupedTasks);
       
       // Rebuild deleted instances from database records
@@ -626,9 +625,7 @@ const MMCCalendar = () => {
     try {
       // Include all tasks (including modified instances) for the recurring generation process
       const allTasksIncludingModified = Object.values(allTasks).flat();
-      const result = generateRecurringInstances(allTasksIncludingModified, currentDate.getMonth(), currentDate.getFullYear(), deletedInstances);
-      console.log('allTasksWithRecurring result:', result);
-      return result;
+      return generateRecurringInstances(allTasksIncludingModified, currentDate.getMonth(), currentDate.getFullYear(), deletedInstances);
     } catch (error) {
       console.error('Error generating recurring instances:', error);
       // Return just the flat tasks as fallback
@@ -643,8 +640,6 @@ const MMCCalendar = () => {
       task.status !== 'deleted' // Exclude deleted tasks
     );
     if (selectedTeamMember) tasks = tasks.filter(task => task.assignee === selectedTeamMember);
-    
-    console.log(`getTasksForDate(${date}):`, tasks);
     
     // Group tasks by type for proper ordering
     const multiDayTasks: any[] = [];
@@ -878,44 +873,40 @@ const MMCCalendar = () => {
 
   // Helper function to ensure complete task data
   const ensureCompleteTaskData = (task: any) => {
-    console.log('=== ensureCompleteTaskData ===');
-    console.log('Input task:', task);
-    console.log('Is recurring instance:', task.is_recurring_instance);
-    console.log('Parent task ID:', task.parent_task_id);
+    // Always try to find the complete task data from allTasks
+    const allTasksFlat = Object.values(allTasks).flat();
+    const completeTask = allTasksFlat.find(t => t.id === task.id);
     
-    // If this is a recurring instance, try to find the original task data
-    let originalTask = task;
-    if (task.is_recurring_instance && task.parent_task_id) {
-      // Look for the original task in allTasks
-      const allTasksFlat = Object.values(allTasks).flat();
-      console.log('All tasks flat:', allTasksFlat.length);
-      const parentTask = allTasksFlat.find(t => t.id === task.parent_task_id);
-      console.log('Found parent task:', parentTask);
-      if (parentTask) {
-        originalTask = parentTask;
-      }
+    if (completeTask) {
+      // Use the complete task data, but preserve any instance-specific data
+      return {
+        ...completeTask,
+        // Preserve instance-specific data if this is a recurring instance
+        date: task.date || completeTask.date,
+        month: task.month || completeTask.month,
+        year: task.year || completeTask.year,
+        instance_key: task.instance_key || completeTask.instance_key,
+        is_recurring_instance: task.is_recurring_instance || completeTask.is_recurring_instance,
+        parent_task_id: task.parent_task_id || completeTask.parent_task_id
+      };
     }
     
-    const result = {
+    // Fallback to the original task with defaults
+    return {
       ...task,
-      // Use original task data for missing fields, with fallbacks
-      type: task.type || originalTask.type || 'Unknown',
-      status: task.status || originalTask.status || 'planned',
-      priority: task.priority || originalTask.priority || 'medium',
-      assignee: task.assignee || originalTask.assignee || null,
-      description: task.description || originalTask.description || '',
-      color: task.color || originalTask.color || 'bg-gray-100',
-      time: task.time || originalTask.time || '',
-      category: task.category || originalTask.category || 'Unknown',
-      created_at: task.created_at || originalTask.created_at || null,
-      created_by: task.created_by || originalTask.created_by || null,
-      tags: task.tags || originalTask.tags || [],
-      comments: task.comments || originalTask.comments || null
+      type: task.type || 'Unknown',
+      status: task.status || 'planned',
+      priority: task.priority || 'medium',
+      assignee: task.assignee || null,
+      description: task.description || '',
+      color: task.color || 'bg-gray-100',
+      time: task.time || '',
+      category: task.category || 'Unknown',
+      created_at: task.created_at || null,
+      created_by: task.created_by || null,
+      tags: task.tags || [],
+      comments: task.comments || null
     };
-    
-    console.log('Result:', result);
-    console.log('=== END ensureCompleteTaskData ===');
-    return result;
   };
 
   const handleTaskClick = (task: any) => {
