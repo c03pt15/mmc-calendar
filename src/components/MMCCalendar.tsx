@@ -566,6 +566,7 @@ const MMCCalendar = () => {
         }
         groupedTasks[key].push(task);
       });
+      console.log('Setting allTasks:', groupedTasks);
       setAllTasks(groupedTasks);
       
       // Rebuild deleted instances from database records
@@ -873,18 +874,25 @@ const MMCCalendar = () => {
 
   // Helper function to ensure complete task data
   const ensureCompleteTaskData = (task: any) => {
+    console.log('=== ensureCompleteTaskData ===');
+    console.log('Input task:', task);
+    console.log('Is recurring instance:', task.is_recurring_instance);
+    console.log('Parent task ID:', task.parent_task_id);
+    
     // If this is a recurring instance, try to find the original task data
     let originalTask = task;
     if (task.is_recurring_instance && task.parent_task_id) {
       // Look for the original task in allTasks
       const allTasksFlat = Object.values(allTasks).flat();
+      console.log('All tasks flat:', allTasksFlat.length);
       const parentTask = allTasksFlat.find(t => t.id === task.parent_task_id);
+      console.log('Found parent task:', parentTask);
       if (parentTask) {
         originalTask = parentTask;
       }
     }
     
-    return {
+    const result = {
       ...task,
       // Use original task data for missing fields, with fallbacks
       type: task.type || originalTask.type || 'Unknown',
@@ -900,6 +908,10 @@ const MMCCalendar = () => {
       tags: task.tags || originalTask.tags || [],
       comments: task.comments || originalTask.comments || null
     };
+    
+    console.log('Result:', result);
+    console.log('=== END ensureCompleteTaskData ===');
+    return result;
   };
 
   const handleTaskClick = (task: any) => {
