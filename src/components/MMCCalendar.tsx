@@ -90,6 +90,39 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
             nextDate = new Date(firstDay);
             nextDate.setDate(firstDay.getDate() + daysToAdd);
             break;
+          case '2nd_day_of_month':
+            nextDate = new Date(currentDate);
+            nextDate.setMonth(currentDate.getMonth() + interval);
+            // Find 2nd occurrence of selected day in next month
+            const secondDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+            const secondDayOfWeek = secondDay.getDay();
+            const targetDay2nd = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+            const daysToAdd2nd = (targetDay2nd - secondDayOfWeek + 7) % 7;
+            nextDate = new Date(secondDay);
+            nextDate.setDate(secondDay.getDate() + daysToAdd2nd + 7); // Add 7 days for 2nd occurrence
+            break;
+          case '3rd_day_of_month':
+            nextDate = new Date(currentDate);
+            nextDate.setMonth(currentDate.getMonth() + interval);
+            // Find 3rd occurrence of selected day in next month
+            const thirdDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+            const thirdDayOfWeek = thirdDay.getDay();
+            const targetDay3rd = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+            const daysToAdd3rd = (targetDay3rd - thirdDayOfWeek + 7) % 7;
+            nextDate = new Date(thirdDay);
+            nextDate.setDate(thirdDay.getDate() + daysToAdd3rd + 14); // Add 14 days for 3rd occurrence
+            break;
+          case '4th_day_of_month':
+            nextDate = new Date(currentDate);
+            nextDate.setMonth(currentDate.getMonth() + interval);
+            // Find 4th occurrence of selected day in next month
+            const fourthDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+            const fourthDayOfWeek = fourthDay.getDay();
+            const targetDay4th = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+            const daysToAdd4th = (targetDay4th - fourthDayOfWeek + 7) % 7;
+            nextDate = new Date(fourthDay);
+            nextDate.setDate(fourthDay.getDate() + daysToAdd4th + 21); // Add 21 days for 4th occurrence
+            break;
           case 'last_day_of_month':
             nextDate = new Date(currentDate);
             nextDate.setMonth(currentDate.getMonth() + interval);
@@ -1347,6 +1380,9 @@ const MMCCalendar = () => {
                             <option value="month">month(s)</option>
                             <option value="year">year(s)</option>
                             <option value="first_day_of_month">first [day] of month</option>
+                            <option value="2nd_day_of_month">2nd [day] of month</option>
+                            <option value="3rd_day_of_month">3rd [day] of month</option>
+                            <option value="4th_day_of_month">4th [day] of month</option>
                             <option value="last_day_of_month">last [day] of month</option>
                           </select>
                         </div>
@@ -1383,7 +1419,7 @@ const MMCCalendar = () => {
                         </div>
                       )}
                       
-                      {(newTask.recurring_unit === 'first_day_of_month' || newTask.recurring_unit === 'last_day_of_month') && (
+                      {(newTask.recurring_unit === 'first_day_of_month' || newTask.recurring_unit === '2nd_day_of_month' || newTask.recurring_unit === '3rd_day_of_month' || newTask.recurring_unit === '4th_day_of_month' || newTask.recurring_unit === 'last_day_of_month') && (
                         <div>
                           <label className="block text-xs font-medium text-gray-600 mb-2">Select day of week</label>
                           <div className="flex space-x-1">
@@ -1780,6 +1816,9 @@ const MMCCalendar = () => {
                             <option value="month">month(s)</option>
                             <option value="year">year(s)</option>
                             <option value="first_day_of_month">first [day] of month</option>
+                            <option value="2nd_day_of_month">2nd [day] of month</option>
+                            <option value="3rd_day_of_month">3rd [day] of month</option>
+                            <option value="4th_day_of_month">4th [day] of month</option>
                             <option value="last_day_of_month">last [day] of month</option>
                           </select>
                         </div>
@@ -1816,7 +1855,7 @@ const MMCCalendar = () => {
                         </div>
                       )}
                       
-                      {((editingTask.recurring_unit || 'week') === 'first_day_of_month' || (editingTask.recurring_unit || 'week') === 'last_day_of_month') && (
+                      {((editingTask.recurring_unit || 'week') === 'first_day_of_month' || (editingTask.recurring_unit || 'week') === '2nd_day_of_month' || (editingTask.recurring_unit || 'week') === '3rd_day_of_month' || (editingTask.recurring_unit || 'week') === '4th_day_of_month' || (editingTask.recurring_unit || 'week') === 'last_day_of_month') && (
                         <div>
                           <label className="block text-xs font-medium text-gray-600 mb-2">Select day of week</label>
                           <div className="flex space-x-1">
