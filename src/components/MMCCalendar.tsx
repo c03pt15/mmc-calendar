@@ -808,7 +808,7 @@ const MMCCalendar = () => {
           <div className="flex items-center space-x-2 mb-4">
             <div className="w-8 h-8 flex items-center justify-center">
               <img 
-                src="/atlas-logo.png" 
+                src="/mmc-calendar/atlas-logo.png" 
                 alt="Atlas Logo" 
                 className="w-full h-full object-contain"
               />
