@@ -16,6 +16,10 @@ interface Task {
   assignee: number;
   status: string;
   color?: string;
+  tags?: string[];
+  created_by?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 const MMCCalendar = () => {
@@ -45,7 +49,8 @@ const MMCCalendar = () => {
     time: '09:00',
     assignee: 1,
     status: 'planned',
-    color: ''
+    color: '',
+    tags: []
   });
   const [allTasks, setAllTasks] = useState<Task[]>([]); // Flat array from Supabase
   const [loading, setLoading] = useState(false);
@@ -191,7 +196,8 @@ const MMCCalendar = () => {
       time: '09:00',
       assignee: 1,
       status: 'planned',
-      color: ''
+      color: '',
+      tags: []
     });
     setShowNewEntryModal(true);
   };
@@ -207,7 +213,8 @@ const MMCCalendar = () => {
     setError(null);
     const task = {
       ...newTask,
-      color: categoryConfig[newTask.category].color
+      color: categoryConfig[newTask.category].color,
+      created_by: newTask.created_by || newTask.assignee // Use selected creator or fallback to assignee
     };
     const { error } = await supabase.from('tasks').insert([task]);
     if (error) setError(error.message);
@@ -233,7 +240,8 @@ const MMCCalendar = () => {
       time: selectedTask.time ?? '',
       assignee: selectedTask.assignee ?? 1,
       status: selectedTask.status ?? 'planned',
-      color: selectedTask.color ?? ''
+      color: selectedTask.color ?? '',
+      tags: selectedTask.tags ?? []
     });
     setShowTaskModal(false);
     setShowEditModal(true);
@@ -552,13 +560,28 @@ const MMCCalendar = () => {
                           {getTasksForDate(day).map(task => (
                             <div
                               key={task.id}
-                              className={`text-xs p-2 rounded border ${task.color} cursor-pointer hover:shadow-sm`}
+                              className={`text-xs p-2 rounded border ${task.color} cursor-pointer hover:shadow-sm relative`}
                               onClick={() => handleTaskClick(task)}
                             >
                               <div className="font-medium truncate">{task.title}</div>
                               <div className="text-gray-600">{task.type}</div>
                               {task.time && (
                                 <div className="text-gray-500">{task.time}</div>
+                              )}
+                              {task.tags && task.tags.length > 0 && (
+                                <div className="absolute bottom-1 right-1 flex flex-wrap gap-1">
+                                  {task.tags.slice(0, 2).map((tag, index) => (
+                                    <span
+                                      key={index}
+                                      className="text-[10px] bg-gray-50 text-gray-600 px-1 py-0.5 rounded"
+                                    >
+                                      {tag}
+                                    </span>
+                                  ))}
+                                  {task.tags.length > 2 && (
+                                    <span className="text-[10px] text-gray-500">+{task.tags.length - 2}</span>
+                                  )}
+                                </div>
                               )}
                             </div>
                           ))}
@@ -593,7 +616,7 @@ const MMCCalendar = () => {
                       {getTasksByStatus(column.id).map(task => (
                         <div
                           key={task.id}
-                          className={`bg-white p-4 rounded-lg shadow-sm border cursor-move hover:shadow-md transition-shadow ${
+                          className={`bg-white p-4 rounded-lg shadow-sm border cursor-move hover:shadow-md transition-shadow relative ${
                             draggedTask?.id === task.id ? 'opacity-50' : ''
                           }`}
                           draggable
@@ -619,7 +642,7 @@ const MMCCalendar = () => {
                               <span className="text-xs text-gray-500">{task.time}</span>
                             </div>
                           )}
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center space-x-2 mb-2">
                             <div className={`w-6 h-6 ${teamMembers.find(m => m.id === task.assignee)?.color} rounded-full flex items-center justify-center text-white text-xs`}>
                               {teamMembers.find(m => m.id === task.assignee)?.avatar}
                             </div>
@@ -627,6 +650,21 @@ const MMCCalendar = () => {
                               {getTeamMemberName(task.assignee)}
                             </span>
                           </div>
+                          {task.tags && task.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {task.tags.slice(0, 3).map((tag, index) => (
+                                <span
+                                  key={index}
+                                  className="text-[10px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                              {task.tags.length > 3 && (
+                                <span className="text-[10px] text-gray-500">+{task.tags.length - 3}</span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -759,6 +797,34 @@ const MMCCalendar = () => {
                   </select>
                 </div>
               </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Created by</label>
+                <select
+                  value={String(newTask.created_by || newTask.assignee)}
+                  onChange={(e) => setNewTask(prev => ({ ...prev, created_by: parseInt(e.target.value, 10) || 1 }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {teamMembers.map(member => (
+                    <option key={member.id} value={member.id}>{member.name}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+                <input
+                  type="text"
+                  value={newTask.tags?.join(', ') || ''}
+                  onChange={(e) => setNewTask(prev => ({ 
+                    ...prev, 
+                    tags: e.target.value ? e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag) : []
+                  }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter tags separated by commas (e.g., urgent, q4, marketing)"
+                />
+                <p className="text-xs text-gray-500 mt-1">Separate multiple tags with commas</p>
+              </div>
             </div>
             
             <div className="flex space-x-3 mt-6">
@@ -844,6 +910,42 @@ const MMCCalendar = () => {
                       <Clock className="w-4 h-4 text-gray-400 ml-4" />
                       <span className="text-sm text-gray-900">{selectedTask.time}</span>
                     </>
+                  )}
+                </div>
+              </div>
+              
+              {selectedTask.tags && selectedTask.tags.length > 0 && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-2">TAGS</label>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedTask.tags.map((tag: string, index: number) => (
+                      <span
+                        key={index}
+                        className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">CREATED</label>
+                <div className="flex items-center space-x-2">
+                  <User className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm text-gray-900">
+                    {selectedTask.created_at ? new Date(selectedTask.created_at).toLocaleDateString() : 'Unknown date'}
+                  </span>
+                  {selectedTask.created_at && (
+                    <span className="text-sm text-gray-500">
+                      at {new Date(selectedTask.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  )}
+                  {selectedTask.created_by && (
+                    <span className="text-sm text-gray-600">
+                      by {getTeamMemberName(selectedTask.created_by)}
+                    </span>
                   )}
                 </div>
               </div>
@@ -1004,6 +1106,41 @@ const MMCCalendar = () => {
                   <option value="review">Review</option>
                   <option value="completed">Completed</option>
                 </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+                <input
+                  type="text"
+                  value={editingTask.tags?.join(', ') || ''}
+                  onChange={e => setEditingTask(prev => prev ? { 
+                    ...prev, 
+                    tags: e.target.value ? e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag) : []
+                  } : prev)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter tags separated by commas (e.g., urgent, q4, marketing)"
+                />
+                <p className="text-xs text-gray-500 mt-1">Separate multiple tags with commas</p>
+              </div>
+              
+              <div className="pt-2 border-t border-gray-200">
+                <label className="block text-xs font-medium text-gray-500 mb-1">CREATED</label>
+                <div className="flex items-center space-x-2">
+                  <User className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm text-gray-900">
+                    {editingTask.created_at ? new Date(editingTask.created_at).toLocaleDateString() : 'Unknown date'}
+                  </span>
+                  {editingTask.created_at && (
+                    <span className="text-sm text-gray-500">
+                      at {new Date(editingTask.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  )}
+                  {editingTask.created_by && (
+                    <span className="text-sm text-gray-600">
+                      by {getTeamMemberName(editingTask.created_by)}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
             

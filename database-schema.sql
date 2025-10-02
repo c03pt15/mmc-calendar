@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   instance_key TEXT,
   is_recurring_instance BOOLEAN DEFAULT FALSE,
   is_deleted_instance BOOLEAN DEFAULT FALSE,
+  tags TEXT[],
+  created_by INTEGER,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -41,6 +43,8 @@ CREATE INDEX IF NOT EXISTS idx_tasks_recurring_instance ON tasks(is_recurring_in
 CREATE INDEX IF NOT EXISTS idx_tasks_recurring_interval ON tasks(recurring_interval);
 CREATE INDEX IF NOT EXISTS idx_tasks_recurring_unit ON tasks(recurring_unit);
 CREATE INDEX IF NOT EXISTS idx_tasks_deleted_instance ON tasks(is_deleted_instance);
+CREATE INDEX IF NOT EXISTS idx_tasks_tags ON tasks USING GIN (tags);
+CREATE INDEX IF NOT EXISTS idx_tasks_created_by ON tasks(created_by);
 
 -- Add RLS (Row Level Security) policies if needed
 -- ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
