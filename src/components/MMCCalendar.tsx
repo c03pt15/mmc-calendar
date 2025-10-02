@@ -270,6 +270,7 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
             instances.push(newInstance);
           } else {
             // Only generate from original task if no modified instance exists
+            console.log('Creating instance from task:', task);
             const newInstance = {
               ...task,
               id: task.id,
@@ -281,6 +282,7 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
               is_recurring_instance: true,
               instance_key: instanceKey
             };
+            console.log('Created instance:', newInstance);
             instances.push(newInstance);
           }
         }
@@ -557,6 +559,8 @@ const MMCCalendar = () => {
         return;
       }
       
+      console.log('Raw task data from database:', data);
+      
       // Group tasks by month-year
       const groupedTasks: { [key: string]: any[] } = {};
       (data || []).forEach(task => {
@@ -567,6 +571,7 @@ const MMCCalendar = () => {
         groupedTasks[key].push(task);
       });
       
+      console.log('Grouped tasks:', groupedTasks);
       setAllTasks(groupedTasks);
       
       // Rebuild deleted instances from database records
