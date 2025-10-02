@@ -43,20 +43,27 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
           instances.push(newInstance);
         }
 
-        // Calculate next occurrence
+        // Calculate next occurrence based on pattern
         let nextDate: Date;
-        switch (task.recurring_pattern) {
-          case 'daily':
+        const interval = task.recurring_interval || 1;
+        const unit = task.recurring_unit || 'week';
+        
+        switch (unit) {
+          case 'day':
             nextDate = new Date(currentDate);
-            nextDate.setDate(currentDate.getDate() + 1);
+            nextDate.setDate(currentDate.getDate() + interval);
             break;
-          case 'weekly':
+          case 'week':
             nextDate = new Date(currentDate);
-            nextDate.setDate(currentDate.getDate() + 7);
+            nextDate.setDate(currentDate.getDate() + (7 * interval));
             break;
-          case 'monthly':
+          case 'month':
             nextDate = new Date(currentDate);
-            nextDate.setMonth(currentDate.getMonth() + 1);
+            nextDate.setMonth(currentDate.getMonth() + interval);
+            break;
+          case 'year':
+            nextDate = new Date(currentDate);
+            nextDate.setFullYear(currentDate.getFullYear() + interval);
             break;
           default:
             nextDate = new Date(currentDate);
@@ -113,6 +120,9 @@ const MMCCalendar = () => {
     priority: 'medium',
     is_recurring: false,
     recurring_pattern: '',
+    recurring_interval: 1,
+    recurring_unit: 'week',
+    recurring_days: [],
     recurring_end_date: null,
     comments: ''
   });
@@ -1231,19 +1241,63 @@ const MMCCalendar = () => {
                     <div className="ml-6 space-y-3 border-l-2 border-gray-200 pl-4">
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">Repeat every</label>
-                        <select
-                          value={newTask.recurring_pattern}
-                          onChange={(e) => setNewTask((prev: any) => ({ 
-                            ...prev, 
-                            recurring_pattern: e.target.value
-                          }))}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="daily">Daily</option>
-                          <option value="weekly">Weekly</option>
-                          <option value="monthly">Monthly</option>
-                        </select>
+                        <div className="flex space-x-2">
+                          <input
+                            type="number"
+                            min="1"
+                            max="99"
+                            value={newTask.recurring_interval}
+                            onChange={(e) => setNewTask((prev: any) => ({ 
+                              ...prev, 
+                              recurring_interval: parseInt(e.target.value) || 1
+                            }))}
+                            className="w-16 border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <select
+                            value={newTask.recurring_unit}
+                            onChange={(e) => setNewTask((prev: any) => ({ 
+                              ...prev, 
+                              recurring_unit: e.target.value
+                            }))}
+                            className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="day">day(s)</option>
+                            <option value="week">week(s)</option>
+                            <option value="month">month(s)</option>
+                            <option value="year">year(s)</option>
+                          </select>
+                        </div>
                       </div>
+                      
+                      {newTask.recurring_unit === 'week' && (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-2">Repeat on days</label>
+                          <div className="flex space-x-1">
+                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
+                              <button
+                                key={day}
+                                type="button"
+                                onClick={() => {
+                                  const newDays = newTask.recurring_days.includes(index) 
+                                    ? newTask.recurring_days.filter((d: number) => d !== index)
+                                    : [...newTask.recurring_days, index];
+                                  setNewTask((prev: any) => ({ 
+                                    ...prev, 
+                                    recurring_days: newDays
+                                  }));
+                                }}
+                                className={`w-8 h-8 rounded-full text-xs font-medium ${
+                                  newTask.recurring_days.includes(index)
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                }`}
+                              >
+                                {day[0]}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">End date (optional)</label>
@@ -1573,19 +1627,64 @@ const MMCCalendar = () => {
                     <div className="ml-6 space-y-3 border-l-2 border-gray-200 pl-4">
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">Repeat every</label>
-                        <select
-                          value={editingTask.recurring_pattern || ''}
-                          onChange={(e) => setEditingTask((prev: any) => ({ 
-                            ...prev, 
-                            recurring_pattern: e.target.value
-                          }))}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="daily">Daily</option>
-                          <option value="weekly">Weekly</option>
-                          <option value="monthly">Monthly</option>
-                        </select>
+                        <div className="flex space-x-2">
+                          <input
+                            type="number"
+                            min="1"
+                            max="99"
+                            value={editingTask.recurring_interval || 1}
+                            onChange={(e) => setEditingTask((prev: any) => ({ 
+                              ...prev, 
+                              recurring_interval: parseInt(e.target.value) || 1
+                            }))}
+                            className="w-16 border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <select
+                            value={editingTask.recurring_unit || 'week'}
+                            onChange={(e) => setEditingTask((prev: any) => ({ 
+                              ...prev, 
+                              recurring_unit: e.target.value
+                            }))}
+                            className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="day">day(s)</option>
+                            <option value="week">week(s)</option>
+                            <option value="month">month(s)</option>
+                            <option value="year">year(s)</option>
+                          </select>
+                        </div>
                       </div>
+                      
+                      {(editingTask.recurring_unit || 'week') === 'week' && (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-2">Repeat on days</label>
+                          <div className="flex space-x-1">
+                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
+                              <button
+                                key={day}
+                                type="button"
+                                onClick={() => {
+                                  const currentDays = editingTask.recurring_days || [];
+                                  const newDays = currentDays.includes(index) 
+                                    ? currentDays.filter((d: number) => d !== index)
+                                    : [...currentDays, index];
+                                  setEditingTask((prev: any) => ({ 
+                                    ...prev, 
+                                    recurring_days: newDays
+                                  }));
+                                }}
+                                className={`w-8 h-8 rounded-full text-xs font-medium ${
+                                  (editingTask.recurring_days || []).includes(index)
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                }`}
+                              >
+                                {day[0]}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">End date (optional)</label>
