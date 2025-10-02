@@ -2403,14 +2403,14 @@ const MMCCalendar = () => {
             </div>
             <div className="space-y-4">
               <div>
-                <h4 className="font-medium text-gray-900 mb-2">{selectedTask.title}</h4>
-                <p className="text-gray-600 text-sm">{selectedTask.description}</p>
+                <h4 className="font-medium text-gray-900 mb-2">{selectedTask.title || 'Unknown Task'}</h4>
+                <p className="text-gray-600 text-sm">{selectedTask.description || 'No description'}</p>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">TYPE</label>
-                  <span className={`text-xs px-2 py-1 rounded ${selectedTask.color}`}>
-                    {selectedTask.type}
+                  <span className={`text-xs px-2 py-1 rounded ${selectedTask.color || 'bg-gray-100'}`}>
+                    {selectedTask.type || 'Unknown'}
                   </span>
                 </div>
                 <div>
@@ -2421,7 +2421,7 @@ const MMCCalendar = () => {
                     selectedTask.status === 'review' ? 'bg-orange-100 text-orange-800' :
                     'bg-green-100 text-green-800'
                   }`}>
-                    {selectedTask.status.replace('-', ' ')}
+                    {selectedTask.status?.replace('-', ' ') || 'Unknown'}
                   </span>
                 </div>
                 <div>
@@ -2434,11 +2434,11 @@ const MMCCalendar = () => {
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">ASSIGNED TO</label>
                 <div className="flex items-center space-x-2">
-                  <div className={`w-6 h-6 ${teamMembers.find(m => m.id === selectedTask.assignee)?.color} rounded-full flex items-center justify-center text-white text-xs`}>
-                    {teamMembers.find(m => m.id === selectedTask.assignee)?.avatar}
+                  <div className={`w-6 h-6 ${teamMembers.find(m => m.id === selectedTask.assignee)?.color || 'bg-gray-400'} rounded-full flex items-center justify-center text-white text-xs`}>
+                    {teamMembers.find(m => m.id === selectedTask.assignee)?.avatar || '?'}
                   </div>
                   <span className="text-sm text-gray-900">
-                    {getTeamMemberName(selectedTask.assignee)}
+                    {getTeamMemberName(selectedTask.assignee) || 'Unknown User'}
                   </span>
                 </div>
               </div>
