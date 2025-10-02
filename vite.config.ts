@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  base: '/mmc-calendar/', // Set base path for GitHub Pages
   define: {
     // Define environment variables for production builds
     'import.meta.env.VITE_SUPABASE_URL': JSON.stringify('https://zmbptzxjuuveqmcevtaz.supabase.co'),
