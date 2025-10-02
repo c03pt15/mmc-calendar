@@ -12,6 +12,11 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
       return;
     }
     
+    // Skip deleted tasks
+    if (task.is_deleted_instance || task.status === 'deleted') {
+      return;
+    }
+    
     if (!task.is_recurring || !task.recurring_pattern) {
       // For non-recurring tasks, only add them if they're in the target month
       if (task.month === targetMonth && task.year === targetYear) {
@@ -36,8 +41,21 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
         if (currentDate.getMonth() === targetMonth && currentDate.getFullYear() === targetYear) {
           const instanceKey = `${task.id}_${currentDate.getFullYear()}_${currentDate.getMonth()}_${currentDate.getDate()}`;
           
-          // Skip this instance if it's been deleted
+          // Skip this instance if it's been deleted (check both deletedInstances set and database records)
           if (deletedInstances.has(instanceKey)) {
+            currentDate = nextDate;
+            instanceCount++;
+            continue;
+          }
+          
+          // Check if there's a deleted instance record for this specific instance
+          const hasDeletedInstance = tasks.some(t => 
+            t.is_deleted_instance && 
+            t.parent_task_id === task.id && 
+            t.instance_key === instanceKey
+          );
+          
+          if (hasDeletedInstance) {
             currentDate = nextDate;
             instanceCount++;
             continue;
@@ -257,18 +275,30 @@ const MMCCalendar = () => {
 
   const refreshTasks = async () => {
     try {
+      // Fetch all tasks to properly handle recurring instances and deleted instances
       const { data, error } = await supabase
         .from('tasks')
-        .select('*')
-        .eq('year', currentDate.getFullYear())
-        .eq('month', currentDate.getMonth());
+        .select('*');
       
       if (error) {
         console.error('Error refreshing tasks:', error);
         return;
       }
       
-      setAllTasks((prev) => ({ ...prev, [currentMonthKey]: data || [] }));
+      // Group tasks by month-year
+      const groupedTasks: { [key: string]: any[] } = {};
+      (data || []).forEach(task => {
+        const key = `${task.year}-${task.month}`;
+        if (!groupedTasks[key]) {
+          groupedTasks[key] = [];
+        }
+        groupedTasks[key].push(task);
+      });
+      
+      setAllTasks(groupedTasks);
+      
+      // Clear deleted instances since we're refreshing from database
+      setDeletedInstances(new Set());
     } catch (err) {
       console.error('Unexpected error refreshing tasks:', err);
     }
