@@ -29,6 +29,7 @@ const MMCCalendar = () => {
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [preSelectedDate, setPreSelectedDate] = useState<{date: number, month: number, year: number} | null>(null);
+  const [recurringCache, setRecurringCache] = useState<{[key: string]: any[]}>({});
   const [newTask, setNewTask] = useState<any>({
     title: '',
     description: '',
@@ -41,6 +42,9 @@ const MMCCalendar = () => {
     assignee: 1,
     status: 'planned',
     priority: 'medium',
+    is_recurring: false,
+    recurring_pattern: '',
+    recurring_end_date: null,
     comments: ''
   });
 
@@ -139,18 +143,20 @@ const MMCCalendar = () => {
   };
 
   const getTasksForDate = (date: number) => {
-    let tasks = currentMonthTasks.filter(task => task.date === date && selectedFilters[task.category]);
+    const tasksWithRecurring = generateRecurringForMonth(currentMonthTasks, currentDate.getMonth(), currentDate.getFullYear());
+    let tasks = tasksWithRecurring.filter(task => task.date === date && selectedFilters[task.category]);
     if (selectedTeamMember) tasks = tasks.filter(task => task.assignee === selectedTeamMember);
     return tasks;
   };
 
   const getAllFilteredTasks = () => {
-    let tasks = currentMonthTasks.filter(task => selectedFilters[task.category]);
+    const tasksWithRecurring = generateRecurringForMonth(currentMonthTasks, currentDate.getMonth(), currentDate.getFullYear());
+    let tasks = tasksWithRecurring.filter(task => selectedFilters[task.category]);
     if (selectedTeamMember) tasks = tasks.filter(task => task.assignee === selectedTeamMember);
     return tasks;
   };
 
-  const allTasksWithRecurring = currentMonthTasks;
+  const allTasksWithRecurring = generateRecurringForMonth(currentMonthTasks, currentDate.getMonth(), currentDate.getFullYear());
 
   const filterCounts = {
     blogPosts: allTasksWithRecurring.filter(t => t.category === 'blogPosts' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
@@ -343,6 +349,83 @@ const MMCCalendar = () => {
 
   const removeCustomCategory = (category: string) => {
     setCustomCategories(customCategories.filter(c => c !== category));
+  };
+
+  // Simple recurring instance generator - isolated function
+  const generateRecurringForMonth = (tasks: any[], month: number, year: number) => {
+    const cacheKey = `${month}-${year}`;
+    
+    // Check cache first
+    if (recurringCache[cacheKey]) {
+      return recurringCache[cacheKey];
+    }
+
+    const instances: any[] = [];
+    
+    tasks.forEach(task => {
+      if (!task.is_recurring || !task.recurring_pattern) {
+        instances.push(task);
+        return;
+      }
+
+      const startDate = new Date(task.year, task.month, task.date);
+      const endDate = task.recurring_end_date ? new Date(task.recurring_end_date) : new Date(startDate.getFullYear() + 1, startDate.getMonth(), startDate.getDate());
+      const targetMonthStart = new Date(year, month, 1);
+      const targetMonthEnd = new Date(year, month + 1, 0);
+
+      // Only generate if the recurring period overlaps with target month
+      if (startDate <= targetMonthEnd && endDate >= targetMonthStart) {
+        let currentDate = new Date(startDate);
+        let instanceCount = 0;
+        const maxInstances = 12; // Limit to prevent infinite loops
+
+        while (currentDate <= endDate && instanceCount < maxInstances) {
+          // Check if this instance falls within the target month
+          if (currentDate.getMonth() === month && currentDate.getFullYear() === year) {
+            const newInstance = {
+              ...task,
+              id: `${task.id}_${currentDate.getFullYear()}_${currentDate.getMonth()}_${currentDate.getDate()}`,
+              date: currentDate.getDate(),
+              month: currentDate.getMonth(),
+              year: currentDate.getFullYear(),
+              parent_task_id: task.id,
+              is_recurring: false
+            };
+            instances.push(newInstance);
+          }
+
+          // Calculate next occurrence
+          let nextDate: Date;
+          switch (task.recurring_pattern) {
+            case 'daily':
+              nextDate = new Date(currentDate);
+              nextDate.setDate(currentDate.getDate() + 1);
+              break;
+            case 'weekly':
+              nextDate = new Date(currentDate);
+              nextDate.setDate(currentDate.getDate() + 7);
+              break;
+            case 'monthly':
+              nextDate = new Date(currentDate);
+              nextDate.setMonth(currentDate.getMonth() + 1);
+              break;
+            default:
+              nextDate = new Date(currentDate);
+              nextDate.setDate(currentDate.getDate() + 1);
+          }
+
+          currentDate = nextDate;
+          instanceCount++;
+        }
+      } else {
+        // If not recurring or doesn't overlap, just add the original task
+        instances.push(task);
+      }
+    });
+
+    // Cache the result
+    setRecurringCache(prev => ({ ...prev, [cacheKey]: instances }));
+    return instances;
   };
 
   // Close search results and export menu when clicking outside
@@ -1112,6 +1195,64 @@ const MMCCalendar = () => {
               </div>
               
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Recurring</label>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="is_recurring"
+                      checked={newTask.is_recurring}
+                      onChange={(e) => setNewTask((prev: any) => ({ 
+                        ...prev, 
+                        is_recurring: e.target.checked,
+                        recurring_pattern: e.target.checked ? prev.recurring_pattern || 'weekly' : '',
+                        recurring_end_date: e.target.checked ? prev.recurring_end_date : null
+                      }))}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="is_recurring" className="text-sm text-gray-700">
+                      Make this task recurring
+                    </label>
+                  </div>
+                  
+                  {newTask.is_recurring && (
+                    <div className="ml-6 space-y-3 border-l-2 border-gray-200 pl-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Repeat every</label>
+                        <select
+                          value={newTask.recurring_pattern}
+                          onChange={(e) => setNewTask((prev: any) => ({ 
+                            ...prev, 
+                            recurring_pattern: e.target.value
+                          }))}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="daily">Daily</option>
+                          <option value="weekly">Weekly</option>
+                          <option value="monthly">Monthly</option>
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">End date (optional)</label>
+                        <input
+                          type="date"
+                          value={newTask.recurring_end_date || ''}
+                          onChange={(e) => setNewTask((prev: any) => ({ 
+                            ...prev, 
+                            recurring_end_date: e.target.value || null
+                          }))}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          min={new Date().toISOString().split('T')[0]}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Leave empty for no end date</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Comments</label>
                 <textarea
                   value={newTask.comments}
@@ -1395,6 +1536,63 @@ const MMCCalendar = () => {
                 </div>
               </div>
               
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Recurring</label>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="edit_is_recurring"
+                      checked={editingTask.is_recurring || false}
+                      onChange={(e) => setEditingTask((prev: any) => ({ 
+                        ...prev, 
+                        is_recurring: e.target.checked,
+                        recurring_pattern: e.target.checked ? prev.recurring_pattern || 'weekly' : '',
+                        recurring_end_date: e.target.checked ? prev.recurring_end_date : null
+                      }))}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="edit_is_recurring" className="text-sm text-gray-700">
+                      Make this task recurring
+                    </label>
+                  </div>
+                  
+                  {(editingTask.is_recurring || false) && (
+                    <div className="ml-6 space-y-3 border-l-2 border-gray-200 pl-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Repeat every</label>
+                        <select
+                          value={editingTask.recurring_pattern || ''}
+                          onChange={(e) => setEditingTask((prev: any) => ({ 
+                            ...prev, 
+                            recurring_pattern: e.target.value
+                          }))}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="daily">Daily</option>
+                          <option value="weekly">Weekly</option>
+                          <option value="monthly">Monthly</option>
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">End date (optional)</label>
+                        <input
+                          type="date"
+                          value={editingTask.recurring_end_date || ''}
+                          onChange={(e) => setEditingTask((prev: any) => ({ 
+                            ...prev, 
+                            recurring_end_date: e.target.value || null
+                          }))}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          min={new Date().toISOString().split('T')[0]}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Leave empty for no end date</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Comments</label>
