@@ -1,9 +1,9 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [react()],
-  base: '/mmc-calendar/', // Set base path for GitHub Pages
+  base: command === 'build' ? '/mmc-calendar/' : '/', // Different base paths for dev and build
   define: {
     // Define environment variables for production builds
     'import.meta.env.VITE_SUPABASE_URL': JSON.stringify('https://zmbptzxjuuveqmcevtaz.supabase.co'),
@@ -29,4 +29,4 @@ export default defineConfig({
     port: 3000,
     open: true,
   },
-}); 
+})); 
