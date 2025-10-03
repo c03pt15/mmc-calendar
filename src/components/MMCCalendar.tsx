@@ -468,6 +468,7 @@ const MMCCalendar = () => {
   // Function to load activities from database
   const loadActivities = useCallback(async () => {
     try {
+      console.log('Loading activities from database...');
       const { data, error } = await supabase
         .from('activities')
         .select('*')
@@ -481,6 +482,8 @@ const MMCCalendar = () => {
         setActivitiesLoaded(true);
         return;
       }
+      
+      console.log('Raw activities data from DB:', data);
       
       if (data) {
         const formattedActivities = data.map(activity => ({
@@ -497,9 +500,11 @@ const MMCCalendar = () => {
           newStatus: activity.new_status || null
         }));
         
+        console.log('Formatted activities:', formattedActivities);
         setRecentActivities(formattedActivities);
         setActivitiesLoaded(true);
       } else {
+        console.log('No activities data found');
         setRecentActivities([]);
         setActivitiesLoaded(true);
       }
@@ -727,6 +732,10 @@ const MMCCalendar = () => {
   // Function to add activity to database and local state
   const addActivity = useCallback(async (activity: any) => {
     try {
+      console.log('Adding activity:', activity);
+      console.log('Activity task:', activity.task);
+      console.log('Activity task ID:', activity.task?.id);
+      
       // Save to database
       const { data, error } = await supabase
         .from('activities')
@@ -762,6 +771,7 @@ const MMCCalendar = () => {
       
       // Update local state
       if (data && data[0]) {
+        console.log('Activity saved successfully to database:', data[0]);
         const newActivity = {
           id: data[0].id,
           type: activity.type || 'unknown',
@@ -773,7 +783,11 @@ const MMCCalendar = () => {
           newStatus: activity.newStatus || null
         };
         
+        console.log('Adding activity to local state:', newActivity);
         setRecentActivities(prev => [newActivity, ...prev].slice(0, 20));
+        console.log('Activity added to local state successfully');
+      } else {
+        console.log('No data returned from activity save');
       }
     } catch (err) {
       console.error('Error adding activity:', err);
