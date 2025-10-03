@@ -381,6 +381,8 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
 };
 
 const MMCCalendar = () => {
+  const [user, setUser] = useState(null);
+  const [showLogin, setShowLogin] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [activeView, setActiveView] = useState('Calendar');
   const [selectedFilters, setSelectedFilters] = useState({
@@ -396,7 +398,16 @@ const MMCCalendar = () => {
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [editingTask, setEditingTask] = useState<any>(null);
   const [draggedTask, setDraggedTask] = useState<any>(null);
+  const [loggedInUserTeamMemberId, setLoggedInUserTeamMemberId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Authentication state
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [authError, setAuthError] = useState('');
   const [allTasks, setAllTasks] = useState<{ [key: string]: any[] }>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -511,6 +522,70 @@ const MMCCalendar = () => {
     }
   }, []);
 
+  // Authentication effects
+  useEffect(() => {
+    // Check if user is already logged in
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      if (user) {
+        // Auto-assign team member based on user's name
+        assignTeamMemberToUser(user);
+        // Reset filter to show all tasks by default
+        setSelectedTeamMember(null);
+      } else {
+        setLoggedInUserTeamMemberId(null);
+        setSelectedTeamMember(null);
+      }
+      setLoading(false);
+    };
+    checkUser();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          // Auto-assign team member based on user's name
+          assignTeamMemberToUser(session.user);
+          // Reset filter to show all tasks by default
+          setSelectedTeamMember(null);
+        } else {
+          setLoggedInUserTeamMemberId(null);
+          setSelectedTeamMember(null);
+        }
+        setLoading(false);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Function to assign team member based on user's name
+  const assignTeamMemberToUser = (user: any) => {
+    if (!user || user === 'guest') {
+      setLoggedInUserTeamMemberId(null);
+      return;
+    }
+    
+    const firstName = user.user_metadata?.first_name || '';
+    const lastName = user.user_metadata?.last_name || '';
+    const fullName = `${firstName} ${lastName}`.trim();
+    
+    // Find matching team member
+    const matchingMember = teamMembers.find(member => {
+      const memberFullName = `${member.name}`.trim();
+      return memberFullName.toLowerCase() === fullName.toLowerCase();
+    });
+    
+    if (matchingMember) {
+      setLoggedInUserTeamMemberId(matchingMember.id);
+      // Don't automatically set selectedTeamMember - let them see all tasks by default
+    } else {
+      setLoggedInUserTeamMemberId(null);
+    }
+  };
+
   // Fetch tasks from Supabase for the current month
   useEffect(() => {
     const fetchTasks = async () => {
@@ -578,6 +653,60 @@ const MMCCalendar = () => {
       setDeletedInstances(deletedInstanceKeys);
     } catch (err) {
       console.error('Unexpected error refreshing tasks:', err);
+    }
+  };
+
+  // Authentication functions
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+          }
+        }
+      });
+
+      if (error) {
+        setAuthError(error.message);
+      } else {
+        setAuthError('Check your email for the confirmation link!');
+      }
+    } catch (error) {
+      setAuthError('An unexpected error occurred');
+    }
+  };
+
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) {
+        setAuthError(error.message);
+      }
+    } catch (error) {
+      setAuthError('An unexpected error occurred');
+    }
+  };
+
+  const handleSignOut = async () => {
+    if (user === 'guest') {
+      setUser(null);
+      setShowLogin(false);
+    } else {
+      await supabase.auth.signOut();
     }
   };
 
@@ -814,7 +943,7 @@ const MMCCalendar = () => {
       priority: 'medium',
       comments: '',
       tags: [],
-      created_by: null
+      created_by: user && user !== 'guest' ? loggedInUserTeamMemberId : null
     });
     setShowNewEntryModal(true);
   };
@@ -839,7 +968,7 @@ const MMCCalendar = () => {
       priority: 'medium',
       comments: '',
       tags: [],
-      created_by: null
+      created_by: user && user !== 'guest' ? loggedInUserTeamMemberId : null
     });
     setShowNewEntryModal(true);
   };
@@ -1364,6 +1493,209 @@ const MMCCalendar = () => {
   const isCurrentMonth = currentDate.getMonth() === new Date().getMonth() && 
                          currentDate.getFullYear() === new Date().getFullYear();
 
+  // Loading screen
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+            <img 
+              src={`${import.meta.env.BASE_URL}atlas-logo.png`} 
+              alt="Atlas Logo" 
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">MMC Calendar</h1>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Authentication screen
+  if (!user && !showLogin) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+              <img 
+                src={`${import.meta.env.BASE_URL}atlas-logo.png`} 
+                alt="Atlas Logo" 
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">MMC Calendar</h1>
+            <p className="text-gray-600">Access your calendar</p>
+          </div>
+          
+          <div className="space-y-4">
+            <button
+              onClick={() => setShowLogin(true)}
+              className="w-full p-4 border-2 border-blue-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors text-left"
+            >
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                  <UserCheck className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">Sign In</h3>
+                  <p className="text-sm text-gray-600">Access your account</p>
+                </div>
+              </div>
+            </button>
+            
+            <button
+              onClick={() => setUser('guest')}
+              className="w-full p-4 border-2 border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 transition-colors text-left"
+            >
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                  <User className="w-5 h-5 text-gray-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">Guest Access</h3>
+                  <p className="text-sm text-gray-600">View-only access to the calendar</p>
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Login form
+  if (showLogin && !user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+              <img 
+                src={`${import.meta.env.BASE_URL}atlas-logo.png`} 
+                alt="Atlas Logo" 
+                className="w-full h-full object-contain"
+              />
+            </div>
+                  <h1 className="text-2xl font-bold text-gray-900 mb-2">{isSignUp ? 'Sign Up' : 'Sign In'}</h1>
+            <p className="text-gray-600">
+              {isSignUp ? 'We are not accepting new users at this time' : 'Access your MMC Calendar account'}
+            </p>
+          </div>
+          
+          <form onSubmit={isSignUp ? (e) => { e.preventDefault(); } : handleSignIn} className="space-y-4">
+            {isSignUp && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      First Name
+                    </label>
+                    <input
+                      type="text"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      disabled={isSignUp}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        isSignUp ? 'bg-gray-100 cursor-not-allowed' : ''
+                      }`}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Last Name
+                    </label>
+                    <input
+                      type="text"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      disabled={isSignUp}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        isSignUp ? 'bg-gray-100 cursor-not-allowed' : ''
+                      }`}
+                      required
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email
+              </label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={isSignUp}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        isSignUp ? 'bg-gray-100 cursor-not-allowed' : ''
+                      }`}
+                      required
+                    />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Password
+              </label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      disabled={isSignUp}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        isSignUp ? 'bg-gray-100 cursor-not-allowed' : ''
+                      }`}
+                      required
+                    />
+            </div>
+            
+            {authError && (
+              <div className="text-red-600 text-sm text-center">
+                {authError}
+              </div>
+            )}
+            
+                  <button
+                    type="submit"
+                    disabled={isSignUp}
+                    className={`w-full py-2 px-4 rounded-md transition-colors ${
+                      isSignUp 
+                        ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
+                  >
+                    {isSignUp ? 'Sign Up (Disabled)' : 'Sign In'}
+                  </button>
+            
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setIsSignUp(!isSignUp)}
+                className="text-blue-600 hover:text-blue-800 text-sm"
+              >
+                {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+              </button>
+            </div>
+            
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setShowLogin(false)}
+                className="text-gray-600 hover:text-gray-800 text-sm"
+              >
+                ← Back to options
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   // Kanban columns
   const kanbanColumns = [
     { id: 'planned', title: 'Planned', color: 'bg-green-50' },
@@ -1390,7 +1722,9 @@ const MMCCalendar = () => {
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 p-4">
+      <div className={`w-64 bg-white border-r border-gray-200 p-4 ${
+        user === 'guest' ? 'pointer-events-none opacity-60' : ''
+      }`}>
         <div className="mb-6">
           <div className="flex items-center space-x-2 mb-4">
             <div className="w-8 h-8 flex items-center justify-center">
@@ -1454,11 +1788,14 @@ const MMCCalendar = () => {
               { key: 'campaigns', label: 'Campaigns', count: filterCounts.campaigns },
               { key: 'emailMarketing', label: 'Email Marketing', count: filterCounts.emailMarketing }
             ].map(filter => (
-              <label key={filter.key} className="flex items-center space-x-2 cursor-pointer">
+              <label key={filter.key} className={`flex items-center space-x-2 ${
+                user !== 'guest' ? 'cursor-pointer' : 'cursor-default'
+              }`}>
                 <input
                   type="checkbox"
                   checked={selectedFilters[filter.key]}
-                  onChange={() => toggleFilter(filter.key)}
+                  onChange={user !== 'guest' ? () => toggleFilter(filter.key) : undefined}
+                  disabled={user === 'guest'}
                   className="rounded border-gray-300"
                 />
                 <div className="flex items-center space-x-2 flex-1">
@@ -1484,17 +1821,42 @@ const MMCCalendar = () => {
         </div>
         {/* Team Members */}
         <div className="mb-6">
-          <h3 className="text-sm font-medium text-gray-900 mb-3">Team Members</h3>
+          <h3 className="text-sm font-medium text-gray-900 mb-3">
+            Team Members
+            {user && user !== 'guest' && (
+              <span className="text-xs text-gray-500 ml-2">(Click to filter tasks)</span>
+            )}
+          </h3>
           
           
           <div className="space-y-3">
+            {/* Show All option */}
+            <div 
+              className={`flex items-center space-x-3 p-2 rounded-lg ${
+                user !== 'guest' ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default'
+              } ${
+                selectedTeamMember === null ? 'bg-blue-50 border border-blue-200' : ''
+              }`}
+              onClick={user !== 'guest' ? () => handleTeamMemberClick(null) : undefined}
+            >
+              <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 text-xs font-medium">
+                All
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-gray-900">Show All Tasks</div>
+                <div className="text-xs text-gray-500">View tasks from all team members</div>
+              </div>
+            </div>
+            
             {teamMembers.map(member => (
               <div 
                 key={member.id} 
-                className={`flex items-center space-x-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 ${
+                className={`flex items-center space-x-3 p-2 rounded-lg ${
+                  user !== 'guest' ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default'
+                } ${
                   selectedTeamMember === member.id ? 'bg-blue-50 border border-blue-200' : ''
                 }`}
-                onClick={() => handleTeamMemberClick(member.id)}
+                onClick={user !== 'guest' ? () => handleTeamMemberClick(member.id) : undefined}
               >
                 <div className={`w-8 h-8 ${member.color} rounded-full flex items-center justify-center text-white text-xs font-medium`}>
                   {member.avatar}
@@ -1525,11 +1887,13 @@ const MMCCalendar = () => {
             {getOverdueTasks().slice(0, 3).map(task => (
               <div 
                 key={task.id} 
-                className="flex items-start space-x-3 p-2 bg-white rounded-md border border-red-100 hover:bg-red-25 transition-colors cursor-pointer"
-                onClick={() => {
+                className={`flex items-start space-x-3 p-2 bg-white rounded-md border border-red-100 transition-colors ${
+                  user !== 'guest' ? 'hover:bg-red-25 cursor-pointer' : 'cursor-default'
+                }`}
+                onClick={user !== 'guest' ? () => {
                   setSelectedTask(ensureCompleteTaskData(task));
                   setShowTaskModal(true);
-                }}
+                } : undefined}
               >
                 <div className="w-2 h-2 rounded-full mt-2 bg-red-500 flex-shrink-0"></div>
                 <div className="flex-1 min-w-0">
@@ -1566,11 +1930,13 @@ const MMCCalendar = () => {
             {getHighPriorityTasks().slice(0, 3).map(task => (
               <div 
                 key={task.id} 
-                className="flex items-start space-x-3 p-2 bg-white rounded-md border border-orange-100 hover:bg-orange-25 transition-colors cursor-pointer"
-                onClick={() => {
+                className={`flex items-start space-x-3 p-2 bg-white rounded-md border border-orange-100 transition-colors ${
+                  user !== 'guest' ? 'hover:bg-orange-25 cursor-pointer' : 'cursor-default'
+                }`}
+                onClick={user !== 'guest' ? () => {
                   setSelectedTask(ensureCompleteTaskData(task));
                   setShowTaskModal(true);
-                }}
+                } : undefined}
               >
                 <div className="w-2 h-2 rounded-full mt-2 bg-orange-500 flex-shrink-0"></div>
                 <div className="flex-1 min-w-0">
@@ -1626,9 +1992,14 @@ const MMCCalendar = () => {
             <div className="flex items-center space-x-4">
               {/* Drawer Toggle Button */}
               <button
-                onClick={() => setShowDrawer(!showDrawer)}
-                className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                title="Open task overview"
+                onClick={user !== 'guest' ? () => setShowDrawer(!showDrawer) : undefined}
+                className={`relative p-2 rounded-lg transition-colors ${
+                  user !== 'guest' 
+                    ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 cursor-pointer' 
+                    : 'text-gray-400 cursor-not-allowed'
+                }`}
+                title={user !== 'guest' ? "Open task overview" : "Guest users cannot access task overview"}
+                disabled={user === 'guest'}
               >
                 <div className="w-6 h-6 relative">
                   {/* Dashboard/Grid Icon */}
@@ -1656,9 +2027,10 @@ const MMCCalendar = () => {
                     type="text"
                     placeholder="Search tasks..."
                     value={searchQuery}
-                    onChange={(e) => handleSearch(e.target.value)}
-                    onFocus={() => searchQuery && setShowSearchResults(true)}
-                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+                    onChange={user !== 'guest' ? (e) => handleSearch(e.target.value) : undefined}
+                    onFocus={user !== 'guest' ? () => searchQuery && setShowSearchResults(true) : undefined}
+                    disabled={user === 'guest'}
+                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-64 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   />
                 </div>
                 
@@ -1720,13 +2092,30 @@ const MMCCalendar = () => {
                 </button>
               </div>
               
-              <button 
-                className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                onClick={handleNewEntry}
-              >
-                <Plus className="w-4 h-4" />
-                <span>New Entry</span>
-              </button>
+              {user && user !== 'guest' && (
+                <button 
+                  className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                  onClick={handleNewEntry}
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>New Entry</span>
+                </button>
+              )}
+              
+              <div className="flex items-center space-x-2">
+                {user && user !== 'guest' && (
+                  <span className="text-sm text-gray-600">
+                    Hi, {user.user_metadata?.first_name || user.email?.split('@')[0]}
+                  </span>
+                )}
+                <button 
+                  className="flex items-center space-x-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200"
+                  onClick={handleSignOut}
+                >
+                  <User className="w-4 h-4" />
+                  <span>{user === 'guest' ? 'Exit' : 'Logout'}</span>
+                </button>
+              </div>
               
               
               {/* Export Dropdown */}
@@ -1779,10 +2168,10 @@ const MMCCalendar = () => {
                     className={`border-r border-b border-gray-200 last:border-r-0 p-2 min-h-[120px] relative cursor-pointer hover:bg-gray-50 ${
                       dragOverDate === day ? 'bg-blue-50 border-blue-300' : ''
                     }`}
-                    onClick={day ? () => handleDayClick(day) : undefined}
-                    onDragOver={day ? (e) => handleCalendarDragOver(e, day) : undefined}
-                    onDragLeave={day ? handleCalendarDragLeave : undefined}
-                    onDrop={day ? (e) => handleCalendarDrop(e, day) : undefined}
+                    onClick={day && user !== 'guest' ? () => handleDayClick(day) : undefined}
+                    onDragOver={day && user !== 'guest' ? (e) => handleCalendarDragOver(e, day) : undefined}
+                    onDragLeave={day && user !== 'guest' ? handleCalendarDragLeave : undefined}
+                    onDrop={day && user !== 'guest' ? (e) => handleCalendarDrop(e, day) : undefined}
                   >
                     {day && (
                       <>
@@ -1804,10 +2193,10 @@ const MMCCalendar = () => {
                                 className={`h-6 ${task.color} cursor-pointer hover:opacity-80 relative flex items-center border-t-2 ${
                                   task.status === 'completed' ? 'opacity-50' : ''
                                 } ${draggedTask?.id === task.id ? 'opacity-50' : ''} rounded-none`}
-                                onClick={(e) => {
+                                onClick={user !== 'guest' ? (e) => {
                                   e.stopPropagation();
                                   handleTaskClick(task);
-                                }}
+                                } : undefined}
                                 title={`${task.title}${isStart ? ' (Start)' : isEnd ? ' (End)' : ''}`}
                                 style={{
                                   marginLeft: isStart ? '0' : '-1px',
@@ -1839,12 +2228,12 @@ const MMCCalendar = () => {
                                 } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${
                                   task.is_all_day ? 'border-2 border-dashed border-gray-400 bg-opacity-50' : ''
                                 } ${hasTimeConflict ? 'border-l-4 border-l-red-400' : ''}`}
-                                onClick={(e) => {
+                                onClick={user !== 'guest' ? (e) => {
                                   e.stopPropagation();
                                   handleTaskClick(task);
-                                }}
-                                draggable
-                              onDragStart={(e) => handleCalendarDragStart(e, task)}
+                                } : undefined}
+                                draggable={user !== 'guest'}
+                              onDragStart={user !== 'guest' ? (e) => handleCalendarDragStart(e, task) : undefined}
                             >
                               {task.status === 'completed' && (
                                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -1930,9 +2319,9 @@ const MMCCalendar = () => {
                           className={`bg-white p-4 rounded-lg shadow-sm border cursor-move hover:shadow-md transition-shadow ${
                             draggedTask?.id === task.id ? 'opacity-50' : ''
                           }`}
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, task)}
-                          onClick={() => handleTaskClick(task)}
+                          draggable={user !== 'guest'}
+                          onDragStart={user !== 'guest' ? (e) => handleDragStart(e, task) : undefined}
+                          onClick={user !== 'guest' ? () => handleTaskClick(task) : undefined}
                         >
                           <div className="font-medium text-gray-900 mb-2 flex items-center space-x-2">
                             <span>{task.title}</span>
@@ -2199,11 +2588,19 @@ const MMCCalendar = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Created by</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Created by
+                  {user && user !== 'guest' && (
+                    <span className="text-xs text-gray-500 ml-2">(Auto-assigned)</span>
+                  )}
+                </label>
                 <select
                   value={newTask.created_by || ''}
                   onChange={(e) => setNewTask((prev: any) => ({ ...prev, created_by: e.target.value ? parseInt(e.target.value) : null }))}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={user && user !== 'guest'}
+                  className={`w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    user && user !== 'guest' ? 'bg-gray-100 cursor-not-allowed' : ''
+                  }`}
                 >
                   <option value="">Select Created by</option>
                   {teamMembers.map(member => (
@@ -3065,7 +3462,7 @@ const MMCCalendar = () => {
           {/* Backdrop */}
           <div 
             className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
-            onClick={() => setShowDrawer(false)}
+            onClick={user !== 'guest' ? () => setShowDrawer(false) : undefined}
           />
           
           {/* Drawer */}
@@ -3075,8 +3472,13 @@ const MMCCalendar = () => {
               <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
                 <h2 className="text-xl font-semibold text-gray-900">Task Overview</h2>
                 <button
-                  onClick={() => setShowDrawer(false)}
-                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  onClick={user !== 'guest' ? () => setShowDrawer(false) : undefined}
+                  className={`p-2 rounded-lg transition-colors ${
+                    user !== 'guest' 
+                      ? 'text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer' 
+                      : 'text-gray-300 cursor-not-allowed'
+                  }`}
+                  disabled={user === 'guest'}
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -3098,12 +3500,16 @@ const MMCCalendar = () => {
                       {getOverdueTasks().slice(0, 5).map((task) => (
                         <div
                           key={task.id}
-                          className="p-3 bg-red-50 border border-red-200 rounded-lg cursor-pointer hover:bg-red-100 transition-colors"
-                          onClick={() => {
+                          className={`p-3 bg-red-50 border border-red-200 rounded-lg transition-colors ${
+                            user !== 'guest' 
+                              ? 'cursor-pointer hover:bg-red-100' 
+                              : 'cursor-default'
+                          }`}
+                          onClick={user !== 'guest' ? () => {
                             setSelectedTask(ensureCompleteTaskData(task));
                             setShowTaskModal(true);
                             setShowDrawer(false);
-                          }}
+                          } : undefined}
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -3144,12 +3550,16 @@ const MMCCalendar = () => {
                       {getHighPriorityTasks().slice(0, 5).map((task) => (
                         <div
                           key={task.id}
-                          className="p-3 bg-orange-50 border border-orange-200 rounded-lg cursor-pointer hover:bg-orange-100 transition-colors"
-                          onClick={() => {
+                          className={`p-3 bg-orange-50 border border-orange-200 rounded-lg transition-colors ${
+                            user !== 'guest' 
+                              ? 'cursor-pointer hover:bg-orange-100' 
+                              : 'cursor-default'
+                          }`}
+                          onClick={user !== 'guest' ? () => {
                             setSelectedTask(ensureCompleteTaskData(task));
                             setShowTaskModal(true);
                             setShowDrawer(false);
-                          }}
+                          } : undefined}
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
