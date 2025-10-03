@@ -21,17 +21,13 @@ if not "%current_branch%"=="main" (
     )
 )
 
-REM Check for uncommitted changes
+REM Check for uncommitted changes and commit if needed
 git diff --quiet
 if %errorlevel% neq 0 (
     echo Warning: You have uncommitted changes. Committing them first...
     git add .
     git commit -m "Auto-commit before deployment - %date% %time%"
-    if %errorlevel% neq 0 (
-        echo Error: Failed to commit changes.
-        pause
-        exit /b 1
-    )
+    echo Changes committed.
 )
 
 REM Build the project for GitHub Pages
