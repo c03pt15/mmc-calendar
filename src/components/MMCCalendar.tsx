@@ -483,19 +483,24 @@ const MMCCalendar = () => {
       }
       
       if (data) {
-        const formattedActivities = data.map(activity => ({
-          id: activity.id || Date.now() + Math.random(),
-          type: activity.type || 'unknown',
-          task: {
-            id: activity.task_id || null,
-            title: activity.task_title || 'Unknown Task'
-          },
-          message: activity.message || 'Unknown activity',
-          user: activity.user_name || 'Unknown User',
-          timestamp: new Date(activity.created_at || new Date()),
-          oldStatus: activity.old_status || null,
-          newStatus: activity.new_status || null
-        }));
+        console.log('Loading activities from database:', data);
+        const formattedActivities = data.map(activity => {
+          console.log('Raw activity from DB:', activity);
+          console.log('Task ID from DB:', activity.task_id);
+          return {
+            id: activity.id || Date.now() + Math.random(),
+            type: activity.type || 'unknown',
+            task: {
+              id: activity.task_id || null,
+              title: activity.task_title || 'Unknown Task'
+            },
+            message: activity.message || 'Unknown activity',
+            user: activity.user_name || 'Unknown User',
+            timestamp: new Date(activity.created_at || new Date()),
+            oldStatus: activity.old_status || null,
+            newStatus: activity.new_status || null
+          };
+        });
         
         setRecentActivities(formattedActivities);
         setActivitiesLoaded(true);
@@ -727,6 +732,10 @@ const MMCCalendar = () => {
   // Function to add activity to database and local state
   const addActivity = useCallback(async (activity: any) => {
     try {
+      console.log('Adding activity:', activity);
+      console.log('Activity task:', activity.task);
+      console.log('Activity task ID:', activity.task?.id);
+      
       // Save to database
       const { data, error } = await supabase
         .from('activities')
