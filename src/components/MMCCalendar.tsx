@@ -468,7 +468,6 @@ const MMCCalendar = () => {
   // Function to load activities from database
   const loadActivities = useCallback(async () => {
     try {
-      console.log('Loading activities from database...');
       const { data, error } = await supabase
         .from('activities')
         .select('*')
@@ -482,8 +481,6 @@ const MMCCalendar = () => {
         setActivitiesLoaded(true);
         return;
       }
-      
-      console.log('Raw activities data from DB:', data);
       
       if (data) {
         const formattedActivities = data.map(activity => ({
@@ -500,11 +497,9 @@ const MMCCalendar = () => {
           newStatus: activity.new_status || null
         }));
         
-        console.log('Formatted activities:', formattedActivities);
         setRecentActivities(formattedActivities);
         setActivitiesLoaded(true);
       } else {
-        console.log('No activities data found');
         setRecentActivities([]);
         setActivitiesLoaded(true);
       }
@@ -731,12 +726,22 @@ const MMCCalendar = () => {
 
   // Function to add activity to database and local state
   const addActivity = useCallback(async (activity: any) => {
+    // Always add to local state immediately for better UX
+    const newActivity = {
+      id: Date.now() + Math.random(),
+      type: activity.type || 'unknown',
+      task: activity.task || { id: null, title: 'Unknown Task' },
+      message: activity.message || 'Unknown activity',
+      user: activity.user || 'Unknown User',
+      timestamp: new Date(),
+      oldStatus: activity.oldStatus || null,
+      newStatus: activity.newStatus || null
+    };
+    
+    setRecentActivities(prev => [newActivity, ...prev].slice(0, 20));
+    
     try {
-      console.log('Adding activity:', activity);
-      console.log('Activity task:', activity.task);
-      console.log('Activity task ID:', activity.task?.id);
-      
-      // Save to database
+      // Also try to save to database (but don't wait for it)
       const { data, error } = await supabase
         .from('activities')
         .insert([{
@@ -752,58 +757,12 @@ const MMCCalendar = () => {
         .select();
       
       if (error) {
-        console.error('Error saving activity:', error);
-        // If activities table doesn't exist, just add to local state
-        const newActivity = {
-          id: Date.now() + Math.random(),
-          type: activity.type || 'unknown',
-          task: activity.task || { id: null, title: 'Unknown Task' },
-          message: activity.message || 'Unknown activity',
-          user: activity.user || 'Unknown User',
-          timestamp: new Date(),
-          oldStatus: activity.oldStatus || null,
-          newStatus: activity.newStatus || null
-        };
-        
-        setRecentActivities(prev => [newActivity, ...prev].slice(0, 20));
-        return;
-      }
-      
-      // Update local state
-      if (data && data[0]) {
-        console.log('Activity saved successfully to database:', data[0]);
-        const newActivity = {
-          id: data[0].id,
-          type: activity.type || 'unknown',
-          task: activity.task || { id: null, title: 'Unknown Task' },
-          message: activity.message || 'Unknown activity',
-          user: activity.user || 'Unknown User',
-          timestamp: new Date(data[0].created_at),
-          oldStatus: activity.oldStatus || null,
-          newStatus: activity.newStatus || null
-        };
-        
-        console.log('Adding activity to local state:', newActivity);
-        setRecentActivities(prev => [newActivity, ...prev].slice(0, 20));
-        console.log('Activity added to local state successfully');
-      } else {
-        console.log('No data returned from activity save');
+        console.error('Error saving activity to database:', error);
+        // Activity is already in local state, so we're good
       }
     } catch (err) {
-      console.error('Error adding activity:', err);
-      // Fallback: add to local state only
-      const newActivity = {
-        id: Date.now() + Math.random(),
-        type: activity.type || 'unknown',
-        task: activity.task || { id: null, title: 'Unknown Task' },
-        message: activity.message || 'Unknown activity',
-        user: activity.user || 'Unknown User',
-        timestamp: new Date(),
-        oldStatus: activity.oldStatus || null,
-        newStatus: activity.newStatus || null
-      };
-      
-      setRecentActivities(prev => [newActivity, ...prev].slice(0, 20));
+      console.error('Error adding activity to database:', err);
+      // Activity is already in local state, so we're good
     }
   }, []);
 
