@@ -937,6 +937,7 @@ const MMCCalendar = () => {
 
   const handleSaveNewTask = async () => {
     try {
+      console.log('Starting to save new task:', newTask);
       setLoading(true);
       
       // Validate required fields
@@ -968,9 +969,12 @@ const MMCCalendar = () => {
       }
       
       console.log('Task saved successfully:', data);
+      console.log('Data length:', data?.length);
+      console.log('First data item:', data?.[0]);
       
       // Add activity for new task creation using the returned task data (which includes the ID)
       if (data && data[0]) {
+        console.log('About to add activity for task:', data[0]);
         addActivity({
           type: 'task_created',
           task: data[0], // Use the task data returned from database (includes ID)
@@ -978,6 +982,8 @@ const MMCCalendar = () => {
           user: teamMembers.find(m => m.id === data[0].created_by)?.name || 'Unknown',
           userId: data[0].created_by
         });
+      } else {
+        console.log('No data returned from task creation, cannot add activity');
       }
       
       setShowNewEntryModal(false);
