@@ -483,24 +483,19 @@ const MMCCalendar = () => {
       }
       
       if (data) {
-        console.log('Loading activities from database:', data);
-        const formattedActivities = data.map(activity => {
-          console.log('Raw activity from DB:', activity);
-          console.log('Task ID from DB:', activity.task_id);
-          return {
-            id: activity.id || Date.now() + Math.random(),
-            type: activity.type || 'unknown',
-            task: {
-              id: activity.task_id || null,
-              title: activity.task_title || 'Unknown Task'
-            },
-            message: activity.message || 'Unknown activity',
-            user: activity.user_name || 'Unknown User',
-            timestamp: new Date(activity.created_at || new Date()),
-            oldStatus: activity.old_status || null,
-            newStatus: activity.new_status || null
-          };
-        });
+        const formattedActivities = data.map(activity => ({
+          id: activity.id || Date.now() + Math.random(),
+          type: activity.type || 'unknown',
+          task: {
+            id: activity.task_id || null,
+            title: activity.task_title || 'Unknown Task'
+          },
+          message: activity.message || 'Unknown activity',
+          user: activity.user_name || 'Unknown User',
+          timestamp: new Date(activity.created_at || new Date()),
+          oldStatus: activity.old_status || null,
+          newStatus: activity.new_status || null
+        }));
         
         setRecentActivities(formattedActivities);
         setActivitiesLoaded(true);
@@ -732,10 +727,6 @@ const MMCCalendar = () => {
   // Function to add activity to database and local state
   const addActivity = useCallback(async (activity: any) => {
     try {
-      console.log('Adding activity:', activity);
-      console.log('Activity task:', activity.task);
-      console.log('Activity task ID:', activity.task?.id);
-      
       // Save to database
       const { data, error } = await supabase
         .from('activities')
@@ -937,7 +928,6 @@ const MMCCalendar = () => {
 
   const handleSaveNewTask = async () => {
     try {
-      console.log('Starting to save new task:', newTask);
       setLoading(true);
       
       // Validate required fields
@@ -968,13 +958,8 @@ const MMCCalendar = () => {
         return;
       }
       
-      console.log('Task saved successfully:', data);
-      console.log('Data length:', data?.length);
-      console.log('First data item:', data?.[0]);
-      
       // Add activity for new task creation using the returned task data (which includes the ID)
       if (data && data[0]) {
-        console.log('About to add activity for task:', data[0]);
         addActivity({
           type: 'task_created',
           task: data[0], // Use the task data returned from database (includes ID)
@@ -982,8 +967,6 @@ const MMCCalendar = () => {
           user: teamMembers.find(m => m.id === data[0].created_by)?.name || 'Unknown',
           userId: data[0].created_by
         });
-      } else {
-        console.log('No data returned from task creation, cannot add activity');
       }
       
       setShowNewEntryModal(false);
@@ -3231,41 +3214,37 @@ const MMCCalendar = () => {
                         key={activity.id}
                         className="p-3 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
                         onClick={async () => {
-                          if (activity.task && activity.task.id) {
-                            // Try to find the complete task data in current tasks
-                            const allTasksFlat = Object.values(allTasks).flat();
-                            let completeTask = allTasksFlat.find(t => t.id === activity.task.id);
-                            
-                            // If not found in current tasks, try to fetch it from the database
-                            if (!completeTask) {
-                              try {
-                                const { data, error } = await supabase
-                                  .from('tasks')
-                                  .select('*')
-                                  .eq('id', activity.task.id)
-                                  .single();
-                                
-                                if (data && !error) {
-                                  completeTask = data;
-                                }
-                              } catch (err) {
-                                console.error('Error fetching task:', err);
+                          // Try to find the task by title in all current tasks
+                          const allTasksFlat = Object.values(allTasks).flat();
+                          const taskTitle = activity.task?.title || activity.message?.replace(/^(Created|Updated) (new )?task: /, '');
+                          let completeTask = allTasksFlat.find(t => t.title === taskTitle);
+                          
+                          // If not found in current tasks, try to fetch it from the database by title
+                          if (!completeTask) {
+                            try {
+                              const { data, error } = await supabase
+                                .from('tasks')
+                                .select('*')
+                                .eq('title', taskTitle)
+                                .order('created_at', { ascending: false })
+                                .limit(1)
+                                .single();
+                              
+                              if (data && !error) {
+                                completeTask = data;
                               }
+                            } catch (err) {
+                              console.error('Error fetching task by title:', err);
                             }
-                            
-                            if (completeTask) {
-                              setSelectedTask(ensureCompleteTaskData(completeTask));
-                              setShowTaskModal(true);
-                              setShowDrawer(false);
-                            } else {
-                              // Fallback to the activity task data
-                              setSelectedTask(ensureCompleteTaskData(activity.task));
-                              setShowTaskModal(true);
-                              setShowDrawer(false);
-                            }
+                          }
+                          
+                          if (completeTask) {
+                            setSelectedTask(ensureCompleteTaskData(completeTask));
+                            setShowTaskModal(true);
+                            setShowDrawer(false);
                           } else {
                             // Show a message that the task is not available
-                            alert('Task not available - it may have been deleted or is not currently loaded.');
+                            alert(`Task "${taskTitle}" not found - it may have been deleted or is not currently loaded.`);
                           }
                         }}
                       >
