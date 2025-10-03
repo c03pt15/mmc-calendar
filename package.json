@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:gh-pages": "cross-env BASE_PATH=/mmc-calendar/ vite build",
     "preview": "vite preview",
     "deploy": "gh-pages -d dist",
     "deploy:manual": "npm run build && git checkout gh-pages && xcopy /E /Y dist\\* . && git add . && git commit -m \"Deploy to GitHub Pages\" && git push origin gh-pages && git checkout main"
@@ -20,6 +21,7 @@
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.14",
+    "cross-env": "^7.0.3",
     "gh-pages": "^6.3.0",
     "postcss": "^8.4.24",
     "tailwindcss": "^3.3.3",
