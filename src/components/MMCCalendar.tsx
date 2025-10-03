@@ -1592,13 +1592,6 @@ const MMCCalendar = () => {
           </div>
         </div>
         
-        {/* Credit */}
-        <div className="mt-auto pt-4 border-t border-gray-200">
-          <p className="text-xs text-gray-300 text-center italic">
-            Created with love by<br />
-            John Snow
-          </p>
-        </div>
       </div>
       {/* Main Content */}
       <div className="flex-1 flex flex-col">

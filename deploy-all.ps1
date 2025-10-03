@@ -34,10 +34,10 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "No uncommitted changes." -ForegroundColor Green
 }
 
-# Clean dist folder first
+# Clean dist folder first (safely)
 Write-Host "Cleaning dist folder..." -ForegroundColor Yellow
 if (Test-Path "dist") {
-    Remove-Item -Path "dist" -Recurse -Force
+    Remove-Item -Path "dist\*" -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 # Build for Vercel (main branch)
@@ -78,10 +78,10 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# Clean dist folder for GitHub Pages build
+# Clean dist folder for GitHub Pages build (safely)
 Write-Host "Cleaning dist folder for GitHub Pages build..." -ForegroundColor Yellow
 if (Test-Path "dist") {
-    Remove-Item -Path "dist" -Recurse -Force
+    Remove-Item -Path "dist\*" -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 # Build for GitHub Pages
@@ -134,10 +134,10 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# Clean up dist folder
+# Clean up dist folder (safely)
 Write-Host "Cleaning up dist folder..." -ForegroundColor Yellow
 if (Test-Path "dist") {
-    Remove-Item -Path "dist" -Recurse -Force
+    Remove-Item -Path "dist\*" -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 Write-Host ""
