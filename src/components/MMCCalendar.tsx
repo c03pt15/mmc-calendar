@@ -923,7 +923,7 @@ const MMCCalendar = () => {
         created_by: newTask.created_by
       };
       
-      const { data, error } = await supabase.from('tasks').insert([task]);
+      const { data, error } = await supabase.from('tasks').insert([task]).select();
       
       if (error) {
         console.error('Error saving task:', error);
@@ -1726,6 +1726,7 @@ const MMCCalendar = () => {
                 <Plus className="w-4 h-4" />
                 <span>New Entry</span>
               </button>
+              
               
               {/* Export Dropdown */}
               <div className="relative export-container">
