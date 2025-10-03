@@ -34,6 +34,12 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "No uncommitted changes." -ForegroundColor Green
 }
 
+# Clean dist folder first
+Write-Host "Cleaning dist folder..." -ForegroundColor Yellow
+if (Test-Path "dist") {
+    Remove-Item -Path "dist" -Recurse -Force
+}
+
 # Build for Vercel (main branch)
 Write-Host ""
 Write-Host "Building for Vercel (main branch)..." -ForegroundColor Yellow
@@ -45,6 +51,14 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "Vercel build completed." -ForegroundColor Green
 
+# Commit the Vercel build to main
+Write-Host "Committing Vercel build..." -ForegroundColor Yellow
+git add dist/
+git commit -m "Build for Vercel deployment - $(Get-Date)"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Warning: Nothing to commit for Vercel build." -ForegroundColor Yellow
+}
+
 # Push to main branch (triggers Vercel deployment)
 Write-Host "Pushing to main branch (triggers Vercel)..." -ForegroundColor Yellow
 git push origin main
@@ -54,6 +68,12 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 Write-Host "Vercel deployment triggered." -ForegroundColor Green
+
+# Clean dist folder for GitHub Pages build
+Write-Host "Cleaning dist folder for GitHub Pages build..." -ForegroundColor Yellow
+if (Test-Path "dist") {
+    Remove-Item -Path "dist" -Recurse -Force
+}
 
 # Build for GitHub Pages
 Write-Host ""
@@ -65,14 +85,6 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 Write-Host "GitHub Pages build completed." -ForegroundColor Green
-
-# Stash any changes in dist folder before switching branches
-Write-Host "Stashing dist folder changes..." -ForegroundColor Yellow
-git add dist/
-git stash push -m "Temporary stash before gh-pages deployment"
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Warning: Could not stash dist changes, continuing..." -ForegroundColor Yellow
-}
 
 # Switch to gh-pages branch
 Write-Host "Switching to gh-pages branch..." -ForegroundColor Yellow
@@ -122,13 +134,10 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# Restore stashed changes if any
-Write-Host "Restoring stashed changes..." -ForegroundColor Yellow
-git stash pop
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "No stashed changes to restore." -ForegroundColor Green
-} else {
-    Write-Host "Stashed changes restored." -ForegroundColor Green
+# Clean up dist folder
+Write-Host "Cleaning up dist folder..." -ForegroundColor Yellow
+if (Test-Path "dist") {
+    Remove-Item -Path "dist" -Recurse -Force
 }
 
 Write-Host ""
