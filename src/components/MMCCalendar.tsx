@@ -3214,19 +3214,27 @@ const MMCCalendar = () => {
                         key={activity.id}
                         className="p-3 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
                         onClick={async () => {
+                          console.log('Activity clicked:', activity);
+                          console.log('Activity task:', activity.task);
+                          console.log('Activity task id:', activity.task?.id);
+                          
                           if (activity.task && activity.task.id) {
                             // Try to find the complete task data in current tasks
                             const allTasksFlat = Object.values(allTasks).flat();
                             let completeTask = allTasksFlat.find(t => t.id === activity.task.id);
+                            console.log('Found in current tasks:', completeTask);
                             
                             // If not found in current tasks, try to fetch it from the database
                             if (!completeTask) {
                               try {
+                                console.log('Fetching task from database with ID:', activity.task.id);
                                 const { data, error } = await supabase
                                   .from('tasks')
                                   .select('*')
                                   .eq('id', activity.task.id)
                                   .single();
+                                
+                                console.log('Database fetch result:', { data, error });
                                 
                                 if (data && !error) {
                                   completeTask = data;
@@ -3237,16 +3245,19 @@ const MMCCalendar = () => {
                             }
                             
                             if (completeTask) {
+                              console.log('Using complete task:', completeTask);
                               setSelectedTask(ensureCompleteTaskData(completeTask));
                               setShowTaskModal(true);
                               setShowDrawer(false);
                             } else {
+                              console.log('Using fallback activity task data');
                               // Fallback to the activity task data
                               setSelectedTask(ensureCompleteTaskData(activity.task));
                               setShowTaskModal(true);
                               setShowDrawer(false);
                             }
                           } else {
+                            console.log('No task ID available, showing alert');
                             // Show a message that the task is not available
                             alert('Task not available - it may have been deleted or is not currently loaded.');
                           }
