@@ -1,8 +1,8 @@
 @echo off
 
-REM Build the project
-echo Building project...
-npm run build
+REM Build the project for GitHub Pages
+echo Building project for GitHub Pages...
+npm run build:gh-pages
 
 REM Switch to gh-pages branch
 echo Switching to gh-pages branch...

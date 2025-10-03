@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Build the project
-echo "Building project..."
-npm run build
+# Build the project for GitHub Pages
+echo "Building project for GitHub Pages..."
+npm run build:gh-pages
 
 # Switch to gh-pages branch
 echo "Switching to gh-pages branch..."
