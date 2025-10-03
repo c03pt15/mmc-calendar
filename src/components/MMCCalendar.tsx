@@ -1817,12 +1817,13 @@ const MMCCalendar = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar */}
-      <div className={`w-64 bg-white border-r border-gray-200 p-4 ${
+      <div className={`w-64 bg-white border-r border-gray-200 flex flex-col min-h-screen ${
         user === 'guest' ? 'pointer-events-none opacity-60' : ''
       }`}>
-        <div className="mb-6">
+        <div className="p-4 flex-1">
+          <div className="mb-6">
           <div className="flex items-center space-x-2 mb-4">
             <div className="w-8 h-8 flex items-center justify-center">
               <img 
@@ -2075,7 +2076,7 @@ const MMCCalendar = () => {
             )}
           </div>
         </div>
-        
+        </div>
       </div>
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
