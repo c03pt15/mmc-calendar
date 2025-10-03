@@ -1970,10 +1970,10 @@ const MMCCalendar = () => {
           </div>
         </div>
         {/* Past Due Events */}
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+        <div className="mb-4">
           <div className="flex items-center mb-3">
             <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
-            <h3 className="text-sm font-semibold text-red-800">Past Due Events</h3>
+            <h3 className="text-lg font-medium text-gray-900">Overdue Tasks</h3>
             {getOverdueTasks().length > 0 && (
               <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs font-medium rounded-full">
                 {getOverdueTasks().length}
@@ -1984,19 +1984,29 @@ const MMCCalendar = () => {
             {getOverdueTasks().slice(0, 3).map(task => (
               <div 
                 key={task.id} 
-                className={`flex items-start space-x-3 p-2 bg-white rounded-md border border-red-100 transition-colors ${
-                  user !== 'guest' ? 'hover:bg-red-25 cursor-pointer' : 'cursor-default'
+                className={`p-3 bg-red-50 border border-red-200 rounded-lg transition-colors ${
+                  user !== 'guest' ? 'cursor-pointer hover:bg-red-100' : 'cursor-default'
                 }`}
                 onClick={user !== 'guest' ? () => {
                   setSelectedTask(ensureCompleteTaskData(task));
                   setShowTaskModal(true);
                 } : undefined}
               >
-                <div className="w-2 h-2 rounded-full mt-2 bg-red-500 flex-shrink-0"></div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-900">{task.title}</div>
-                  <div className="text-xs text-red-600 font-medium mt-1">
-                    {monthNames[task.month]} {task.date} - Overdue
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h4 className="font-medium text-gray-900 text-sm">{task.title}</h4>
+                    <p className="text-xs text-gray-600 mt-1">{task.description}</p>
+                    <div className="flex items-center space-x-2 mt-2">
+                      <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                        {task.type}
+                      </span>
+                      <span className="text-xs text-red-600 font-medium">
+                        {monthNames[task.month]} {task.date}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-medium ml-2">
+                    {teamMembers.find(m => m.id === task.created_by)?.avatar || '?'}
                   </div>
                 </div>
               </div>
@@ -2013,10 +2023,10 @@ const MMCCalendar = () => {
         </div>
 
         {/* High Priority Tasks */}
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+        <div className="mb-4">
           <div className="flex items-center mb-3">
             <div className="w-2 h-2 bg-orange-500 rounded-full mr-2"></div>
-            <h3 className="text-sm font-semibold text-orange-800">High Priority</h3>
+            <h3 className="text-lg font-medium text-gray-900">High Priority</h3>
             {getHighPriorityTasks().length > 0 && (
               <span className="ml-2 px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-full">
                 {getHighPriorityTasks().length}
@@ -2027,19 +2037,30 @@ const MMCCalendar = () => {
             {getHighPriorityTasks().slice(0, 3).map(task => (
               <div 
                 key={task.id} 
-                className={`flex items-start space-x-3 p-2 bg-white rounded-md border border-orange-100 transition-colors ${
-                  user !== 'guest' ? 'hover:bg-orange-25 cursor-pointer' : 'cursor-default'
+                className={`p-3 bg-orange-50 border border-orange-200 rounded-lg transition-colors ${
+                  user !== 'guest' ? 'cursor-pointer hover:bg-orange-100' : 'cursor-default'
                 }`}
                 onClick={user !== 'guest' ? () => {
                   setSelectedTask(ensureCompleteTaskData(task));
                   setShowTaskModal(true);
                 } : undefined}
               >
-                <div className="w-2 h-2 rounded-full mt-2 bg-orange-500 flex-shrink-0"></div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-900">{task.title}</div>
-                  <div className="text-xs text-orange-600 font-medium mt-1">
-                    {monthNames[task.month]} {task.date} - High Priority
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h4 className="font-medium text-gray-900 text-sm">{task.title}</h4>
+                    <p className="text-xs text-gray-600 mt-1">{task.description}</p>
+                    <div className="flex items-center space-x-2 mt-2">
+                      <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
+                        {task.type}
+                      </span>
+                      <span className="text-xs text-orange-600 font-medium">
+                        {monthNames[task.month]} {task.date}
+                      </span>
+                      <span className="text-xs">🔴</span>
+                    </div>
+                  </div>
+                  <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white text-xs font-medium ml-2">
+                    {teamMembers.find(m => m.id === task.created_by)?.avatar || '?'}
                   </div>
                 </div>
               </div>
@@ -3099,7 +3120,7 @@ const MMCCalendar = () => {
               </button>
               <button
                 onClick={handleEditTask}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 whitespace-nowrap"
               >
                 Edit Task
               </button>
