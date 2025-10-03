@@ -408,6 +408,9 @@ const MMCCalendar = () => {
   const [lastName, setLastName] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetMessage, setResetMessage] = useState('');
   const [allTasks, setAllTasks] = useState<{ [key: string]: any[] }>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -707,6 +710,25 @@ const MMCCalendar = () => {
       setShowLogin(false);
     } else {
       await supabase.auth.signOut();
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetMessage('');
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) {
+        setResetMessage('Error: ' + error.message);
+      } else {
+        setResetMessage('Password reset email sent! Check your inbox and follow the instructions.');
+      }
+    } catch (error) {
+      setResetMessage('An unexpected error occurred');
     }
   };
 
@@ -1565,6 +1587,68 @@ const MMCCalendar = () => {
     );
   }
 
+  // Forgot Password Screen
+  if (showForgotPassword && !user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+              <img
+                src={`${import.meta.env.BASE_URL}atlas-logo.png`}
+                alt="Atlas Logo"
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Reset Password</h1>
+            <p className="text-gray-600">Enter your email to receive password reset instructions</p>
+          </div>
+
+          <form onSubmit={handleForgotPassword} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email
+              </label>
+              <input
+                type="email"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+                placeholder="Enter your email address"
+              />
+            </div>
+
+            {resetMessage && (
+              <div className={`text-sm text-center ${
+                resetMessage.includes('Error') ? 'text-red-600' : 'text-green-600'
+              }`}>
+                {resetMessage}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors"
+            >
+              Send Reset Instructions
+            </button>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setShowForgotPassword(false)}
+                className="text-gray-600 hover:text-gray-800 text-sm"
+              >
+                ← Back to Sign In
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   // Login form
   if (showLogin && !user) {
     return (
@@ -1670,6 +1754,18 @@ const MMCCalendar = () => {
                   >
                     {isSignUp ? 'Sign Up (Disabled)' : 'Sign In'}
                   </button>
+                  
+                  {!isSignUp && (
+                    <div className="text-center">
+                      <button
+                        type="button"
+                        onClick={() => setShowForgotPassword(true)}
+                        className="text-blue-600 hover:text-blue-800 text-sm"
+                      >
+                        Forgot your password?
+                      </button>
+                    </div>
+                  )}
             
             <div className="text-center">
               <button
@@ -1690,11 +1786,12 @@ const MMCCalendar = () => {
                 ← Back to options
               </button>
             </div>
-          </form>
-        </div>
+        </form>
       </div>
-    );
-  }
+    </div>
+  );
+}
+
 
   // Kanban columns
   const kanbanColumns = [
