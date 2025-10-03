@@ -3213,11 +3213,28 @@ const MMCCalendar = () => {
                       <div
                         key={activity.id}
                         className="p-3 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
-                        onClick={() => {
+                        onClick={async () => {
                           if (activity.task && activity.task.id) {
-                            // Try to find the complete task data
+                            // Try to find the complete task data in current tasks
                             const allTasksFlat = Object.values(allTasks).flat();
-                            const completeTask = allTasksFlat.find(t => t.id === activity.task.id);
+                            let completeTask = allTasksFlat.find(t => t.id === activity.task.id);
+                            
+                            // If not found in current tasks, try to fetch it from the database
+                            if (!completeTask) {
+                              try {
+                                const { data, error } = await supabase
+                                  .from('tasks')
+                                  .select('*')
+                                  .eq('id', activity.task.id)
+                                  .single();
+                                
+                                if (data && !error) {
+                                  completeTask = data;
+                                }
+                              } catch (err) {
+                                console.error('Error fetching task:', err);
+                              }
+                            }
                             
                             if (completeTask) {
                               setSelectedTask(ensureCompleteTaskData(completeTask));
