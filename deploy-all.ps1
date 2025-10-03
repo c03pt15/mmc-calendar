@@ -69,6 +69,15 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "Vercel deployment triggered." -ForegroundColor Green
 
+# Switch to gh-pages branch first
+Write-Host "Switching to gh-pages branch..." -ForegroundColor Yellow
+git checkout gh-pages
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Error: Failed to switch to gh-pages branch." -ForegroundColor Red
+    Read-Host "Press Enter to exit"
+    exit 1
+}
+
 # Clean dist folder for GitHub Pages build
 Write-Host "Cleaning dist folder for GitHub Pages build..." -ForegroundColor Yellow
 if (Test-Path "dist") {
@@ -85,15 +94,6 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 Write-Host "GitHub Pages build completed." -ForegroundColor Green
-
-# Switch to gh-pages branch
-Write-Host "Switching to gh-pages branch..." -ForegroundColor Yellow
-git checkout gh-pages
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Error: Failed to switch to gh-pages branch." -ForegroundColor Red
-    Read-Host "Press Enter to exit"
-    exit 1
-}
 
 # Copy built files to root
 Write-Host "Copying built files..." -ForegroundColor Yellow
