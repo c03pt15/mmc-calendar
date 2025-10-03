@@ -3215,9 +3215,23 @@ const MMCCalendar = () => {
                         className="p-3 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
                         onClick={() => {
                           if (activity.task && activity.task.id) {
-                            setSelectedTask(ensureCompleteTaskData(activity.task));
-                            setShowTaskModal(true);
-                            setShowDrawer(false);
+                            // Try to find the complete task data
+                            const allTasksFlat = Object.values(allTasks).flat();
+                            const completeTask = allTasksFlat.find(t => t.id === activity.task.id);
+                            
+                            if (completeTask) {
+                              setSelectedTask(ensureCompleteTaskData(completeTask));
+                              setShowTaskModal(true);
+                              setShowDrawer(false);
+                            } else {
+                              // Fallback to the activity task data
+                              setSelectedTask(ensureCompleteTaskData(activity.task));
+                              setShowTaskModal(true);
+                              setShowDrawer(false);
+                            }
+                          } else {
+                            // Show a message that the task is not available
+                            alert('Task not available - it may have been deleted or is not currently loaded.');
                           }
                         }}
                       >
