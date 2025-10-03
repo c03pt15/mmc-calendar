@@ -66,6 +66,14 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "GitHub Pages build completed." -ForegroundColor Green
 
+# Stash any changes in dist folder before switching branches
+Write-Host "Stashing dist folder changes..." -ForegroundColor Yellow
+git add dist/
+git stash push -m "Temporary stash before gh-pages deployment"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Warning: Could not stash dist changes, continuing..." -ForegroundColor Yellow
+}
+
 # Switch to gh-pages branch
 Write-Host "Switching to gh-pages branch..." -ForegroundColor Yellow
 git checkout gh-pages
@@ -112,6 +120,15 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "Error: Failed to switch back to main branch." -ForegroundColor Red
     Read-Host "Press Enter to exit"
     exit 1
+}
+
+# Restore stashed changes if any
+Write-Host "Restoring stashed changes..." -ForegroundColor Yellow
+git stash pop
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "No stashed changes to restore." -ForegroundColor Green
+} else {
+    Write-Host "Stashed changes restored." -ForegroundColor Green
 }
 
 Write-Host ""

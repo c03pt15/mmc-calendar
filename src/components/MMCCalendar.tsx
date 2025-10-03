@@ -1595,7 +1595,8 @@ const MMCCalendar = () => {
         {/* Credit */}
         <div className="mt-auto pt-4 border-t border-gray-200">
           <p className="text-xs text-gray-300 text-center italic">
-            Created by Ghislain Girard
+            Created with love by<br />
+            Ghislain Girard
           </p>
         </div>
       </div>
