@@ -9,7 +9,7 @@ if %errorlevel% neq 0 (
 )
 
 REM Check if we're on main branch
-for /f "tokens=*" %%i in ('git branch --show-current') do set current_branch=%%i
+for /f "tokens=*" %%i in ('git rev-parse --abbrev-ref HEAD') do set current_branch=%%i
 if not "%current_branch%"=="main" (
     echo Warning: Not on main branch. Current branch: %current_branch%
     echo Switching to main branch first...
