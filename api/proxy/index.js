@@ -1,4 +1,11 @@
 export default async function handler(req, res) {
+  // Debug logging
+  console.log('Proxy handler called:', {
+    method: req.method,
+    url: req.url,
+    headers: req.headers
+  });
+
   // Enable CORS
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
@@ -12,11 +19,13 @@ export default async function handler(req, res) {
   }
 
   // Health check endpoint
-  if (req.url === '/api/proxy/health' || req.url === '/api/proxy') {
+  if (req.url === '/api/proxy/health' || req.url === '/api/proxy' || req.url === '/api/proxy/') {
     res.status(200).json({ 
       status: 'OK', 
       message: 'MMC Calendar Proxy is running',
-      supabaseUrl: process.env.SUPABASE_URL || 'https://zmbptzxjuuveqmcevtaz.supabase.co'
+      supabaseUrl: process.env.SUPABASE_URL || 'https://zmbptzxjuuveqmcevtaz.supabase.co',
+      requestUrl: req.url,
+      method: req.method
     });
     return;
   }
