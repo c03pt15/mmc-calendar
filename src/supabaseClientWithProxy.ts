@@ -14,7 +14,19 @@ if (!supabaseAnonKey) {
 }
 
 // Create Supabase client with proxy URL
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  },
+  global: {
+    headers: {
+      'apikey': supabaseAnonKey,
+      'Authorization': `Bearer ${supabaseAnonKey}`
+    }
+  }
+});
 
 // For debugging - log which URL we're using
 console.log('Using Supabase proxy URL:', supabaseUrl);
