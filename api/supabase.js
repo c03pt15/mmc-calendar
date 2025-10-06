@@ -1,10 +1,8 @@
 export default async function handler(req, res) {
-  console.log('=== SUPABASE PROXY CATCH-ALL ===');
+  console.log('=== SIMPLE SUPABASE PROXY ===');
   console.log('Method:', req.method);
   console.log('URL:', req.url);
   console.log('Query:', req.query);
-  console.log('Path:', req.query.path);
-  console.log('Headers:', JSON.stringify(req.headers, null, 2));
 
   // Enable CORS
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -18,32 +16,37 @@ export default async function handler(req, res) {
     return;
   }
 
-  // Health check - only if no path is provided
-  if (!req.query.path || req.query.path.length === 0 || (Array.isArray(req.query.path) && req.query.path.length === 0)) {
+  // Health check
+  if (req.url === '/api/supabase.js' || req.url === '/api/supabase') {
     res.status(200).json({ 
       status: 'OK', 
-      message: 'Supabase Proxy Catch-All is running',
+      message: 'Simple Supabase Proxy is running',
       supabaseUrl: process.env.SUPABASE_URL || 'https://zmbptzxjuuveqmcevtaz.supabase.co'
     });
     return;
   }
 
   try {
-    // Build the path from the catch-all parameter
-    const pathArray = Array.isArray(req.query.path) ? req.query.path : [req.query.path];
-    let path = '/' + pathArray.join('/');
+    // Extract the path after /api/supabase.js
+    let path = req.url.replace('/api/supabase.js', '');
     
-    console.log('Path array:', pathArray);
-    console.log('Built path:', path);
+    // If no path, default to /rest/v1/
+    if (!path || path === '') {
+      path = '/rest/v1/';
+    }
     
-    // Ensure path starts with /rest/v1
+    // Ensure path starts with /
+    if (!path.startsWith('/')) {
+      path = '/' + path;
+    }
+    
+    // If path doesn't start with /rest/v1, add it
     if (!path.startsWith('/rest/v1')) {
       path = '/rest/v1' + path;
     }
     
     const targetUrl = `${process.env.SUPABASE_URL || 'https://zmbptzxjuuveqmcevtaz.supabase.co'}${path}`;
     
-    console.log('Final path:', path);
     console.log('Target URL:', targetUrl);
 
     // Forward the request to Supabase
@@ -61,7 +64,6 @@ export default async function handler(req, res) {
     });
 
     console.log('Response status:', response.status);
-    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
     // Get response data
     const data = await response.text();
@@ -83,8 +85,7 @@ export default async function handler(req, res) {
     console.error('Proxy error:', error);
     res.status(500).json({ 
       error: 'Proxy error occurred',
-      message: error.message,
-      stack: error.stack
+      message: error.message
     });
   }
 }
