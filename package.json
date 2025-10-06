@@ -8,7 +8,8 @@
     "build:gh-pages": "cross-env BASE_PATH=/mmc-calendar/ vite build",
     "preview": "vite preview",
     "deploy": "gh-pages -d dist",
-    "deploy:manual": "npm run build && git checkout gh-pages && xcopy /E /Y dist\\* . && git add . && git commit -m \"Deploy to GitHub Pages\" && git push origin gh-pages && git checkout main"
+    "deploy:manual": "npm run build && git checkout gh-pages && xcopy /E /Y dist\\* . && git add . && git commit -m \"Deploy to GitHub Pages\" && git push origin gh-pages && git checkout main",
+    "deploy:netlify": "npm run build && echo 'Build complete! Now drag the dist folder to Netlify.'"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.52.1",
