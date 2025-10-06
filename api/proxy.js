@@ -18,8 +18,8 @@ export default async function handler(req, res) {
     return;
   }
 
-  // Health check endpoint
-  if (req.url === '/api/proxy/health' || req.url === '/api/proxy' || req.url === '/api/proxy/') {
+  // Health check endpoint - handle query parameters
+  if (req.url === '/api/proxy.js' || req.url.includes('health=true') || req.query.health) {
     res.status(200).json({ 
       status: 'OK', 
       message: 'MMC Calendar Proxy is running',
@@ -31,8 +31,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Extract the path after /api/proxy/
-    const path = req.url.replace('/api/proxy', '');
+    // Extract the path after /api/proxy.js
+    const path = req.url.replace('/api/proxy.js', '');
     const targetUrl = `${process.env.SUPABASE_URL || 'https://zmbptzxjuuveqmcevtaz.supabase.co'}/rest/v1${path}`;
     
     console.log(`Proxying ${req.method} request to: ${targetUrl}`);

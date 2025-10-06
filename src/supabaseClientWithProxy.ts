@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Use Vercel API route as proxy instead of direct Supabase URL
-const supabaseUrl = import.meta.env.VITE_PROXY_URL || 'https://mmc-calendar.atlasveterans.ca/api/proxy';
+const supabaseUrl = import.meta.env.VITE_PROXY_URL || 'https://mmc-calendar.atlasveterans.ca/api/proxy.js';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Check if environment variables are defined
