@@ -18,8 +18,8 @@ export default async function handler(req, res) {
     return;
   }
 
-  // Health check
-  if (!req.query.path || req.query.path.length === 0) {
+  // Health check - only if no path is provided
+  if (!req.query.path || req.query.path.length === 0 || (Array.isArray(req.query.path) && req.query.path.length === 0)) {
     res.status(200).json({ 
       status: 'OK', 
       message: 'Supabase Proxy Catch-All is running',
@@ -33,6 +33,9 @@ export default async function handler(req, res) {
     const pathArray = Array.isArray(req.query.path) ? req.query.path : [req.query.path];
     let path = '/' + pathArray.join('/');
     
+    console.log('Path array:', pathArray);
+    console.log('Built path:', path);
+    
     // Ensure path starts with /rest/v1
     if (!path.startsWith('/rest/v1')) {
       path = '/rest/v1' + path;
@@ -40,6 +43,7 @@ export default async function handler(req, res) {
     
     const targetUrl = `${process.env.SUPABASE_URL || 'https://zmbptzxjuuveqmcevtaz.supabase.co'}${path}`;
     
+    console.log('Final path:', path);
     console.log('Target URL:', targetUrl);
 
     // Forward the request to Supabase
