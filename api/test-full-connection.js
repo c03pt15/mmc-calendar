@@ -3,7 +3,7 @@ export default async function handler(req, res) {
   
   try {
     // Test the proxy endpoint
-    const proxyUrl = 'https://mmc-calendar.atlasveterans.ca/api/supabase-proxy-fixed.js/rest/v1/tasks?select=*&limit=1';
+    const proxyUrl = 'https://mmc-calendar.atlasveterans.ca/api/supabase-proxy-fixed.js/tasks?select=*&limit=1';
     
     console.log('Testing proxy URL:', proxyUrl);
     

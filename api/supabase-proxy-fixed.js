@@ -40,6 +40,11 @@ export default async function handler(req, res) {
       path = '/' + path;
     }
     
+    // If path doesn't start with /rest/v1, add it
+    if (!path.startsWith('/rest/v1')) {
+      path = '/rest/v1' + path;
+    }
+    
     const targetUrl = `${process.env.SUPABASE_URL || 'https://zmbptzxjuuveqmcevtaz.supabase.co'}${path}`;
     
     console.log('Target URL:', targetUrl);
