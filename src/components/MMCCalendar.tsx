@@ -2445,7 +2445,7 @@ const MMCCalendar = () => {
                                 }`}>{task.time}</div>
                               )}
                               {task.tags && task.tags.length > 0 && (
-                                <div className="absolute bottom-1 right-1 flex flex-wrap gap-1">
+                                <div className="absolute bottom-1 right-1 hidden sm:flex flex-wrap gap-1">
                                   {task.tags.slice(0, 2).map((tag: string, index: number) => (
                                     <span
                                       key={index}
@@ -2475,7 +2475,7 @@ const MMCCalendar = () => {
           ) : (
             /* Kanban View */
             <div className="h-full">
-              <div className="grid grid-cols-4 gap-6 h-full">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 h-full">
                 {kanbanColumns.map(column => (
                   <div 
                     key={column.id} 
@@ -2548,7 +2548,7 @@ const MMCCalendar = () => {
                             </span>
                           </div>
                           {task.tags && task.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-2">
+                            <div className="hidden sm:flex flex-wrap gap-1 mt-2">
                               {task.tags.slice(0, 3).map((tag: string, index: number) => (
                                 <span
                                   key={index}
@@ -2574,7 +2574,7 @@ const MMCCalendar = () => {
       </div>
       {/* New Entry Modal */}
       {showNewEntryModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-2 md:p-4">
           <div className="bg-white rounded-lg p-4 md:p-6 w-full max-w-[95vw] md:w-[800px] mx-2 md:mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-gray-900">
@@ -2984,7 +2984,7 @@ const MMCCalendar = () => {
       {/* Task Details Modal */}
       {showTaskModal && selectedTask && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4"
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-2 md:p-4"
           onClick={() => setShowTaskModal(false)}
         >
           <div 
@@ -3190,7 +3190,7 @@ const MMCCalendar = () => {
       )}
       {/* Edit Task Modal */}
       {showEditModal && editingTask && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-2 md:p-4">
           <div className="bg-white rounded-lg p-4 md:p-6 w-full max-w-[95vw] md:w-[800px] mx-2 md:mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-gray-900">Edit Task</h3>
