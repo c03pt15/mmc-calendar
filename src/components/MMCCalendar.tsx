@@ -411,6 +411,8 @@ const MMCCalendar = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetMessage, setResetMessage] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [allTasks, setAllTasks] = useState<{ [key: string]: any[] }>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -1239,6 +1241,18 @@ const MMCCalendar = () => {
     };
   }, []);
 
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   const handleSaveEditTask = async () => {
     try {
       setLoading(true);
@@ -1818,8 +1832,22 @@ const MMCCalendar = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
+      {/* Mobile Overlay */}
+      {isMobile && sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+      
       {/* Sidebar */}
-      <div className={`w-64 bg-white border-r border-gray-200 flex flex-col min-h-screen ${
+      <div className={`${
+        isMobile 
+          ? `fixed left-0 top-0 h-full w-80 z-50 transform transition-transform duration-300 ease-in-out ${
+              sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+            }`
+          : 'w-64'
+      } bg-white border-r border-gray-200 flex flex-col min-h-screen ${
         user === 'guest' ? 'pointer-events-none opacity-60' : ''
       }`}>
         <div className="p-4 flex-1">
@@ -2081,9 +2109,20 @@ const MMCCalendar = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="bg-white border-b border-gray-200 px-2 md:px-6 py-2 md:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
+              {/* Mobile Menu Button */}
+              {isMobile && (
+                <button
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  className="p-2 hover:bg-gray-100 rounded-lg md:hidden"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
+              )}
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => navigateMonth(-1)}
@@ -2108,7 +2147,7 @@ const MMCCalendar = () => {
                 Today
               </button>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 md:space-x-4">
               {/* Drawer Toggle Button */}
               <button
                 onClick={user !== 'guest' ? () => setShowDrawer(!showDrawer) : undefined}
@@ -2138,8 +2177,8 @@ const MMCCalendar = () => {
                 )}
               </button>
               
-              {/* Search Box */}
-              <div className="relative search-container">
+              {/* Search Box - Hidden on mobile, shown on desktop */}
+              <div className="relative search-container hidden md:block">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <input
@@ -2190,49 +2229,57 @@ const MMCCalendar = () => {
 
               <div className="flex bg-gray-100 rounded-lg p-1">
                 <button
-                  className={`px-3 py-1 text-sm rounded-md ${
+                  className={`px-2 md:px-3 py-1 text-xs md:text-sm rounded-md ${
                     activeView === 'Calendar' 
                       ? 'bg-white text-gray-900 shadow-sm' 
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                   onClick={() => setActiveView('Calendar')}
                 >
-                  Calendar
+                  <span className="hidden sm:inline">Calendar</span>
+                  <span className="sm:hidden">Cal</span>
                 </button>
                 <button
-                  className={`px-3 py-1 text-sm rounded-md ${
+                  className={`px-2 md:px-3 py-1 text-xs md:text-sm rounded-md ${
                     activeView === 'Kanban' 
                       ? 'bg-white text-gray-900 shadow-sm' 
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                   onClick={() => setActiveView('Kanban')}
                 >
-                  Kanban
+                  <span className="hidden sm:inline">Kanban</span>
+                  <span className="sm:hidden">Kan</span>
                 </button>
               </div>
               
               {user && user !== 'guest' && (
                 <button 
-                  className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                  className="flex items-center space-x-1 md:space-x-2 bg-blue-600 text-white px-2 md:px-4 py-2 rounded-lg hover:bg-blue-700"
                   onClick={handleNewEntry}
                 >
                   <Plus className="w-4 h-4" />
-                  <span>New Entry</span>
+                  <span className="hidden sm:inline">New Entry</span>
+                  <span className="sm:hidden">New</span>
                 </button>
               )}
               
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1 md:space-x-2">
                 {user && user !== 'guest' && (
-                  <span className="text-sm text-gray-600">
+                  <span className="text-xs md:text-sm text-gray-600 hidden sm:inline">
                     Hi, {user.user_metadata?.first_name || user.email?.split('@')[0]}
                   </span>
                 )}
+                {user && user !== 'guest' && (
+                  <span className="text-xs text-gray-600 sm:hidden">
+                    {user.user_metadata?.first_name || user.email?.split('@')[0]}
+                  </span>
+                )}
                 <button 
-                  className="flex items-center space-x-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200"
+                  className="flex items-center space-x-1 md:space-x-2 bg-gray-100 text-gray-700 px-2 md:px-4 py-2 rounded-lg hover:bg-gray-200"
                   onClick={handleSignOut}
                 >
                   <User className="w-4 h-4" />
-                  <span>{user === 'guest' ? 'Exit' : 'Logout'}</span>
+                  <span className="hidden sm:inline">{user === 'guest' ? 'Exit' : 'Logout'}</span>
                 </button>
               </div>
               
@@ -2266,7 +2313,7 @@ const MMCCalendar = () => {
           </div>
         </div>
         {/* Main View */}
-        <div className="flex-1 p-6">
+        <div className="flex-1 p-2 md:p-6">
           {loading ? (
             <div className="flex items-center justify-center h-full text-gray-500">Loading...</div>
           ) : activeView === 'Calendar' ? (
@@ -2274,8 +2321,9 @@ const MMCCalendar = () => {
               {/* Calendar Header */}
               <div className="grid grid-cols-7 border-b border-gray-200">
                 {daysOfWeek.map(day => (
-                  <div key={day} className="p-4 text-center text-sm font-medium text-gray-500 border-r border-gray-200 last:border-r-0">
-                    {day}
+                  <div key={day} className="p-2 md:p-4 text-center text-xs md:text-sm font-medium text-gray-500 border-r border-gray-200 last:border-r-0">
+                    <span className="hidden sm:inline">{day}</span>
+                    <span className="sm:hidden">{day.charAt(0)}</span>
                   </div>
                 ))}
               </div>
@@ -2284,7 +2332,7 @@ const MMCCalendar = () => {
                 {days.map((day, index) => (
                   <div
                     key={index}
-                    className={`border-r border-b border-gray-200 last:border-r-0 p-2 min-h-[120px] relative cursor-pointer hover:bg-gray-50 ${
+                    className={`border-r border-b border-gray-200 last:border-r-0 p-1 md:p-2 min-h-[80px] md:min-h-[120px] relative cursor-pointer hover:bg-gray-50 ${
                       dragOverDate === day ? 'bg-blue-50 border-blue-300' : ''
                     }`}
                     onClick={day && user !== 'guest' ? () => handleDayClick(day) : undefined}
@@ -2342,7 +2390,7 @@ const MMCCalendar = () => {
                             return (
                               <div
                                 key={task.id}
-                                className={`text-xs p-2 rounded border ${task.color} cursor-move hover:shadow-sm relative ${
+                                className={`text-xs p-1 md:p-2 rounded border ${task.color} cursor-move hover:shadow-sm relative ${
                                   task.status === 'completed' ? 'opacity-75' : ''
                                 } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${
                                   task.is_all_day ? 'border-2 border-dashed border-gray-400 bg-opacity-50' : ''
@@ -2516,8 +2564,8 @@ const MMCCalendar = () => {
       </div>
       {/* New Entry Modal */}
       {showNewEntryModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-[800px] max-w-[95vw] mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4">
+          <div className="bg-white rounded-lg p-4 md:p-6 w-full max-w-[95vw] md:w-[800px] mx-2 md:mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-gray-900">
                 New Entry
@@ -2925,11 +2973,11 @@ const MMCCalendar = () => {
       {/* Task Details Modal */}
       {showTaskModal && selectedTask && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4"
           onClick={() => setShowTaskModal(false)}
         >
           <div 
-            className="bg-white rounded-lg p-6 w-[800px] max-w-[95vw] mx-4 max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-lg p-4 md:p-6 w-full max-w-[95vw] md:w-[800px] mx-2 md:mx-4 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
@@ -3131,8 +3179,8 @@ const MMCCalendar = () => {
       )}
       {/* Edit Task Modal */}
       {showEditModal && editingTask && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-[800px] max-w-[95vw] mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4">
+          <div className="bg-white rounded-lg p-4 md:p-6 w-full max-w-[95vw] md:w-[800px] mx-2 md:mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-gray-900">Edit Task</h3>
               <button
