@@ -1,8 +1,9 @@
 export default async function handler(req, res) {
-  console.log('=== SUPABASE PROXY FIXED ===');
+  console.log('=== SUPABASE PROXY CATCH-ALL ===');
   console.log('Method:', req.method);
   console.log('URL:', req.url);
   console.log('Query:', req.query);
+  console.log('Path:', req.query.path);
   console.log('Headers:', JSON.stringify(req.headers, null, 2));
 
   // Enable CORS
@@ -18,30 +19,21 @@ export default async function handler(req, res) {
   }
 
   // Health check
-  if (req.url === '/api/supabase-proxy-fixed.js' || req.url.includes('health=true')) {
+  if (!req.query.path || req.query.path.length === 0) {
     res.status(200).json({ 
       status: 'OK', 
-      message: 'Supabase Proxy Fixed is running',
+      message: 'Supabase Proxy Catch-All is running',
       supabaseUrl: process.env.SUPABASE_URL || 'https://zmbptzxjuuveqmcevtaz.supabase.co'
     });
     return;
   }
 
   try {
-    // Get the path after /api/supabase-proxy-fixed.js
-    let path = req.url.replace('/api/supabase-proxy-fixed.js', '');
+    // Build the path from the catch-all parameter
+    const pathArray = Array.isArray(req.query.path) ? req.query.path : [req.query.path];
+    let path = '/' + pathArray.join('/');
     
-    // If no path, default to /rest/v1/
-    if (!path || path === '') {
-      path = '/rest/v1/';
-    }
-    
-    // Ensure path starts with /
-    if (!path.startsWith('/')) {
-      path = '/' + path;
-    }
-    
-    // If path doesn't start with /rest/v1, add it
+    // Ensure path starts with /rest/v1
     if (!path.startsWith('/rest/v1')) {
       path = '/rest/v1' + path;
     }
