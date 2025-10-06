@@ -3826,7 +3826,7 @@ const MMCCalendar = () => {
                                  activity.type === 'status_changed' ? 'Status Changed' : 'Activity'}
                               </span>
                               <span className="text-xs text-gray-500">
-                                {activity.timestamp.toLocaleTimeString()}
+                                {activity.timestamp.toLocaleDateString()} at {activity.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </span>
                             </div>
                             <h4 className="font-medium text-gray-900 text-sm">{activity.message || 'Unknown activity'}</h4>
