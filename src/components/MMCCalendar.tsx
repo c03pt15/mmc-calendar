@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Plus, X, User, Calendar, Clock, UserCheck, Search, Download, Repeat } from 'lucide-react';
-import { supabase } from '../supabaseClientWithProxy';
+import { supabase } from '../supabaseClient';
 
 // Pure function for generating recurring instances - outside component to avoid circular dependencies
 const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYear: number, deletedInstances: Set<string>) => {
