@@ -1571,7 +1571,7 @@ const MMCCalendar = () => {
               />
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">MMC Calendar</h1>
-            <p className="text-gray-600">Access your calendar</p>
+            <p className="text-gray-600">Access the calendar</p>
           </div>
           
           <div className="space-y-4">
