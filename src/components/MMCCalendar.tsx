@@ -389,7 +389,8 @@ const MMCCalendar = () => {
     blogPosts: true,
     socialMedia: true,
     campaigns: true,
-    emailMarketing: true
+    emailMarketing: true,
+    vacations: true
   });
   const [selectedTeamMember, setSelectedTeamMember] = useState<number | null>(null);
   const [showNewEntryModal, setShowNewEntryModal] = useState(false);
@@ -465,7 +466,8 @@ const MMCCalendar = () => {
     blogPosts: { color: 'bg-blue-100 text-blue-800 border-blue-200', type: 'Blog' },
     socialMedia: { color: 'bg-green-100 text-green-800 border-green-200', type: 'Social' },
     campaigns: { color: 'bg-purple-100 text-purple-800 border-purple-200', type: 'Campaign' },
-    emailMarketing: { color: 'bg-orange-100 text-orange-800 border-orange-200', type: 'Email' }
+    emailMarketing: { color: 'bg-orange-100 text-orange-800 border-orange-200', type: 'Email' },
+    vacations: { color: 'bg-gray-100 text-gray-800 border-gray-200', type: 'Vacation' }
   };
 
   const priorityConfig = {
@@ -928,7 +930,8 @@ const MMCCalendar = () => {
     blogPosts: allTasksWithRecurring.filter(t => t.category === 'blogPosts' && t.status !== 'deleted' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
     socialMedia: allTasksWithRecurring.filter(t => t.category === 'socialMedia' && t.status !== 'deleted' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
     campaigns: allTasksWithRecurring.filter(t => t.category === 'campaigns' && t.status !== 'deleted' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
-    emailMarketing: allTasksWithRecurring.filter(t => t.category === 'emailMarketing' && t.status !== 'deleted' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length
+    emailMarketing: allTasksWithRecurring.filter(t => t.category === 'emailMarketing' && t.status !== 'deleted' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
+    vacations: allTasksWithRecurring.filter(t => t.category === 'vacations' && t.status !== 'deleted' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length
   };
 
   const allFilteredTasks = getAllFilteredTasks();
@@ -1252,6 +1255,8 @@ const MMCCalendar = () => {
     
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+
 
   const handleSaveEditTask = async () => {
     try {
@@ -1912,7 +1917,8 @@ const MMCCalendar = () => {
               { key: 'blogPosts', label: 'Blog Posts', count: filterCounts.blogPosts },
               { key: 'socialMedia', label: 'Social Media', count: filterCounts.socialMedia },
               { key: 'campaigns', label: 'Campaigns', count: filterCounts.campaigns },
-              { key: 'emailMarketing', label: 'Email Marketing', count: filterCounts.emailMarketing }
+              { key: 'emailMarketing', label: 'Email Marketing', count: filterCounts.emailMarketing },
+              { key: 'vacations', label: 'Vacations', count: filterCounts.vacations }
             ].map(filter => (
               <label key={filter.key} className={`flex items-center space-x-2 ${
                 user !== 'guest' ? 'cursor-pointer' : 'cursor-default'
@@ -1929,7 +1935,8 @@ const MMCCalendar = () => {
                     filter.key === 'blogPosts' ? 'bg-blue-500' :
                     filter.key === 'socialMedia' ? 'bg-green-500' :
                     filter.key === 'campaigns' ? 'bg-purple-500' :
-                    'bg-orange-500'
+                    filter.key === 'emailMarketing' ? 'bg-orange-500' :
+                    'bg-gray-500'
                   }`}></div>
                   <span className="text-sm text-gray-700">{filter.label}</span>
                 </div>
@@ -1937,7 +1944,8 @@ const MMCCalendar = () => {
                   filter.key === 'blogPosts' ? 'bg-blue-100 text-blue-800' :
                   filter.key === 'socialMedia' ? 'bg-green-100 text-green-800' :
                   filter.key === 'campaigns' ? 'bg-purple-100 text-purple-800' :
-                  'bg-orange-100 text-orange-800'
+                  filter.key === 'emailMarketing' ? 'bg-orange-100 text-orange-800' :
+                  'bg-gray-100 text-gray-800'
                 }`}>
                   {filter.count}
                 </span>
@@ -2104,6 +2112,7 @@ const MMCCalendar = () => {
             )}
           </div>
         </div>
+
         </div>
       </div>
       {/* Main Content */}
@@ -2284,6 +2293,7 @@ const MMCCalendar = () => {
               </div>
               
               
+
               {/* Export Dropdown */}
               <div className="relative export-container">
                 <button
@@ -2737,6 +2747,7 @@ const MMCCalendar = () => {
                     <option value="socialMedia">Social Media</option>
                     <option value="campaigns">Campaigns</option>
                     <option value="emailMarketing">Email Marketing</option>
+                    <option value="vacations">Vacations</option>
                   </select>
                 </div>
                 <div>
@@ -3380,6 +3391,7 @@ const MMCCalendar = () => {
                     <option value="socialMedia">Social Media</option>
                     <option value="campaigns">Campaigns</option>
                     <option value="emailMarketing">Email Marketing</option>
+                    <option value="vacations">Vacations</option>
                   </select>
                 </div>
                 <div>
