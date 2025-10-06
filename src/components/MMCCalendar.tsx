@@ -1159,6 +1159,10 @@ const MMCCalendar = () => {
       time: selectedTask.time,
       assignee: selectedTask.assignee,
       status: 'planned',
+      priority: selectedTask.priority || 'medium',
+      comments: selectedTask.comments || '',
+      tags: selectedTask.tags || [],
+      created_by: user && user !== 'guest' ? loggedInUserTeamMemberId : null,
       color: ''
     });
     setShowTaskModal(false);
