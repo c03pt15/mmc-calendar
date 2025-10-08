@@ -443,14 +443,14 @@ const MMCCalendar = () => {
     recurring_interval: 1,
     recurring_unit: 'week',
     recurring_days: [],
-    recurring_end_date: null,
+    recurring_end_date: '',
     comments: '',
     tags: [],
     created_by: 1,
     is_all_day: false,
     is_multiday: false,
-    start_date: null,
-    end_date: null
+    start_date: '',
+    end_date: ''
   });
 
   const teamMembers = [
@@ -1109,7 +1109,12 @@ const MMCCalendar = () => {
   };
 
   const handleEditTask = () => {
-    setEditingTask({ ...selectedTask });
+    setEditingTask({ 
+      ...selectedTask,
+      start_date: selectedTask.start_date || '',
+      end_date: selectedTask.end_date || '',
+      recurring_end_date: selectedTask.recurring_end_date || ''
+    });
     setEditMode('single'); // Default to single instance editing
     setShowTaskModal(false);
     setShowEditModal(true);
@@ -1134,7 +1139,12 @@ const MMCCalendar = () => {
         return;
       }
       
-      setEditingTask(data);
+      setEditingTask({
+        ...data,
+        start_date: data.start_date || '',
+        end_date: data.end_date || '',
+        recurring_end_date: data.recurring_end_date || ''
+      });
       setEditMode('all'); // Set to edit all instances
       setShowTaskModal(false);
       setShowEditModal(true);
