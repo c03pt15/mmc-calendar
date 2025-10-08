@@ -2182,7 +2182,7 @@ const MMCCalendar = () => {
                   </div>
                 </div>
                 {(getOverdueTasks().length > 0 || getHighPriorityTasks().length > 0) && (
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center">
+                  <div className="absolute -top-1 -right-1 min-w-5 h-5 bg-red-500 rounded-full flex items-center justify-center px-1">
                     <span className="text-xs text-white font-bold">
                       {getOverdueTasks().length + getHighPriorityTasks().length}
                     </span>
@@ -2544,7 +2544,7 @@ const MMCCalendar = () => {
                             </div>
                           )}
                           <div className="flex items-center space-x-2 mb-2">
-                            <div className={`w-6 h-6 ${teamMembers.find(m => m.id === task.assignee)?.color} rounded-full flex items-center justify-center text-white text-xs`}>
+                            <div className={`w-6 h-6 ${teamMembers.find(m => m.id === task.assignee)?.color} rounded-full flex items-center justify-center text-white text-xs font-medium`}>
                               {teamMembers.find(m => m.id === task.assignee)?.avatar}
                             </div>
                             <span className="text-xs text-gray-600">
@@ -3039,7 +3039,7 @@ const MMCCalendar = () => {
                 <div className="flex items-center space-x-2">
                   {selectedTask.assignee ? (
                     <>
-                      <div className={`w-6 h-6 ${teamMembers.find(m => m.id === selectedTask.assignee)?.color || 'bg-gray-400'} rounded-full flex items-center justify-center text-white text-xs`}>
+                      <div className={`w-6 h-6 ${teamMembers.find(m => m.id === selectedTask.assignee)?.color || 'bg-gray-400'} rounded-full flex items-center justify-center text-white text-xs font-medium`}>
                         {teamMembers.find(m => m.id === selectedTask.assignee)?.avatar || '?'}
                       </div>
                       <span className="text-sm text-gray-900">
@@ -3048,7 +3048,7 @@ const MMCCalendar = () => {
                     </>
                   ) : (
                     <>
-                      <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-white text-xs">
+                      <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-white text-xs font-medium">
                         ?
                       </div>
                       <span className="text-sm text-gray-500">
@@ -3708,7 +3708,7 @@ const MMCCalendar = () => {
                               </div>
                             </div>
                             <div className="ml-2">
-                              <div className={`w-6 h-6 ${teamMembers.find(m => m.id === task.assignee)?.color} rounded-full flex items-center justify-center text-white text-xs`}>
+                              <div className={`w-6 h-6 ${teamMembers.find(m => m.id === task.assignee)?.color} rounded-full flex items-center justify-center text-white text-xs font-medium`}>
                                 {teamMembers.find(m => m.id === task.assignee)?.avatar}
                               </div>
                             </div>
@@ -3759,7 +3759,7 @@ const MMCCalendar = () => {
                               </div>
                             </div>
                             <div className="ml-2">
-                              <div className={`w-6 h-6 ${teamMembers.find(m => m.id === task.assignee)?.color} rounded-full flex items-center justify-center text-white text-xs`}>
+                              <div className={`w-6 h-6 ${teamMembers.find(m => m.id === task.assignee)?.color} rounded-full flex items-center justify-center text-white text-xs font-medium`}>
                                 {teamMembers.find(m => m.id === task.assignee)?.avatar}
                               </div>
                             </div>
