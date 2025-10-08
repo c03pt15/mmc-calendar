@@ -381,7 +381,8 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
 };
 
 const MMCCalendar = () => {
-  const [user, setUser] = useState(null);
+  console.log('MMCCalendar component is rendering');
+  const [user, setUser] = useState<any>(null);
   const [showLogin, setShowLogin] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [activeView, setActiveView] = useState('Calendar');
@@ -753,15 +754,24 @@ const MMCCalendar = () => {
     return new Date(year, month + 1, 0).getDate();
   };
 
-  // Helper function to check if a multi-day task spans a specific date
+  // Helper function to check if a task should appear on a specific date
   const isTaskOnDate = (task: any, date: number, month: number, year: number) => {
+    // For multi-day tasks, check if the date falls within the start_date and end_date range
     if (task.is_multiday && task.start_date && task.end_date) {
-      const startDate = new Date(task.start_date);
-      const endDate = new Date(task.end_date);
-      const checkDate = new Date(year, month, date);
-      
-      return checkDate >= startDate && checkDate <= endDate;
+      try {
+        // Parse dates safely to avoid timezone issues
+        const startDate = new Date(task.start_date + 'T00:00:00');
+        const endDate = new Date(task.end_date + 'T23:59:59');
+        const checkDate = new Date(year, month, date);
+        
+        return checkDate >= startDate && checkDate <= endDate;
+      } catch (error) {
+        console.error('Error parsing multi-day task dates:', error, task);
+        return false;
+      }
     }
+    
+    // For regular tasks, check the date, month, and year fields
     return task.date === date && task.month === month && task.year === year;
   };
 
@@ -950,7 +960,7 @@ const MMCCalendar = () => {
     setSelectedFilters(prev => ({ ...prev, [filter]: !prev[filter] }));
   };
 
-  const handleTeamMemberClick = (memberId: number) => {
+  const handleTeamMemberClick = (memberId: number | null) => {
     setSelectedTeamMember(selectedTeamMember === memberId ? null : memberId);
   };
 
@@ -1555,7 +1565,7 @@ const MMCCalendar = () => {
         <div className="text-center">
           <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
             <img 
-              src={`${import.meta.env.BASE_URL}atlas-logo.png`} 
+              src={`${(import.meta as any).env?.BASE_URL || '/'}atlas-logo.png`} 
               alt="Atlas Logo" 
               className="w-full h-full object-contain"
             />
@@ -1575,7 +1585,7 @@ const MMCCalendar = () => {
           <div className="text-center mb-8">
             <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
               <img 
-                src={`${import.meta.env.BASE_URL}atlas-logo.png`} 
+                src={`${(import.meta as any).env?.BASE_URL || '/'}atlas-logo.png`} 
                 alt="Atlas Logo" 
                 className="w-full h-full object-contain"
               />
@@ -1628,7 +1638,7 @@ const MMCCalendar = () => {
           <div className="text-center mb-8">
             <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
               <img
-                src={`${import.meta.env.BASE_URL}atlas-logo.png`}
+                src={`${(import.meta as any).env?.BASE_URL || '/'}atlas-logo.png`}
                 alt="Atlas Logo"
                 className="w-full h-full object-contain"
               />
@@ -1690,7 +1700,7 @@ const MMCCalendar = () => {
           <div className="text-center mb-8">
             <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
               <img 
-                src={`${import.meta.env.BASE_URL}atlas-logo.png`} 
+                src={`${(import.meta as any).env?.BASE_URL || '/'}atlas-logo.png`} 
                 alt="Atlas Logo" 
                 className="w-full h-full object-contain"
               />
@@ -1874,7 +1884,7 @@ const MMCCalendar = () => {
           <div className="flex items-center space-x-2 mb-4">
             <div className="w-8 h-8 flex items-center justify-center">
               <img 
-                src={`${import.meta.env.BASE_URL}atlas-logo.png`} 
+                src={`${(import.meta as any).env?.BASE_URL || '/'}atlas-logo.png`} 
                 alt="Atlas Logo" 
                 className="w-full h-full object-contain"
               />
@@ -2374,9 +2384,26 @@ const MMCCalendar = () => {
                         <div className="space-y-1">
                           {/* Multi-day tasks as continuous bars at the top */}
                           {getTasksForDate(day).filter(task => task.is_multiday).map((task, index) => {
-                            const isStart = task.start_date && new Date(task.start_date).getDate() === day;
-                            const isEnd = task.end_date && new Date(task.end_date).getDate() === day;
-                            const isMiddle = !isStart && !isEnd;
+                            let isStart = false;
+                            let isEnd = false;
+                            let isMiddle = false;
+                            
+                            try {
+                              if (task.start_date) {
+                                const startDate = new Date(task.start_date + 'T00:00:00');
+                                isStart = startDate.getDate() === day && startDate.getMonth() === currentDate.getMonth() && startDate.getFullYear() === currentDate.getFullYear();
+                              }
+                              if (task.end_date) {
+                                const endDate = new Date(task.end_date + 'T00:00:00');
+                                isEnd = endDate.getDate() === day && endDate.getMonth() === currentDate.getMonth() && endDate.getFullYear() === currentDate.getFullYear();
+                              }
+                              isMiddle = !isStart && !isEnd;
+                            } catch (error) {
+                              console.error('Error parsing multi-day task dates for rendering:', error, task);
+                              isStart = false;
+                              isEnd = false;
+                              isMiddle = true;
+                            }
                             
                             return (
                               <div
@@ -2437,7 +2464,7 @@ const MMCCalendar = () => {
                                 }`}>{task.title}</div>
                                 <div className="flex items-center space-x-1">
                                   {task.is_recurring && (
-                                    <Repeat className="w-3 h-3 text-blue-500" title="Recurring task" />
+                                    <Repeat className="w-3 h-3 text-blue-500" />
                                   )}
                                   {task.priority && task.priority !== 'medium' && (
                                     <span className="text-xs ml-1">
@@ -2517,7 +2544,7 @@ const MMCCalendar = () => {
                           <div className="font-medium text-gray-900 mb-2 flex items-center space-x-2">
                             <span>{task.title}</span>
                             {task.is_recurring && (
-                              <Repeat className="w-4 h-4 text-blue-500" title="Recurring task" />
+                              <Repeat className="w-4 h-4 text-blue-500" />
                             )}
                           </div>
                           <div className="text-sm text-gray-600 mb-3">{task.description}</div>
@@ -2537,7 +2564,7 @@ const MMCCalendar = () => {
                               <Calendar className="w-4 h-4 text-gray-400" />
                               <span className="text-xs text-gray-500">
                                 {task.start_date && task.end_date ? 
-                                  `${new Date(task.start_date).toLocaleDateString()} - ${new Date(task.end_date).toLocaleDateString()}` : 
+                                  `${new Date(task.start_date + 'T00:00:00').toLocaleDateString()} - ${new Date(task.end_date + 'T00:00:00').toLocaleDateString()}` : 
                                   'Multi-Day'
                                 }
                               </span>
@@ -3080,7 +3107,7 @@ const MMCCalendar = () => {
                       <Calendar className="w-4 h-4 text-gray-400 ml-4" />
                       <span className="text-sm text-gray-900">
                         {selectedTask.start_date && selectedTask.end_date ? 
-                          `${new Date(selectedTask.start_date).toLocaleDateString()} - ${new Date(selectedTask.end_date).toLocaleDateString()}` : 
+                          `${new Date(selectedTask.start_date + 'T00:00:00').toLocaleDateString()} - ${new Date(selectedTask.end_date + 'T00:00:00').toLocaleDateString()}` : 
                           'Multi-Day'
                         }
                       </span>
