@@ -1083,8 +1083,14 @@ const MMCCalendar = () => {
         return;
       }
       
+      // Clean up date fields - convert empty strings to null for database
+      const cleanedTask = { ...newTask };
+      if (cleanedTask.start_date === '') cleanedTask.start_date = null;
+      if (cleanedTask.end_date === '') cleanedTask.end_date = null;
+      if (cleanedTask.recurring_end_date === '') cleanedTask.recurring_end_date = null;
+      
       const task = {
-        ...newTask,
+        ...cleanedTask,
         color: categoryConfig[newTask.category].color,
         created_by: newTask.created_by
       };
@@ -1285,7 +1291,14 @@ const MMCCalendar = () => {
   const handleSaveEditTask = async () => {
     try {
       setLoading(true);
-      const updatedTask = { ...editingTask, color: categoryConfig[editingTask.category].color };
+      
+      // Clean up date fields - convert empty strings to null for database
+      const cleanedTask = { ...editingTask };
+      if (cleanedTask.start_date === '') cleanedTask.start_date = null;
+      if (cleanedTask.end_date === '') cleanedTask.end_date = null;
+      if (cleanedTask.recurring_end_date === '') cleanedTask.recurring_end_date = null;
+      
+      const updatedTask = { ...cleanedTask, color: categoryConfig[editingTask.category].color };
       
       const isRecurring = editingTask.is_recurring || editingTask.is_recurring_instance;
       
@@ -1303,6 +1316,11 @@ const MMCCalendar = () => {
           is_recurring_instance: true,
           is_modified_instance: true // Flag to identify this as a modified instance
         };
+        
+        // Clean up date fields for modified instance as well
+        if (modifiedInstance.start_date === '') modifiedInstance.start_date = null;
+        if (modifiedInstance.end_date === '') modifiedInstance.end_date = null;
+        if (modifiedInstance.recurring_end_date === '') modifiedInstance.recurring_end_date = null;
         
         // Remove id from the object to avoid null constraint violation
         delete modifiedInstance.id;
