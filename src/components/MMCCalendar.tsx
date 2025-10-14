@@ -436,7 +436,8 @@ const MMCCalendar = () => {
     month: currentDate.getMonth(),
     year: currentDate.getFullYear(),
     time: '09:00',
-    assignee: 1,
+    assignee: 1, // Keep for backward compatibility
+    assignees: [], // New array for multiple assignees
     status: 'planned',
     priority: 'medium',
     is_recurring: false,
@@ -804,7 +805,10 @@ const MMCCalendar = () => {
       selectedFilters[task.category] &&
       task.status !== 'deleted' // Exclude deleted tasks
     );
-    if (selectedTeamMember) tasks = tasks.filter(task => task.assignee === selectedTeamMember);
+    if (selectedTeamMember) tasks = tasks.filter(task => 
+      (task.assignees && task.assignees.includes(selectedTeamMember)) || 
+      task.assignee === selectedTeamMember // Backward compatibility
+    );
     
     // Group tasks by type for proper ordering
     const multiDayTasks: any[] = [];
@@ -852,7 +856,10 @@ const MMCCalendar = () => {
       selectedFilters[task.category] &&
       task.status !== 'deleted' // Exclude deleted tasks
     );
-    if (selectedTeamMember) tasks = tasks.filter(task => task.assignee === selectedTeamMember);
+    if (selectedTeamMember) tasks = tasks.filter(task => 
+      (task.assignees && task.assignees.includes(selectedTeamMember)) || 
+      task.assignee === selectedTeamMember // Backward compatibility
+    );
     return tasks;
   }, [allTasksWithRecurring, selectedFilters, selectedTeamMember]);
 
@@ -937,11 +944,11 @@ const MMCCalendar = () => {
   }, [recentActivities]);
 
   const filterCounts = {
-    blogPosts: allTasksWithRecurring.filter(t => t.category === 'blogPosts' && t.status !== 'deleted' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
-    socialMedia: allTasksWithRecurring.filter(t => t.category === 'socialMedia' && t.status !== 'deleted' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
-    campaigns: allTasksWithRecurring.filter(t => t.category === 'campaigns' && t.status !== 'deleted' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
-    emailMarketing: allTasksWithRecurring.filter(t => t.category === 'emailMarketing' && t.status !== 'deleted' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length,
-    vacations: allTasksWithRecurring.filter(t => t.category === 'vacations' && t.status !== 'deleted' && (!selectedTeamMember || t.assignee === selectedTeamMember)).length
+    blogPosts: allTasksWithRecurring.filter(t => t.category === 'blogPosts' && t.status !== 'deleted' && (!selectedTeamMember || (t.assignees && t.assignees.includes(selectedTeamMember)) || t.assignee === selectedTeamMember)).length,
+    socialMedia: allTasksWithRecurring.filter(t => t.category === 'socialMedia' && t.status !== 'deleted' && (!selectedTeamMember || (t.assignees && t.assignees.includes(selectedTeamMember)) || t.assignee === selectedTeamMember)).length,
+    campaigns: allTasksWithRecurring.filter(t => t.category === 'campaigns' && t.status !== 'deleted' && (!selectedTeamMember || (t.assignees && t.assignees.includes(selectedTeamMember)) || t.assignee === selectedTeamMember)).length,
+    emailMarketing: allTasksWithRecurring.filter(t => t.category === 'emailMarketing' && t.status !== 'deleted' && (!selectedTeamMember || (t.assignees && t.assignees.includes(selectedTeamMember)) || t.assignee === selectedTeamMember)).length,
+    vacations: allTasksWithRecurring.filter(t => t.category === 'vacations' && t.status !== 'deleted' && (!selectedTeamMember || (t.assignees && t.assignees.includes(selectedTeamMember)) || t.assignee === selectedTeamMember)).length
   };
 
   const allFilteredTasks = getAllFilteredTasks();
@@ -977,6 +984,7 @@ const MMCCalendar = () => {
       year: today.getFullYear(),
       time: '09:00',
       assignee: null,
+      assignees: [],
       status: 'planned',
       priority: 'medium',
       comments: '',
@@ -1005,6 +1013,7 @@ const MMCCalendar = () => {
       year: currentDate.getFullYear(),
       time: '09:00',
       assignee: null,
+      assignees: [],
       status: 'planned',
       priority: 'medium',
       comments: '',
@@ -1037,6 +1046,7 @@ const MMCCalendar = () => {
         // Provide better fallbacks for null values
         type: completeTask.type || 'Task',
         assignee: completeTask.assignee || null,
+        assignees: completeTask.assignees || [],
         created_at: completeTask.created_at || null,
         created_by: completeTask.created_by || null,
         description: completeTask.description || 'No description',
@@ -1056,6 +1066,7 @@ const MMCCalendar = () => {
       status: task.status || 'planned',
       priority: task.priority || 'medium',
       assignee: task.assignee || null,
+      assignees: task.assignees || [],
       description: task.description || 'No description',
       color: task.color || 'bg-gray-100',
       time: task.time || '',
@@ -1081,8 +1092,8 @@ const MMCCalendar = () => {
         alert('Please select a category');
         return;
       }
-      if (!newTask.assignee) {
-        alert('Please select an assignee');
+      if (!newTask.assignees || newTask.assignees.length === 0) {
+        alert('Please select at least one assignee');
         return;
       }
       if (!newTask.created_by) {
@@ -1191,6 +1202,7 @@ const MMCCalendar = () => {
       year: today.getFullYear(),
       time: selectedTask.time,
       assignee: selectedTask.assignee,
+      assignees: selectedTask.assignees || [],
       status: 'planned',
       priority: selectedTask.priority || 'medium',
       comments: selectedTask.comments || '',
@@ -1216,7 +1228,7 @@ const MMCCalendar = () => {
       task.title.toLowerCase().includes(query.toLowerCase()) ||
       task.description.toLowerCase().includes(query.toLowerCase()) ||
       task.type.toLowerCase().includes(query.toLowerCase()) ||
-      getTeamMemberName(task.assignee).toLowerCase().includes(query.toLowerCase())
+      getAssigneesDisplay(task).toLowerCase().includes(query.toLowerCase())
     );
     
     setSearchResults(results);
@@ -1245,7 +1257,7 @@ const MMCCalendar = () => {
         task.month + 1, // Convert to 1-based month
         task.year,
         task.time || '',
-        getTeamMemberName(task.assignee),
+        getAssigneesDisplay(task),
         task.status,
         task.priority || 'medium'
       ])
@@ -1576,6 +1588,31 @@ const MMCCalendar = () => {
 
   const getTeamMemberName = (id: number) => {
     return teamMembers.find(member => member.id === id)?.name || 'Unknown';
+  };
+
+  const getAssigneesDisplay = (task: any) => {
+    if (task.assignees && task.assignees.length > 0) {
+      if (task.assignees.length === teamMembers.length) {
+        return 'All Team Members';
+      } else if (task.assignees.length === 1) {
+        return getTeamMemberName(task.assignees[0]);
+      } else {
+        return `${task.assignees.length} assignees`;
+      }
+    } else if (task.assignee) {
+      return getTeamMemberName(task.assignee);
+    }
+    return 'Unassigned';
+  };
+
+  const getAssigneesAvatars = (task: any) => {
+    const assigneeIds = task.assignees && task.assignees.length > 0 ? task.assignees : (task.assignee ? [task.assignee] : []);
+    
+    if (assigneeIds.length === teamMembers.length) {
+      return teamMembers.slice(0, 3).map(member => member.avatar);
+    } else {
+      return assigneeIds.slice(0, 3).map((id: number) => teamMembers.find(m => m.id === id)?.avatar).filter(Boolean);
+    }
   };
 
   const days = getDaysInMonth(currentDate);
@@ -2269,7 +2306,7 @@ const MMCCalendar = () => {
                             {monthNames[task.month || currentDate.getMonth()]} {task.date}, {task.year || currentDate.getFullYear()}
                           </span>
                           <span className="text-xs text-gray-500">
-                            {getTeamMemberName(task.assignee)}
+                            {getAssigneesDisplay(task)}
                           </span>
                         </div>
                       </div>
@@ -2447,9 +2484,19 @@ const MMCCalendar = () => {
                                   zIndex: 10
                                 }}
                               >
-                                <div className="flex items-center justify-center w-full px-2">
-                                  <div className="text-xs font-medium truncate text-center">
-                                    {task.title}
+                                <div className="flex items-center justify-between w-full px-2">
+                                  <div className="flex items-center space-x-1">
+                                    <div className="text-xs font-medium truncate">
+                                      {task.title}
+                                    </div>
+                                    {task.priority && task.priority !== 'medium' && (
+                                      <span className="text-xs">
+                                        {priorityConfig[task.priority]?.icon || '🟡'}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-gray-500 ml-1">
+                                    {getAssigneesDisplay(task)}
                                   </div>
                                 </div>
                               </div>
@@ -2501,6 +2548,9 @@ const MMCCalendar = () => {
                               <div className={`${
                                 task.status === 'completed' ? 'text-gray-400' : 'text-gray-600'
                               }`}>{task.type}</div>
+                              <div className={`${
+                                task.status === 'completed' ? 'text-gray-400' : 'text-gray-500'
+                              }`}>{getAssigneesDisplay(task)}</div>
                               {task.is_all_day ? (
                                 <div className={`${
                                   task.status === 'completed' ? 'text-gray-400' : 'text-gray-500'
@@ -2571,6 +2621,11 @@ const MMCCalendar = () => {
                             {task.is_recurring && (
                               <Repeat className="w-4 h-4 text-blue-500" />
                             )}
+                            {task.priority && task.priority !== 'medium' && (
+                              <span className="text-xs">
+                                {priorityConfig[task.priority]?.icon || '🟡'}
+                              </span>
+                            )}
                           </div>
                           <div className="text-sm text-gray-600 mb-3">{task.description}</div>
                           <div className="flex items-center justify-between mb-2">
@@ -2606,11 +2661,24 @@ const MMCCalendar = () => {
                             </div>
                           )}
                           <div className="flex items-center space-x-2 mb-2">
-                            <div className={`w-6 h-6 ${teamMembers.find(m => m.id === task.assignee)?.color} rounded-full flex items-center justify-center text-white text-xs font-medium`}>
-                              {teamMembers.find(m => m.id === task.assignee)?.avatar}
+                            <div className="flex -space-x-1">
+                              {getAssigneesAvatars(task).map((avatar: string, index: number) => {
+                                const assigneeIds = task.assignees && task.assignees.length > 0 ? task.assignees : (task.assignee ? [task.assignee] : []);
+                                const member = teamMembers.find(m => m.id === assigneeIds[index]);
+                                return (
+                                  <div key={index} className={`w-6 h-6 ${member?.color || 'bg-gray-400'} rounded-full flex items-center justify-center text-white text-xs font-medium border-2 border-white`}>
+                                    {avatar}
+                                  </div>
+                                );
+                              })}
+                              {task.assignees && task.assignees.length > 3 && (
+                                <div className="w-6 h-6 bg-gray-400 rounded-full flex items-center justify-center text-white text-xs font-medium border-2 border-white">
+                                  +{task.assignees.length - 3}
+                                </div>
+                              )}
                             </div>
                             <span className="text-xs text-gray-600">
-                              {getTeamMemberName(task.assignee)}
+                              {getAssigneesDisplay(task)}
                             </span>
                           </div>
                           {task.tags && task.tags.length > 0 && (
@@ -2840,17 +2908,59 @@ const MMCCalendar = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
-                  <select
-                    value={newTask.assignee || ''}
-                    onChange={(e) => setNewTask((prev: any) => ({ ...prev, assignee: e.target.value ? parseInt(e.target.value) : null }))}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select Assignee</option>
-                    {teamMembers.map(member => (
-                      <option key={member.id} value={member.id}>{member.name}</option>
-                    ))}
-                  </select>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Assignees</label>
+                  <div className="border border-gray-300 rounded-md p-3 max-h-40 overflow-y-auto">
+                    <div className="space-y-2">
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={newTask.assignees.length === teamMembers.length}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setNewTask((prev: any) => ({
+                                ...prev,
+                                assignees: teamMembers.map(member => member.id),
+                                assignee: teamMembers[0]?.id || null // Keep backward compatibility
+                              }));
+                            } else {
+                              setNewTask((prev: any) => ({
+                                ...prev,
+                                assignees: [],
+                                assignee: null
+                              }));
+                            }
+                          }}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-sm font-medium text-gray-700">All Team Members</span>
+                      </label>
+                      {teamMembers.map(member => (
+                        <label key={member.id} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={newTask.assignees.includes(member.id)}
+                            onChange={(e) => {
+                              setNewTask((prev: any) => {
+                                let newAssignees;
+                                if (e.target.checked) {
+                                  newAssignees = [...prev.assignees, member.id];
+                                } else {
+                                  newAssignees = prev.assignees.filter((id: number) => id !== member.id);
+                                }
+                                return {
+                                  ...prev,
+                                  assignees: newAssignees,
+                                  assignee: newAssignees.length > 0 ? newAssignees[0] : null // Keep backward compatibility
+                                };
+                              });
+                            }}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          />
+                          <span className="ml-2 text-sm text-gray-700">{member.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
               
@@ -3122,13 +3232,26 @@ const MMCCalendar = () => {
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">ASSIGNED TO</label>
                 <div className="flex items-center space-x-2">
-                  {selectedTask.assignee ? (
+                  {(selectedTask.assignees && selectedTask.assignees.length > 0) || selectedTask.assignee ? (
                     <>
-                      <div className={`w-6 h-6 ${teamMembers.find(m => m.id === selectedTask.assignee)?.color || 'bg-gray-400'} rounded-full flex items-center justify-center text-white text-xs font-medium`}>
-                        {teamMembers.find(m => m.id === selectedTask.assignee)?.avatar || '?'}
+                      <div className="flex -space-x-1">
+                        {getAssigneesAvatars(selectedTask).map((avatar: string, index: number) => {
+                          const assigneeIds = selectedTask.assignees && selectedTask.assignees.length > 0 ? selectedTask.assignees : (selectedTask.assignee ? [selectedTask.assignee] : []);
+                          const member = teamMembers.find(m => m.id === assigneeIds[index]);
+                          return (
+                            <div key={index} className={`w-6 h-6 ${member?.color || 'bg-gray-400'} rounded-full flex items-center justify-center text-white text-xs font-medium border-2 border-white`}>
+                              {avatar}
+                            </div>
+                          );
+                        })}
+                        {selectedTask.assignees && selectedTask.assignees.length > 3 && (
+                          <div className="w-6 h-6 bg-gray-400 rounded-full flex items-center justify-center text-white text-xs font-medium border-2 border-white">
+                            +{selectedTask.assignees.length - 3}
+                          </div>
+                        )}
                       </div>
                       <span className="text-sm text-gray-900">
-                        {getTeamMemberName(selectedTask.assignee)}
+                        {getAssigneesDisplay(selectedTask)}
                       </span>
                     </>
                   ) : (
@@ -3507,16 +3630,59 @@ const MMCCalendar = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
-                  <select
-                    value={editingTask.assignee}
-                    onChange={(e) => setEditingTask((prev: any) => ({ ...prev, assignee: parseInt(e.target.value) }))}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {teamMembers.map(member => (
-                      <option key={member.id} value={member.id}>{member.name}</option>
-                    ))}
-                  </select>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Assignees</label>
+                  <div className="border border-gray-300 rounded-md p-3 max-h-40 overflow-y-auto">
+                    <div className="space-y-2">
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={editingTask.assignees && editingTask.assignees.length === teamMembers.length}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setEditingTask((prev: any) => ({
+                                ...prev,
+                                assignees: teamMembers.map(member => member.id),
+                                assignee: teamMembers[0]?.id || null // Keep backward compatibility
+                              }));
+                            } else {
+                              setEditingTask((prev: any) => ({
+                                ...prev,
+                                assignees: [],
+                                assignee: null
+                              }));
+                            }
+                          }}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-sm font-medium text-gray-700">All Team Members</span>
+                      </label>
+                      {teamMembers.map(member => (
+                        <label key={member.id} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={editingTask.assignees && editingTask.assignees.includes(member.id)}
+                            onChange={(e) => {
+                              setEditingTask((prev: any) => {
+                                let newAssignees;
+                                if (e.target.checked) {
+                                  newAssignees = [...(prev.assignees || []), member.id];
+                                } else {
+                                  newAssignees = (prev.assignees || []).filter((id: number) => id !== member.id);
+                                }
+                                return {
+                                  ...prev,
+                                  assignees: newAssignees,
+                                  assignee: newAssignees.length > 0 ? newAssignees[0] : null // Keep backward compatibility
+                                };
+                              });
+                            }}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          />
+                          <span className="ml-2 text-sm text-gray-700">{member.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
