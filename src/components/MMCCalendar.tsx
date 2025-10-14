@@ -966,21 +966,25 @@ const MMCCalendar = () => {
 
   const handleNewEntry = () => {
     setPreSelectedDate(null);
+    const today = new Date();
     setNewTask({
       title: '',
       description: '',
       type: 'Blog',
       category: '',
-      date: 1,
-      month: currentDate.getMonth(),
-      year: currentDate.getFullYear(),
+      date: today.getDate(),
+      month: today.getMonth(),
+      year: today.getFullYear(),
       time: '09:00',
       assignee: null,
       status: 'planned',
       priority: 'medium',
       comments: '',
       tags: [],
-      created_by: user && user !== 'guest' ? loggedInUserTeamMemberId : null
+      created_by: user && user !== 'guest' ? loggedInUserTeamMemberId : null,
+      is_multiday: false,
+      start_date: '',
+      end_date: ''
     });
     setShowNewEntryModal(true);
   };
@@ -1005,7 +1009,10 @@ const MMCCalendar = () => {
       priority: 'medium',
       comments: '',
       tags: [],
-      created_by: user && user !== 'guest' ? loggedInUserTeamMemberId : null
+      created_by: user && user !== 'guest' ? loggedInUserTeamMemberId : null,
+      is_multiday: false,
+      start_date: '',
+      end_date: ''
     });
     setShowNewEntryModal(true);
   };
@@ -2704,12 +2711,35 @@ const MMCCalendar = () => {
                     type="checkbox"
                     id="is_multiday"
                     checked={newTask.is_multiday}
-                    onChange={(e) => setNewTask((prev: any) => ({ 
-                      ...prev, 
-                      is_multiday: e.target.checked,
-                      is_all_day: e.target.checked ? false : prev.is_all_day,
-                      time: e.target.checked ? '' : prev.time || '09:00'
-                    }))}
+                    onChange={(e) => {
+                      const isMultiday = e.target.checked;
+                      setNewTask((prev: any) => {
+                        if (isMultiday) {
+                          // When enabling multi-day, set start_date to current task date and end_date to +1 day
+                          const startDate = new Date(prev.year, prev.month, prev.date);
+                          const endDate = new Date(startDate);
+                          endDate.setDate(endDate.getDate() + 1);
+                          
+                          return {
+                            ...prev, 
+                            is_multiday: isMultiday,
+                            is_all_day: false,
+                            time: '',
+                            start_date: startDate.toISOString().split('T')[0],
+                            end_date: endDate.toISOString().split('T')[0]
+                          };
+                        } else {
+                          return {
+                            ...prev, 
+                            is_multiday: isMultiday,
+                            is_all_day: prev.is_all_day,
+                            time: prev.time || '09:00',
+                            start_date: '',
+                            end_date: ''
+                          };
+                        }
+                      });
+                    }}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
                   <label htmlFor="is_multiday" className="ml-2 text-sm font-medium text-gray-700">
@@ -3349,12 +3379,35 @@ const MMCCalendar = () => {
                     type="checkbox"
                     id="edit_is_multiday"
                     checked={editingTask.is_multiday}
-                    onChange={(e) => setEditingTask((prev: any) => ({ 
-                      ...prev, 
-                      is_multiday: e.target.checked,
-                      is_all_day: e.target.checked ? false : prev.is_all_day,
-                      time: e.target.checked ? '' : prev.time || '09:00'
-                    }))}
+                    onChange={(e) => {
+                      const isMultiday = e.target.checked;
+                      setEditingTask((prev: any) => {
+                        if (isMultiday) {
+                          // When enabling multi-day, set start_date to current task date and end_date to +1 day
+                          const startDate = new Date(prev.year, prev.month, prev.date);
+                          const endDate = new Date(startDate);
+                          endDate.setDate(endDate.getDate() + 1);
+                          
+                          return {
+                            ...prev, 
+                            is_multiday: isMultiday,
+                            is_all_day: false,
+                            time: '',
+                            start_date: startDate.toISOString().split('T')[0],
+                            end_date: endDate.toISOString().split('T')[0]
+                          };
+                        } else {
+                          return {
+                            ...prev, 
+                            is_multiday: isMultiday,
+                            is_all_day: prev.is_all_day,
+                            time: prev.time || '09:00',
+                            start_date: '',
+                            end_date: ''
+                          };
+                        }
+                      });
+                    }}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
                   <label htmlFor="edit_is_multiday" className="ml-2 text-sm font-medium text-gray-700">
