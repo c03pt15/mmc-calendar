@@ -6,6 +6,7 @@ import { supabase } from '../supabaseClient';
 const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYear: number, deletedInstances: Set<string>) => {
   const instances: any[] = [];
   
+  
   tasks.forEach(task => {
     try {
       // Basic safety check for task structure
@@ -33,7 +34,7 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
       }
 
     const startDate = new Date(task.year, task.month, task.date);
-    const endDate = task.recurring_end_date ? new Date(task.recurring_end_date) : new Date(startDate.getFullYear() + 1, startDate.getMonth(), startDate.getDate());
+    const endDate = task.recurring_end_date ? new Date(task.recurring_end_date + 'T23:59:59') : new Date(startDate.getFullYear() + 1, startDate.getMonth(), startDate.getDate());
     const targetMonthStart = new Date(targetYear, targetMonth, 1);
     const targetMonthEnd = new Date(targetYear, targetMonth + 1, 0);
 
@@ -255,6 +256,8 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
             t.instance_key === instanceKey
           );
           
+          
+          
           if (modifiedInstance) {
             // If there's a modified instance, use it instead of generating from original task
             const newInstance = {
@@ -262,7 +265,7 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
               date: currentDate.getDate(),
               month: currentDate.getMonth(),
               year: currentDate.getFullYear(),
-              parent_task_id: task.id,
+              parent_task_id: modifiedInstance.parent_task_id || task.id,
               is_recurring: true,
               is_recurring_instance: true,
               instance_key: instanceKey
@@ -381,10 +384,14 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
 };
 
 const MMCCalendar = () => {
-  console.log('MMCCalendar component is rendering');
   const [user, setUser] = useState<any>(null);
   const [showLogin, setShowLogin] = useState(false);
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(() => {
+    const now = new Date();
+    // Ensure we start with the current year
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  });
+  
   const [activeView, setActiveView] = useState('Calendar');
   const [selectedFilters, setSelectedFilters] = useState({
     blogPosts: true,
@@ -445,9 +452,9 @@ const MMCCalendar = () => {
     is_recurring: false,
     recurring_pattern: '',
     recurring_interval: 1,
-    recurring_unit: 'week',
+    recurring_unit: '',
     recurring_days: [],
-    recurring_end_date: '',
+    recurring_end_date: null,
     comments: '',
     tags: [],
     created_by: 1,
@@ -619,7 +626,6 @@ const MMCCalendar = () => {
           return;
         }
         
-        console.log('Tasks fetched successfully:', data);
         setAllTasks((prev) => ({ ...prev, [currentMonthKey]: data || [] }));
         
         // Load activities after tasks are loaded
@@ -1132,6 +1138,10 @@ const MMCCalendar = () => {
         alert('Please select who created this task');
         return;
       }
+      if (newTask.is_recurring && (!newTask.recurring_unit || newTask.recurring_unit === '')) {
+        alert('Please select a recurring period');
+        return;
+      }
       
       // Clean up date fields - convert empty strings to null for database
       const cleanedTask = { ...newTask };
@@ -1144,6 +1154,7 @@ const MMCCalendar = () => {
         color: categoryConfig[newTask.category].color,
         created_by: newTask.created_by
       };
+      
       
       const { data, error } = await supabase.from('tasks').insert([task]).select();
       
@@ -1355,13 +1366,15 @@ const MMCCalendar = () => {
       
       if (isRecurring && editMode === 'single') {
         // For single instance editing of recurring tasks, create a modified instance record
-        const instanceKey = editingTask.instance_key || `${editingTask.parent_task_id || editingTask.id}_${editingTask.year}_${editingTask.month}_${editingTask.date}`;
+        const parentTaskId = editingTask.parent_task_id || editingTask.id;
+        const instanceKey = editingTask.instance_key || `${parentTaskId}_${editingTask.year}_${editingTask.month}_${editingTask.date}`;
+        
         
         // Create a "modified" task record to override this specific instance
         const modifiedInstance = {
           ...updatedTask,
           // Remove id field entirely - let database auto-generate
-          parent_task_id: editingTask.parent_task_id || editingTask.id,
+          parent_task_id: parentTaskId,
           instance_key: instanceKey,
           is_recurring: false,
           is_recurring_instance: true,
@@ -1422,7 +1435,6 @@ const MMCCalendar = () => {
         }
       }
       
-      console.log('Task updated successfully');
       
       // Add activity for task update
       addActivity({
@@ -1508,7 +1520,6 @@ const MMCCalendar = () => {
             setDeletedInstances(prev => new Set([...prev, instanceKey]));
           }
           
-          console.log('Task deleted successfully:', data);
           setShowTaskModal(false);
           setSelectedTask(null);
           await refreshTasks();
@@ -1532,7 +1543,6 @@ const MMCCalendar = () => {
             return;
           }
           
-          console.log('Task deleted successfully:', result.data);
           setShowTaskModal(false);
           setSelectedTask(null);
           await refreshTasks();
@@ -2062,6 +2072,12 @@ const MMCCalendar = () => {
     setCurrentDate(prev => {
       const newDate = new Date(prev);
       newDate.setMonth(prev.getMonth() + direction);
+      // Ensure we don't go too far into the future
+      const currentYear = new Date().getFullYear();
+      if (newDate.getFullYear() > currentYear + 1) {
+        newDate.setFullYear(currentYear);
+        newDate.setMonth(10); // November
+      }
       return newDate;
     });
   };
@@ -2382,7 +2398,10 @@ const MMCCalendar = () => {
               </div>
               <button 
                 className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-md hover:bg-blue-200"
-                onClick={() => setCurrentDate(new Date())}
+                onClick={() => {
+                  const today = new Date();
+                  setCurrentDate(new Date(today.getFullYear(), today.getMonth(), today.getDate()));
+                }}
               >
                 Today
               </button>
@@ -2696,8 +2715,21 @@ const MMCCalendar = () => {
                                       </span>
                                     )}
                                   </div>
-                                  <div className="text-xs text-gray-500 ml-1">
-                                    {getAssigneesDisplay(task)}
+                                  <div className="flex -space-x-1 ml-1">
+                                    {getAssigneesAvatars(task).map((avatar: string, index: number) => {
+                                      const assigneeIds = task.assignees && task.assignees.length > 0 ? task.assignees : (task.assignee ? [task.assignee] : []);
+                                      const member = teamMembers.find(m => m.id === assigneeIds[index]);
+                                      return (
+                                        <div key={index} className={`w-4 h-4 ${member?.color || 'bg-gray-400'} rounded-full flex items-center justify-center text-white text-[8px] font-medium border border-white`}>
+                                          {avatar}
+                                        </div>
+                                      );
+                                    })}
+                                    {task.assignees && task.assignees.length > 3 && (
+                                      <div className="w-4 h-4 bg-gray-400 rounded-full flex items-center justify-center text-white text-[8px] font-medium border border-white">
+                                        +{task.assignees.length - 3}
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -3210,12 +3242,26 @@ const MMCCalendar = () => {
                       type="checkbox"
                       id="is_recurring"
                       checked={newTask.is_recurring}
-                      onChange={(e) => setNewTask((prev: any) => ({ 
-                        ...prev, 
-                        is_recurring: e.target.checked,
-                        recurring_pattern: e.target.checked ? prev.recurring_pattern || 'weekly' : '',
-                        recurring_end_date: e.target.checked ? prev.recurring_end_date : null
-                      }))}
+                        onChange={(e) => setNewTask((prev: any) => {
+                          if (e.target.checked) {
+                            // Set default end date to the same day as start date
+                            const startDate = new Date(prev.year, prev.month, prev.date);
+                            
+                            return {
+                              ...prev, 
+                              is_recurring: true,
+                              recurring_pattern: prev.recurring_pattern || 'weekly',
+                              recurring_end_date: startDate.toISOString().split('T')[0]
+                            };
+                          } else {
+                            return {
+                              ...prev, 
+                              is_recurring: false,
+                              recurring_pattern: '',
+                              recurring_end_date: null
+                            };
+                          }
+                        })}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
                     <label htmlFor="is_recurring" className="text-sm text-gray-700">
@@ -3241,12 +3287,36 @@ const MMCCalendar = () => {
                           />
                           <select
                             value={newTask.recurring_unit}
-                            onChange={(e) => setNewTask((prev: any) => ({ 
-                              ...prev, 
-                              recurring_unit: e.target.value
-                            }))}
+                            onChange={(e) => {
+                              setNewTask((prev: any) => {
+                                const unit = e.target.value;
+                                let pattern = prev.recurring_pattern;
+                                
+                                // Update pattern based on unit selection
+                                if (unit === 'day') {
+                                  pattern = 'daily';
+                                } else if (unit === 'week') {
+                                  pattern = 'weekly';
+                                } else if (unit === 'month') {
+                                  pattern = 'monthly';
+                                } else if (unit === 'year') {
+                                  pattern = 'yearly';
+                                } else if (unit === '') {
+                                  pattern = '';
+                                }
+                                
+                                return {
+                                  ...prev, 
+                                  recurring_unit: unit,
+                                  recurring_pattern: pattern,
+                                  // Clear recurring_days when not using weekly pattern
+                                  recurring_days: unit === 'week' ? prev.recurring_days : []
+                                };
+                              });
+                            }}
                             className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                           >
+                            <option value="">Please select recurring period</option>
                             <option value="day">day(s)</option>
                             <option value="week">week(s)</option>
                             <option value="month">month(s)</option>
@@ -3322,7 +3392,7 @@ const MMCCalendar = () => {
                         <label className="block text-xs font-medium text-gray-600 mb-1">End date (optional)</label>
                         <input
                           type="date"
-                          value={newTask.recurring_end_date || ''}
+                          value={newTask.recurring_end_date ? newTask.recurring_end_date : ''}
                           onChange={(e) => setNewTask((prev: any) => ({ 
                             ...prev, 
                             recurring_end_date: e.target.value || null
@@ -3922,12 +3992,26 @@ const MMCCalendar = () => {
                       type="checkbox"
                       id="edit_is_recurring"
                       checked={editingTask.is_recurring || false}
-                      onChange={(e) => setEditingTask((prev: any) => ({ 
-                        ...prev, 
-                        is_recurring: e.target.checked,
-                        recurring_pattern: e.target.checked ? prev.recurring_pattern || 'weekly' : '',
-                        recurring_end_date: e.target.checked ? prev.recurring_end_date : null
-                      }))}
+                        onChange={(e) => setEditingTask((prev: any) => {
+                          if (e.target.checked) {
+                            // Set default end date to the same day as start date
+                            const startDate = new Date(prev.year, prev.month, prev.date);
+                            
+                            return {
+                              ...prev, 
+                              is_recurring: true,
+                              recurring_pattern: prev.recurring_pattern || 'weekly',
+                              recurring_end_date: prev.recurring_end_date || startDate.toISOString().split('T')[0]
+                            };
+                          } else {
+                            return {
+                              ...prev, 
+                              is_recurring: false,
+                              recurring_pattern: '',
+                              recurring_end_date: null
+                            };
+                          }
+                        })}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
                     <label htmlFor="edit_is_recurring" className="text-sm text-gray-700">
@@ -3952,13 +4036,35 @@ const MMCCalendar = () => {
                             className="w-16 border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
                           <select
-                            value={editingTask.recurring_unit || 'week'}
-                            onChange={(e) => setEditingTask((prev: any) => ({ 
-                              ...prev, 
-                              recurring_unit: e.target.value
-                            }))}
+                            value={editingTask.recurring_unit || ''}
+                            onChange={(e) => setEditingTask((prev: any) => {
+                              const unit = e.target.value;
+                              let pattern = prev.recurring_pattern;
+                              
+                              // Update pattern based on unit selection
+                              if (unit === 'day') {
+                                pattern = 'daily';
+                              } else if (unit === 'week') {
+                                pattern = 'weekly';
+                              } else if (unit === 'month') {
+                                pattern = 'monthly';
+                              } else if (unit === 'year') {
+                                pattern = 'yearly';
+                              } else if (unit === '') {
+                                pattern = '';
+                              }
+                              
+                              return {
+                                ...prev, 
+                                recurring_unit: unit,
+                                recurring_pattern: pattern,
+                                // Clear recurring_days when not using weekly pattern
+                                recurring_days: unit === 'week' ? prev.recurring_days : []
+                              };
+                            })}
                             className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                           >
+                            <option value="">Please select recurring period</option>
                             <option value="day">day(s)</option>
                             <option value="week">week(s)</option>
                             <option value="month">month(s)</option>
@@ -4034,7 +4140,7 @@ const MMCCalendar = () => {
                         <label className="block text-xs font-medium text-gray-600 mb-1">End date (optional)</label>
                         <input
                           type="date"
-                          value={editingTask.recurring_end_date || ''}
+                          value={editingTask.recurring_end_date ? editingTask.recurring_end_date : ''}
                           onChange={(e) => setEditingTask((prev: any) => ({ 
                             ...prev, 
                             recurring_end_date: e.target.value || null
