@@ -42,7 +42,7 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
     if (startDate <= targetMonthEnd && endDate >= targetMonthStart) {
       let currentDate = new Date(startDate);
       let instanceCount = 0;
-      const maxInstances = task.recurring_end_date ? 12 : 1000; // Higher limit if no end date
+      const maxInstances = task.recurring_end_date ? 365 : 1000; // Allow up to 1 year of daily instances
 
       while (currentDate <= endDate && instanceCount < maxInstances) {
         // Check if this instance falls within the target month
