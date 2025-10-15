@@ -2704,31 +2704,33 @@ const MMCCalendar = () => {
                                   zIndex: 10
                                 }}
                               >
-                                <div className="flex items-center justify-between w-full px-2">
+                                <div className="flex items-center justify-between w-full p-1 md:p-2">
                                   <div className="flex items-center space-x-1">
                                     <div className="text-xs font-medium truncate">
                                       {task.title}
                                     </div>
+                                    <div className="flex -space-x-1 ml-1">
+                                      {getAssigneesAvatars(task).map((avatar: string, index: number) => {
+                                        const assigneeIds = task.assignees && task.assignees.length > 0 ? task.assignees : (task.assignee ? [task.assignee] : []);
+                                        const member = teamMembers.find(m => m.id === assigneeIds[index]);
+                                        return (
+                                          <div key={index} className={`w-4 h-4 ${member?.color || 'bg-gray-400'} rounded-full flex items-center justify-center text-white text-[8px] font-medium border border-white`}>
+                                            {avatar}
+                                          </div>
+                                        );
+                                      })}
+                                      {task.assignees && task.assignees.length > 3 && (
+                                        <div className="w-4 h-4 bg-gray-400 rounded-full flex items-center justify-center text-white text-[8px] font-medium border border-white">
+                                          +{task.assignees.length - 3}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center space-x-1">
                                     {task.priority && task.priority !== 'medium' && (
-                                      <span className="text-xs">
+                                      <span className="text-xs ml-1 mr-0.5">
                                         {priorityConfig[task.priority]?.icon || '🟡'}
                                       </span>
-                                    )}
-                                  </div>
-                                  <div className="flex -space-x-1 ml-1">
-                                    {getAssigneesAvatars(task).map((avatar: string, index: number) => {
-                                      const assigneeIds = task.assignees && task.assignees.length > 0 ? task.assignees : (task.assignee ? [task.assignee] : []);
-                                      const member = teamMembers.find(m => m.id === assigneeIds[index]);
-                                      return (
-                                        <div key={index} className={`w-4 h-4 ${member?.color || 'bg-gray-400'} rounded-full flex items-center justify-center text-white text-[8px] font-medium border border-white`}>
-                                          {avatar}
-                                        </div>
-                                      );
-                                    })}
-                                    {task.assignees && task.assignees.length > 3 && (
-                                      <div className="w-4 h-4 bg-gray-400 rounded-full flex items-center justify-center text-white text-[8px] font-medium border border-white">
-                                        +{task.assignees.length - 3}
-                                      </div>
                                     )}
                                   </div>
                                 </div>
