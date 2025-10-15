@@ -393,13 +393,7 @@ const MMCCalendar = () => {
   });
   
   const [activeView, setActiveView] = useState('Calendar');
-  const [selectedFilters, setSelectedFilters] = useState({
-    blogPosts: true,
-    socialMedia: true,
-    campaigns: true,
-    emailMarketing: true,
-    vacations: true
-  });
+  const [selectedFilters, setSelectedFilters] = useState<{ [key: string]: boolean }>({});
   const [selectedTeamMember, setSelectedTeamMember] = useState<number | null>(null);
   const [showNewEntryModal, setShowNewEntryModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
@@ -436,6 +430,22 @@ const MMCCalendar = () => {
   const [preSelectedDate, setPreSelectedDate] = useState<{date: number, month: number, year: number} | null>(null);
   const [deletedInstances, setDeletedInstances] = useState<Set<string>>(new Set());
   const [editMode, setEditMode] = useState<'single' | 'all'>('single'); // For recurring task editing
+  const [categories, setCategories] = useState<any[]>([]);
+  const [showCustomCategoryModal, setShowCustomCategoryModal] = useState(false);
+  const [customCategory, setCustomCategory] = useState({
+    name: '',
+    color_class: 'bg-blue-100 text-blue-800 border-blue-200',
+    type: 'Custom'
+  });
+  const [showCategoryManagement, setShowCategoryManagement] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<any>(null);
+  const [showEditCategoryModal, setShowEditCategoryModal] = useState(false);
+  const [showDeleteCategoryModal, setShowDeleteCategoryModal] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<any>(null);
+  const [reassignToCategory, setReassignToCategory] = useState('');
+  const [showUserManagement, setShowUserManagement] = useState(false);
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [newTask, setNewTask] = useState<any>({
     title: '',
     description: '',
@@ -473,6 +483,27 @@ const MMCCalendar = () => {
     { id: 6, name: 'Meg McLean', role: 'Social and Digital Engagement Lead', avatar: 'MM', color: 'bg-red-500', active: true }
   ];
 
+  // Enhanced color options with accessibility considerations
+  const colorOptions = [
+    { name: 'Blue', class: 'bg-blue-100 text-blue-800 border-blue-200', hex: '#3B82F6' },
+    { name: 'Green', class: 'bg-green-100 text-green-800 border-green-200', hex: '#10B981' },
+    { name: 'Purple', class: 'bg-purple-100 text-purple-800 border-purple-200', hex: '#8B5CF6' },
+    { name: 'Orange', class: 'bg-orange-100 text-orange-800 border-orange-200', hex: '#F59E0B' },
+    { name: 'Red', class: 'bg-red-100 text-red-800 border-red-200', hex: '#EF4444' },
+    { name: 'Yellow', class: 'bg-yellow-100 text-yellow-800 border-yellow-200', hex: '#EAB308' },
+    { name: 'Pink', class: 'bg-pink-100 text-pink-800 border-pink-200', hex: '#EC4899' },
+    { name: 'Indigo', class: 'bg-indigo-100 text-indigo-800 border-indigo-200', hex: '#6366F1' },
+    { name: 'Gray', class: 'bg-gray-100 text-gray-800 border-gray-200', hex: '#6B7280' },
+    { name: 'Teal', class: 'bg-teal-100 text-teal-800 border-teal-200', hex: '#14B8A6' },
+    { name: 'Cyan', class: 'bg-cyan-100 text-cyan-800 border-cyan-200', hex: '#06B6D4' },
+    { name: 'Lime', class: 'bg-lime-100 text-lime-800 border-lime-200', hex: '#84CC16' },
+    { name: 'Emerald', class: 'bg-emerald-100 text-emerald-800 border-emerald-200', hex: '#059669' },
+    { name: 'Violet', class: 'bg-violet-100 text-violet-800 border-violet-200', hex: '#7C3AED' },
+    { name: 'Rose', class: 'bg-rose-100 text-rose-800 border-rose-200', hex: '#F43F5E' },
+    { name: 'Sky', class: 'bg-sky-100 text-sky-800 border-sky-200', hex: '#0EA5E9' }
+  ];
+
+  // Legacy category config for backward compatibility
   const categoryConfig = {
     blogPosts: { color: 'bg-blue-100 text-blue-800 border-blue-200', type: 'Blog' },
     socialMedia: { color: 'bg-green-100 text-green-800 border-green-200', type: 'Social' },
@@ -608,6 +639,78 @@ const MMCCalendar = () => {
       setLoggedInUserTeamMemberId(null);
     }
   };
+
+  // Load categories from database
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('categories')
+          .select('*')
+          .order('is_custom', { ascending: true })
+          .order('display_name', { ascending: true });
+        
+        if (error) {
+          console.error('Error loading categories:', error);
+          // If categories table doesn't exist, use default categories
+          const defaultCategories = Object.entries(categoryConfig).map(([key, config]) => ({
+            id: key,
+            name: key,
+            display_name: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'),
+            color_class: config.color,
+            type: config.type,
+            is_custom: false
+          }));
+          setCategories(defaultCategories);
+          return;
+        }
+        
+        if (data) {
+          setCategories(data);
+        } else {
+          // Fallback if no data returned
+          const defaultCategories = Object.entries(categoryConfig).map(([key, config]) => ({
+            id: key,
+            name: key,
+            display_name: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'),
+            color_class: config.color,
+            type: config.type,
+            is_custom: false
+          }));
+          setCategories(defaultCategories);
+        }
+      } catch (err) {
+        console.error('Error loading categories:', err);
+        // Fallback to default categories
+        const defaultCategories = Object.entries(categoryConfig).map(([key, config]) => ({
+          id: key,
+          name: key,
+          display_name: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'),
+          color_class: config.color,
+          type: config.type,
+          is_custom: false
+        }));
+        setCategories(defaultCategories);
+      }
+    };
+    
+    loadCategories();
+  }, []);
+
+  // Initialize selectedFilters when categories are loaded
+  useEffect(() => {
+    if (categories.length > 0) {
+      setSelectedFilters(prev => {
+        const newFilters = { ...prev };
+        categories.forEach(category => {
+          if (!(category.name in newFilters)) {
+            newFilters[category.name] = true; // Default to showing all categories
+          }
+        });
+        return newFilters;
+      });
+    }
+  }, [categories]);
 
   // Fetch tasks from Supabase for the current month
   useEffect(() => {
@@ -971,6 +1074,259 @@ const MMCCalendar = () => {
     }
   }, []);
 
+  // Function to create a custom category
+  const handleCreateCustomCategory = async () => {
+    try {
+      if (!customCategory.name.trim()) {
+        alert('Please enter a category name');
+        return;
+      }
+
+      // Check if category name already exists
+      const existingCategory = categories.find(cat => 
+        cat.name.toLowerCase() === customCategory.name.toLowerCase()
+      );
+      
+      if (existingCategory) {
+        alert('A category with this name already exists');
+        return;
+      }
+
+
+      setLoading(true);
+
+      // Use the selected color class directly
+      const finalColorClass = customCategory.color_class;
+
+      const { data, error } = await supabase
+        .from('categories')
+        .insert([{
+          name: customCategory.name.toLowerCase().replace(/\s+/g, '_'),
+          display_name: customCategory.name,
+          color_class: finalColorClass,
+          type: customCategory.type,
+          is_custom: true,
+          created_by: loggedInUserTeamMemberId || 1
+        }])
+        .select();
+
+      if (error) {
+        console.error('Error creating category:', error);
+        alert(`Error creating category: ${error.message}`);
+        return;
+      }
+
+      if (data && data[0]) {
+        // Add to local state
+        setCategories(prev => [...prev, data[0]]);
+        
+        // Auto-select the newly created category in the new task modal
+        setNewTask((prev: any) => ({
+          ...prev,
+          category: data[0].name,
+          type: data[0].type
+        }));
+        
+        // Close modal and reset form
+        setShowCustomCategoryModal(false);
+        setCustomCategory({
+          name: '',
+          color_class: 'bg-blue-100 text-blue-800 border-blue-200',
+          type: 'Custom'
+        });
+        
+        alert('Custom category created successfully!');
+      }
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      alert(`Unexpected error: ${err}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+
+  // Function to get category config (supports both legacy and custom categories)
+  const getCategoryConfig = (categoryKey: string) => {
+    // First check if it's a custom category
+    const customCategory = categories.find(cat => cat.name === categoryKey);
+    if (customCategory) {
+      return {
+        color: customCategory.color_class,
+        type: customCategory.type,
+        display_name: customCategory.display_name
+      };
+    }
+    
+    // Fallback to legacy category config
+    const legacyConfig = categoryConfig[categoryKey] || { color: 'bg-gray-100 text-gray-800 border-gray-200', type: 'Custom' };
+    return {
+      ...legacyConfig,
+      display_name: categoryKey.charAt(0).toUpperCase() + categoryKey.slice(1).replace(/([A-Z])/g, ' $1')
+    };
+  };
+
+  // Function to get the display name for a task's category
+  const getTaskCategoryDisplayName = (task: any) => {
+    const config = getCategoryConfig(task.category);
+    return config.display_name || task.type || 'General';
+  };
+
+  // Check if current user is admin (Ghislain Girard - both accounts)
+  const isAdmin = useMemo(() => {
+    // Check by team member ID (Ghislain Girard has ID 2)
+    if (loggedInUserTeamMemberId === 2) return true;
+    
+    // Check by email address for ghgirard@atlasinstitute.ca
+    if (user && user.email === 'ghgirard@atlasinstitute.ca') return true;
+    
+    return false;
+  }, [loggedInUserTeamMemberId, user]);
+
+  // Handle editing a category
+  const handleEditCategory = (category: any) => {
+    setEditingCategory(category);
+    setShowEditCategoryModal(true);
+  };
+
+  // Handle saving edited category
+  const handleSaveEditCategory = async () => {
+    if (!editingCategory || !editingCategory.name.trim()) {
+      alert('Please enter a category name');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const { data, error } = await supabase
+        .from('categories')
+        .update({
+          display_name: editingCategory.display_name,
+          color_class: editingCategory.color_class,
+          type: editingCategory.type
+        })
+        .eq('id', editingCategory.id)
+        .select();
+
+      if (error) {
+        console.error('Error updating category:', error);
+        alert(`Error updating category: ${error.message}`);
+        return;
+      }
+
+      if (data && data[0]) {
+        setCategories(prev => 
+          prev.map(cat => cat.id === editingCategory.id ? data[0] : cat)
+        );
+        setShowEditCategoryModal(false);
+        setEditingCategory(null);
+        alert('Category updated successfully!');
+      }
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      alert(`Unexpected error: ${err}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle deleting a category
+  const handleDeleteCategory = async () => {
+    if (!categoryToDelete) return;
+
+    try {
+      setLoading(true);
+
+      // First, get all tasks using this category
+      const { data: tasksUsingCategory, error: tasksError } = await supabase
+        .from('tasks')
+        .select('id, title, category')
+        .eq('category', categoryToDelete.name);
+
+      if (tasksError) {
+        console.error('Error fetching tasks:', tasksError);
+        alert(`Error fetching tasks: ${tasksError.message}`);
+        return;
+      }
+
+      if (tasksUsingCategory && tasksUsingCategory.length > 0) {
+        if (!reassignToCategory) {
+          alert('Please select a category to reassign tasks to, or cancel to keep this category.');
+          return;
+        }
+
+        // Reassign all tasks to the new category
+        const { error: reassignError } = await supabase
+          .from('tasks')
+          .update({ category: reassignToCategory })
+          .eq('category', categoryToDelete.name);
+
+        if (reassignError) {
+          console.error('Error reassigning tasks:', reassignError);
+          alert(`Error reassigning tasks: ${reassignError.message}`);
+          return;
+        }
+      }
+
+      // Delete the category
+      const { error: deleteError } = await supabase
+        .from('categories')
+        .delete()
+        .eq('id', categoryToDelete.id);
+
+      if (deleteError) {
+        console.error('Error deleting category:', deleteError);
+        alert(`Error deleting category: ${deleteError.message}`);
+        return;
+      }
+
+      // Update local state
+      setCategories(prev => prev.filter(cat => cat.id !== categoryToDelete.id));
+      setShowDeleteCategoryModal(false);
+      setCategoryToDelete(null);
+      setReassignToCategory('');
+      
+      alert(`Category deleted successfully! ${tasksUsingCategory?.length || 0} tasks were reassigned.`);
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      alert(`Unexpected error: ${err}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle editing a user
+  const handleEditUser = (user: any) => {
+    setEditingUser(user);
+    setShowEditUserModal(true);
+  };
+
+  // Handle saving edited user
+  const handleSaveEditUser = async () => {
+    if (!editingUser || !editingUser.name.trim()) {
+      alert('Please enter a user name');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // For now, just show a placeholder message
+      // In a real implementation, you would update the teamMembers array or database
+      alert('User management functionality coming soon! This would update user details in the database.');
+      
+      setShowEditUserModal(false);
+      setEditingUser(null);
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      alert(`Unexpected error: ${err}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getRecentActivities = useCallback(() => {
     // Filter activities to only show those from the last 7 days
     const sevenDaysAgo = new Date();
@@ -981,13 +1337,18 @@ const MMCCalendar = () => {
       .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
   }, [recentActivities]);
 
-  const filterCounts = {
-    blogPosts: allTasksWithRecurring.filter(t => t.category === 'blogPosts' && t.status !== 'deleted' && (!selectedTeamMember || (t.assignees && t.assignees.includes(selectedTeamMember)) || t.assignee === selectedTeamMember)).length,
-    socialMedia: allTasksWithRecurring.filter(t => t.category === 'socialMedia' && t.status !== 'deleted' && (!selectedTeamMember || (t.assignees && t.assignees.includes(selectedTeamMember)) || t.assignee === selectedTeamMember)).length,
-    campaigns: allTasksWithRecurring.filter(t => t.category === 'campaigns' && t.status !== 'deleted' && (!selectedTeamMember || (t.assignees && t.assignees.includes(selectedTeamMember)) || t.assignee === selectedTeamMember)).length,
-    emailMarketing: allTasksWithRecurring.filter(t => t.category === 'emailMarketing' && t.status !== 'deleted' && (!selectedTeamMember || (t.assignees && t.assignees.includes(selectedTeamMember)) || t.assignee === selectedTeamMember)).length,
-    vacations: allTasksWithRecurring.filter(t => t.category === 'vacations' && t.status !== 'deleted' && (!selectedTeamMember || (t.assignees && t.assignees.includes(selectedTeamMember)) || t.assignee === selectedTeamMember)).length
-  };
+  // Dynamic filter counts based on available categories
+  const filterCounts = useMemo(() => {
+    const counts: { [key: string]: number } = {};
+    categories.forEach(category => {
+      counts[category.name] = allTasksWithRecurring.filter(t => 
+        t.category === category.name && 
+        t.status !== 'deleted' && 
+        (!selectedTeamMember || (t.assignees && t.assignees.includes(selectedTeamMember)) || t.assignee === selectedTeamMember)
+      ).length;
+    });
+    return counts;
+  }, [allTasksWithRecurring, selectedTeamMember, categories]);
 
   const allFilteredTasks = getAllFilteredTasks();
   
@@ -1088,7 +1449,7 @@ const MMCCalendar = () => {
         created_at: completeTask.created_at || null,
         created_by: completeTask.created_by || null,
         description: completeTask.description || 'No description',
-        color: completeTask.color || 'bg-gray-100',
+        color: completeTask.color || getCategoryConfig(completeTask.category).color,
         time: completeTask.time || '',
         category: completeTask.category || 'General',
         tags: completeTask.tags || [],
@@ -1106,7 +1467,7 @@ const MMCCalendar = () => {
       assignee: task.assignee || null,
       assignees: task.assignees || [],
       description: task.description || 'No description',
-      color: task.color || 'bg-gray-100',
+      color: task.color || getCategoryConfig(task.category).color,
       time: task.time || '',
       category: task.category || 'General',
       created_at: task.created_at || null,
@@ -1151,7 +1512,7 @@ const MMCCalendar = () => {
       
       const task = {
         ...cleanedTask,
-        color: categoryConfig[newTask.category].color,
+        color: getCategoryConfig(newTask.category).color,
         created_by: newTask.created_by
       };
       
@@ -1360,7 +1721,7 @@ const MMCCalendar = () => {
       if (cleanedTask.end_date === '') cleanedTask.end_date = null;
       if (cleanedTask.recurring_end_date === '') cleanedTask.recurring_end_date = null;
       
-      const updatedTask = { ...cleanedTask, color: categoryConfig[editingTask.category].color };
+      const updatedTask = { ...cleanedTask, color: getCategoryConfig(editingTask.category).color };
       
       const isRecurring = editingTask.is_recurring || editingTask.is_recurring_instance;
       
@@ -2160,46 +2521,51 @@ const MMCCalendar = () => {
         <div className="mb-6">
           <h3 className="text-sm font-medium text-gray-900 mb-3">Filters</h3>
           <div className="space-y-2">
-            {[
-              { key: 'blogPosts', label: 'Blog Posts', count: filterCounts.blogPosts },
-              { key: 'socialMedia', label: 'Social Media', count: filterCounts.socialMedia },
-              { key: 'campaigns', label: 'Campaigns', count: filterCounts.campaigns },
-              { key: 'emailMarketing', label: 'Email Marketing', count: filterCounts.emailMarketing },
-              { key: 'vacations', label: 'Vacations', count: filterCounts.vacations }
-            ].map(filter => (
-              <label key={filter.key} className={`flex items-center space-x-2 ${
+            {categories.map(category => (
+              <label key={category.name} className={`flex items-center space-x-2 ${
                 user !== 'guest' ? 'cursor-pointer' : 'cursor-default'
               }`}>
                 <input
                   type="checkbox"
-                  checked={selectedFilters[filter.key]}
-                  onChange={user !== 'guest' ? () => toggleFilter(filter.key) : undefined}
+                  checked={selectedFilters[category.name] || false}
+                  onChange={user !== 'guest' ? () => toggleFilter(category.name) : undefined}
                   disabled={user === 'guest'}
                   className="rounded border-gray-300"
                 />
                 <div className="flex items-center space-x-2 flex-1">
-                  <div className={`w-3 h-3 rounded-full ${
-                    filter.key === 'blogPosts' ? 'bg-blue-500' :
-                    filter.key === 'socialMedia' ? 'bg-green-500' :
-                    filter.key === 'campaigns' ? 'bg-purple-500' :
-                    filter.key === 'emailMarketing' ? 'bg-orange-500' :
-                    'bg-gray-500'
-                  }`}></div>
-                  <span className="text-sm text-gray-700">{filter.label}</span>
+                  <div 
+                    className={`w-3 h-3 rounded-full ${
+                      category.color_class.includes('bg-[') 
+                        ? '' 
+                        : category.color_class.includes('blue') ? 'bg-blue-500' :
+                          category.color_class.includes('green') ? 'bg-green-500' :
+                          category.color_class.includes('purple') ? 'bg-purple-500' :
+                          category.color_class.includes('orange') ? 'bg-orange-500' :
+                          category.color_class.includes('red') ? 'bg-red-500' :
+                          category.color_class.includes('yellow') ? 'bg-yellow-500' :
+                          category.color_class.includes('pink') ? 'bg-pink-500' :
+                          category.color_class.includes('indigo') ? 'bg-indigo-500' :
+                          category.color_class.includes('teal') ? 'bg-teal-500' :
+                          category.color_class.includes('cyan') ? 'bg-cyan-500' :
+                          category.color_class.includes('lime') ? 'bg-lime-500' :
+                          'bg-gray-500'
+                    }`}
+                    style={{
+                      backgroundColor: category.color_class.includes('bg-[') 
+                        ? category.color_class.match(/bg-\[([^\]]+)\]/)?.[1] || '#6B7280'
+                        : undefined
+                    }}
+                  ></div>
+                  <span className="text-sm text-gray-700">{category.display_name}</span>
                 </div>
-                <span className={`text-xs px-2 py-1 rounded ${
-                  filter.key === 'blogPosts' ? 'bg-blue-100 text-blue-800' :
-                  filter.key === 'socialMedia' ? 'bg-green-100 text-green-800' :
-                  filter.key === 'campaigns' ? 'bg-purple-100 text-purple-800' :
-                  filter.key === 'emailMarketing' ? 'bg-orange-100 text-orange-800' :
-                  'bg-gray-100 text-gray-800'
-                }`}>
-                  {filter.count}
+                <span className={`text-xs px-2 py-1 rounded ${category.color_class}`}>
+                  {filterCounts[category.name] || 0}
                 </span>
               </label>
             ))}
           </div>
         </div>
+
         {/* Team Members */}
         <div className="mb-6">
           <h3 className="text-sm font-medium text-gray-900 mb-3">
@@ -2253,112 +2619,144 @@ const MMCCalendar = () => {
             ))}
           </div>
         </div>
-        {/* Past Due Events */}
-        <div className="mb-4">
-          <div className="flex items-center mb-3">
-            <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
-            <h3 className="text-lg font-medium text-gray-900">Overdue Tasks</h3>
-            {getOverdueTasks().length > 0 && (
-              <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs font-medium rounded-full">
-                {getOverdueTasks().length}
-              </span>
-            )}
-          </div>
-          <div className="space-y-3">
-            {getOverdueTasks().map(task => (
-              <div 
-                key={task.id} 
-                className={`p-3 bg-red-50 border border-red-200 rounded-lg transition-colors ${
-                  user !== 'guest' ? 'cursor-pointer hover:bg-red-100' : 'cursor-default'
-                }`}
-                onClick={user !== 'guest' ? () => {
-                  setSelectedTask(ensureCompleteTaskData(task));
-                  setShowTaskModal(true);
-                } : undefined}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900 text-sm">{task.title}</h4>
-                    <p className="text-xs text-gray-600 mt-1">{task.description}</p>
-                    <div className="flex items-center space-x-2 mt-2">
-                      <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                        {task.type}
-                      </span>
-                      <span className="text-xs text-red-600 font-medium">
-                        {monthNames[task.month]} {task.date}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-medium ml-2">
-                    {teamMembers.find(m => m.id === task.created_by)?.avatar || '?'}
-                  </div>
-                </div>
-              </div>
-            ))}
-            {getOverdueTasks().length === 0 && (
-              <div className="text-center py-4">
-                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                  <span className="text-green-600 text-sm">✓</span>
-                </div>
-                <div className="text-xs text-gray-500">No overdue tasks</div>
-              </div>
-            )}
-          </div>
-        </div>
 
-        {/* High Priority Tasks */}
-        <div className="mb-4">
-          <div className="flex items-center mb-3">
-            <div className="w-2 h-2 bg-orange-500 rounded-full mr-2"></div>
-            <h3 className="text-lg font-medium text-gray-900">High Priority</h3>
-            {getHighPriorityTasks().length > 0 && (
-              <span className="ml-2 px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-full">
-                {getHighPriorityTasks().length}
-              </span>
-            )}
-          </div>
-          <div className="space-y-3">
-            {getHighPriorityTasks().map(task => (
-              <div 
-                key={task.id} 
-                className={`p-3 bg-orange-50 border border-orange-200 rounded-lg transition-colors ${
-                  user !== 'guest' ? 'cursor-pointer hover:bg-orange-100' : 'cursor-default'
-                }`}
-                onClick={user !== 'guest' ? () => {
-                  setSelectedTask(ensureCompleteTaskData(task));
-                  setShowTaskModal(true);
-                } : undefined}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900 text-sm">{task.title}</h4>
-                    <p className="text-xs text-gray-600 mt-1">{task.description}</p>
-                    <div className="flex items-center space-x-2 mt-2">
-                      <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
-                        {task.type}
-                      </span>
-                      <span className="text-xs text-orange-600 font-medium">
-                        {monthNames[task.month]} {task.date}
-                      </span>
-                      <span className="text-xs">🔴</span>
+        {/* Admin Section - Bottom of Sidebar */}
+        {isAdmin && (
+          <div className="mt-auto">
+            {/* Separator */}
+            <div className="border-t border-gray-200 my-4"></div>
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium text-blue-900">Admin Section</h3>
+                <button
+                  onClick={() => setShowCategoryManagement(!showCategoryManagement)}
+                  className="text-xs text-blue-600 hover:text-blue-800"
+                >
+                  {showCategoryManagement ? 'Hide' : 'Manage All'}
+                </button>
+              </div>
+              
+              {showCategoryManagement && (
+                <div className="space-y-4">
+                  {/* Category Management */}
+                  <div>
+                    <h4 className="text-xs font-medium text-blue-700 mb-2 uppercase tracking-wide">Category Management</h4>
+                    <div className="space-y-2">
+                      {categories.map(category => (
+                        <div key={category.id} className="flex items-center justify-between p-2 bg-white rounded-lg border border-blue-100">
+                          <div className="flex items-center space-x-2 flex-1">
+                            <div 
+                              className={`w-3 h-3 rounded-full ${
+                                category.color_class.includes('bg-[') 
+                                  ? '' 
+                                  : category.color_class.includes('blue') ? 'bg-blue-500' :
+                                    category.color_class.includes('green') ? 'bg-green-500' :
+                                    category.color_class.includes('purple') ? 'bg-purple-500' :
+                                    category.color_class.includes('orange') ? 'bg-orange-500' :
+                                    category.color_class.includes('red') ? 'bg-red-500' :
+                                    category.color_class.includes('yellow') ? 'bg-yellow-500' :
+                                    category.color_class.includes('pink') ? 'bg-pink-500' :
+                                    category.color_class.includes('indigo') ? 'bg-indigo-500' :
+                                    category.color_class.includes('teal') ? 'bg-teal-500' :
+                                    category.color_class.includes('cyan') ? 'bg-cyan-500' :
+                                    category.color_class.includes('lime') ? 'bg-lime-500' :
+                                    'bg-gray-500'
+                              }`}
+                              style={{
+                                backgroundColor: category.color_class.includes('bg-[') 
+                                  ? category.color_class.match(/bg-\[([^\]]+)\]/)?.[1] || '#6B7280'
+                                  : undefined
+                              }}
+                            ></div>
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-gray-900">{category.display_name}</div>
+                              <div className="text-xs text-gray-500">{category.type} • {filterCounts[category.name] || 0} tasks</div>
+                            </div>
+                          </div>
+                          <div className="flex space-x-1">
+                            <button
+                              onClick={() => handleEditCategory(category)}
+                              className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+                              title="Edit category"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            {category.is_custom && (
+                              <button
+                                onClick={() => {
+                                  setCategoryToDelete(category);
+                                  setShowDeleteCategoryModal(true);
+                                }}
+                                className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                                title="Delete category"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                  <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white text-xs font-medium ml-2">
-                    {teamMembers.find(m => m.id === task.created_by)?.avatar || '?'}
+
+                  {/* User Management */}
+                  <div>
+                    <h4 className="text-xs font-medium text-blue-700 mb-2 uppercase tracking-wide">User Management</h4>
+                    <div className="space-y-2">
+                      {teamMembers.map(member => (
+                        <div key={member.id} className="flex items-center justify-between p-2 bg-white rounded-lg border border-blue-100">
+                          <div className="flex items-center space-x-2 flex-1">
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium ${member.color}`}>
+                              {member.avatar}
+                            </div>
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-gray-900">{member.name}</div>
+                              <div className="text-xs text-gray-500">{member.role}</div>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <div className={`w-2 h-2 rounded-full ${member.active ? 'bg-green-400' : 'bg-gray-400'}`}></div>
+                            <span className="text-xs text-gray-500">
+                              {member.active ? 'Active' : 'Inactive'}
+                            </span>
+                            <button
+                              onClick={() => handleEditUser(member)}
+                              className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+                              title="Edit user"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="pt-2 border-t border-blue-200">
+                        <button
+                          onClick={() => {
+                            // TODO: Add user creation functionality
+                            alert('User creation functionality coming soon!');
+                          }}
+                          className="w-full flex items-center justify-center space-x-2 p-2 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-lg border border-dashed border-blue-300"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                          </svg>
+                          <span>Add New User</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-            {getHighPriorityTasks().length === 0 && (
-              <div className="text-center py-4">
-                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                  <span className="text-green-600 text-sm">✓</span>
-                </div>
-                <div className="text-xs text-gray-500">No high priority tasks</div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         </div>
       </div>
@@ -2500,7 +2898,7 @@ const MMCCalendar = () => {
                         <div className="text-sm text-gray-600 truncate">{task.description}</div>
                         <div className="flex items-center space-x-2 mt-1">
                           <span className={`text-xs px-2 py-1 rounded ${task.color}`}>
-                            {task.type}
+                            {getTaskCategoryDisplayName(task)}
                           </span>
                           <span className="text-xs text-gray-500">
                             {monthNames[task.month || currentDate.getMonth()]} {task.date}, {task.year || currentDate.getFullYear()}
@@ -2782,7 +3180,7 @@ const MMCCalendar = () => {
                               </div>
                               <div className={`${
                                 task.status === 'completed' ? 'text-gray-400' : 'text-gray-600'
-                              }`}>{task.type}</div>
+                              }`}>{getTaskCategoryDisplayName(task)}</div>
                               <div className={`${
                                 task.status === 'completed' ? 'text-gray-400' : 'text-gray-500'
                               }`}>{getAssigneesDisplay(task)}</div>
@@ -2865,7 +3263,7 @@ const MMCCalendar = () => {
                           <div className="text-sm text-gray-600 mb-3">{task.description}</div>
                           <div className="flex items-center justify-between mb-2">
                             <span className={`text-xs px-2 py-1 rounded ${task.color}`}>
-                              {task.type}
+                              {getTaskCategoryDisplayName(task)}
                             </span>
                             <div className="flex items-center space-x-2">
                               <Calendar className="w-4 h-4 text-gray-400" />
@@ -2943,8 +3341,14 @@ const MMCCalendar = () => {
       </div>
       {/* New Entry Modal */}
       {showNewEntryModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-2 md:p-4">
-          <div className="bg-white rounded-lg p-4 md:p-6 w-full max-w-[95vw] md:w-[800px] mx-2 md:mx-4 max-h-[90vh] overflow-y-auto">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-2 md:p-4"
+          onClick={() => setShowNewEntryModal(false)}
+        >
+          <div 
+            className="bg-white rounded-lg p-4 md:p-6 w-full max-w-[95vw] md:w-[800px] mx-2 md:mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-gray-900">
                 New Entry
@@ -3125,22 +3529,33 @@ const MMCCalendar = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                  <select
-                    value={newTask.category || ''}
-                    onChange={(e) => setNewTask((prev: any) => ({ 
-                      ...prev, 
-                      category: e.target.value,
-                      type: categoryConfig[e.target.value].type
-                    }))}
-                    className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select Category</option>
-                    <option value="blogPosts">Blog Posts</option>
-                    <option value="socialMedia">Social Media</option>
-                    <option value="campaigns">Campaigns</option>
-                    <option value="emailMarketing">Email Marketing</option>
-                    <option value="vacations">Vacations</option>
-                  </select>
+                  <div className="flex gap-2">
+                    <select
+                      value={newTask.category || ''}
+                      onChange={(e) => {
+                        setNewTask((prev: any) => ({ 
+                          ...prev, 
+                          category: e.target.value,
+                          type: getCategoryConfig(e.target.value).type
+                        }));
+                      }}
+                      className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select Category</option>
+                      {categories.map((category) => (
+                        <option key={category.name} value={category.name}>
+                          {category.display_name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => setShowCustomCategoryModal(true)}
+                      className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    >
+                      + New
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Assignees</label>
@@ -3453,6 +3868,94 @@ const MMCCalendar = () => {
           </div>
         </div>
       )}
+      {/* Custom Category Modal */}
+      {showCustomCategoryModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-2 md:p-4"
+          onClick={() => setShowCustomCategoryModal(false)}
+        >
+          <div 
+            className="bg-white rounded-lg p-4 md:p-6 w-full max-w-[95vw] md:w-[500px] mx-2 md:mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">Create Custom Category</h3>
+              <button
+                onClick={() => setShowCustomCategoryModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Category Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={customCategory.name}
+                  onChange={(e) => setCustomCategory(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., Meetings, Projects, Events"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Type</label>
+                <input
+                  type="text"
+                  value={customCategory.type}
+                  disabled
+                  className="w-full border border-gray-200 rounded-md px-3 py-2 bg-gray-50 text-gray-500 cursor-not-allowed"
+                />
+                <p className="text-xs text-gray-400 mt-1">Custom categories are automatically set to "Custom" type</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                
+                {/* Preset Colors */}
+                <div className="grid grid-cols-4 gap-2">
+                  {colorOptions.map((color) => (
+                    <button
+                      key={color.name}
+                      type="button"
+                      onClick={() => {
+                        setCustomCategory(prev => ({ ...prev, color_class: color.class }));
+                      }}
+                      className={`p-3 rounded-md border-2 ${
+                        customCategory.color_class === color.class 
+                          ? 'border-blue-500 ring-2 ring-blue-200' 
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                      title={color.name}
+                    >
+                      <div className={`w-full h-6 rounded ${color.class} flex items-center justify-center text-xs font-medium`}>
+                        {color.name}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex space-x-3 mt-6">
+              <button
+                onClick={() => setShowCustomCategoryModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateCustomCategory}
+                disabled={!customCategory.name.trim()}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Create Category
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Task Details Modal */}
       {showTaskModal && selectedTask && (
         <div 
@@ -3479,9 +3982,9 @@ const MMCCalendar = () => {
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">TYPE</label>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">CATEGORY</label>
                   <span className={`text-xs px-2 py-1 rounded ${selectedTask.color || 'bg-gray-100'}`}>
-                    {selectedTask.type || 'General'}
+                    {getTaskCategoryDisplayName(selectedTask)}
                   </span>
                 </div>
                 <div>
@@ -3675,8 +4178,14 @@ const MMCCalendar = () => {
       )}
       {/* Edit Task Modal */}
       {showEditModal && editingTask && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-2 md:p-4">
-          <div className="bg-white rounded-lg p-4 md:p-6 w-full max-w-[95vw] md:w-[800px] mx-2 md:mx-4 max-h-[90vh] overflow-y-auto">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-2 md:p-4"
+          onClick={() => setShowEditModal(false)}
+        >
+          <div 
+            className="bg-white rounded-lg p-4 md:p-6 w-full max-w-[95vw] md:w-[800px] mx-2 md:mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-gray-900">Edit Task</h3>
               <button
@@ -3891,15 +4400,16 @@ const MMCCalendar = () => {
                     onChange={(e) => setEditingTask((prev: any) => ({ 
                       ...prev, 
                       category: e.target.value,
-                      type: categoryConfig[e.target.value].type
+                      type: getCategoryConfig(e.target.value).type
                     }))}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="blogPosts">Blog Posts</option>
-                    <option value="socialMedia">Social Media</option>
-                    <option value="campaigns">Campaigns</option>
-                    <option value="emailMarketing">Email Marketing</option>
-                    <option value="vacations">Vacations</option>
+                    <option value="">Select Category</option>
+                    {categories.map((category) => (
+                      <option key={category.name} value={category.name}>
+                        {category.display_name}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -4291,7 +4801,7 @@ const MMCCalendar = () => {
                               <p className="text-xs text-gray-600 mt-1">{task.description}</p>
                               <div className="flex items-center mt-2 space-x-2">
                                 <span className={`text-xs px-2 py-1 rounded ${task.color}`}>
-                                  {task.type}
+                                  {getTaskCategoryDisplayName(task)}
                                 </span>
                                 <span className="text-xs text-red-600 font-medium">
                                   {monthNames[task.month]} {task.date}
@@ -4341,7 +4851,7 @@ const MMCCalendar = () => {
                               <p className="text-xs text-gray-600 mt-1">{task.description}</p>
                               <div className="flex items-center mt-2 space-x-2">
                                 <span className={`text-xs px-2 py-1 rounded ${task.color}`}>
-                                  {task.type}
+                                  {getTaskCategoryDisplayName(task)}
                                 </span>
                                 <span className="text-xs text-orange-600 font-medium">
                                   {monthNames[task.month]} {task.date}
@@ -4510,6 +5020,268 @@ const MMCCalendar = () => {
                   )}
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Category Modal */}
+      {showEditCategoryModal && editingCategory && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-2 md:p-4"
+          onClick={() => setShowEditCategoryModal(false)}
+        >
+          <div 
+            className="bg-white rounded-lg p-4 md:p-6 w-full max-w-[95vw] md:w-[500px] mx-2 md:mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">Edit Category</h3>
+              <button
+                onClick={() => setShowEditCategoryModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Category Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editingCategory.display_name}
+                  onChange={(e) => setEditingCategory(prev => ({ ...prev, display_name: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., Events/webinars"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <select
+                  value={editingCategory.type}
+                  onChange={(e) => setEditingCategory(prev => ({ ...prev, type: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="Blog">Blog</option>
+                  <option value="Social">Social</option>
+                  <option value="Campaign">Campaign</option>
+                  <option value="Email">Email</option>
+                  <option value="Vacation">Vacation</option>
+                  <option value="Custom">Custom</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {colorOptions.map((color) => (
+                    <button
+                      key={color.name}
+                      type="button"
+                      onClick={() => setEditingCategory(prev => ({ ...prev, color_class: color.class }))}
+                      className={`p-3 rounded-md border-2 ${
+                        editingCategory.color_class === color.class 
+                          ? 'border-blue-500 ring-2 ring-blue-200' 
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                      title={color.name}
+                    >
+                      <div className={`w-full h-6 rounded ${color.class} flex items-center justify-center text-xs font-medium`}>
+                        {color.name}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex space-x-3 mt-6">
+              <button
+                onClick={() => setShowEditCategoryModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEditCategory}
+                disabled={!editingCategory.display_name.trim()}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Category Modal */}
+      {showDeleteCategoryModal && categoryToDelete && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-2 md:p-4"
+          onClick={() => setShowDeleteCategoryModal(false)}
+        >
+          <div 
+            className="bg-white rounded-lg p-4 md:p-6 w-full max-w-[95vw] md:w-[500px] mx-2 md:mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">Delete Category</h3>
+              <button
+                onClick={() => setShowDeleteCategoryModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="p-4 bg-red-50 rounded-lg">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.726-1.36 3.491 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-red-800">
+                      Are you sure you want to delete "{categoryToDelete.display_name}"?
+                    </h3>
+                    <div className="mt-2 text-sm text-red-700">
+                      <p>This action cannot be undone. All tasks using this category will need to be reassigned.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Reassign tasks to:
+                </label>
+                <select
+                  value={reassignToCategory}
+                  onChange={(e) => setReassignToCategory(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select a category...</option>
+                  {categories
+                    .filter(cat => cat.id !== categoryToDelete.id)
+                    .map((category) => (
+                      <option key={category.name} value={category.name}>
+                        {category.display_name}
+                      </option>
+                    ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Choose where to move all tasks currently assigned to this category.
+                </p>
+              </div>
+            </div>
+            <div className="flex space-x-3 mt-6">
+              <button
+                onClick={() => setShowDeleteCategoryModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteCategory}
+                disabled={!reassignToCategory}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Delete Category
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {showEditUserModal && editingUser && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-2 md:p-4"
+          onClick={() => setShowEditUserModal(false)}
+        >
+          <div 
+            className="bg-white rounded-lg p-4 md:p-6 w-full max-w-[95vw] md:w-[500px] mx-2 md:mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">Edit User</h3>
+              <button
+                onClick={() => setShowEditUserModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  User Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editingUser.name}
+                  onChange={(e) => setEditingUser(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., John Doe"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <input
+                  type="text"
+                  value={editingUser.role}
+                  onChange={(e) => setEditingUser(prev => ({ ...prev, role: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., Manager, Developer, Designer"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select
+                  value={editingUser.active ? 'active' : 'inactive'}
+                  onChange={(e) => setEditingUser(prev => ({ ...prev, active: e.target.value === 'active' }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Avatar Color</label>
+                <div className="grid grid-cols-6 gap-2">
+                  {['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 'bg-red-500', 'bg-yellow-500'].map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setEditingUser(prev => ({ ...prev, color }))}
+                      className={`w-8 h-8 rounded-full ${color} ${
+                        editingUser.color === color 
+                          ? 'ring-2 ring-blue-500 ring-offset-2' 
+                          : 'hover:opacity-80'
+                      }`}
+                      title={color.replace('bg-', '').replace('-500', '')}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex space-x-3 mt-6">
+              <button
+                onClick={() => setShowEditUserModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEditUser}
+                disabled={!editingUser.name.trim()}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Save Changes
+              </button>
             </div>
           </div>
         </div>
