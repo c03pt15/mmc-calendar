@@ -446,6 +446,16 @@ const MMCCalendar = () => {
   const [showUserManagement, setShowUserManagement] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
+  const [showPasswordChangeModal, setShowPasswordChangeModal] = useState(false);
+  const [passwordChangeForm, setPasswordChangeForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [passwordChangeError, setPasswordChangeError] = useState('');
+  const [passwordChangeSuccess, setPasswordChangeSuccess] = useState('');
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [newTask, setNewTask] = useState<any>({
     title: '',
     description: '',
@@ -813,13 +823,21 @@ const MMCCalendar = () => {
     setAuthError('');
     
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       
       if (error) {
         setAuthError(error.message);
+      } else {
+        setUser(data.user);
+        setShowLogin(false);
+        // Save credentials if remember me is checked
+        saveCredentials(email, password);
+        setEmail('');
+        setPassword('');
+        setRememberMe(false);
       }
     } catch (error) {
       setAuthError('An unexpected error occurred');
@@ -832,6 +850,84 @@ const MMCCalendar = () => {
       setShowLogin(false);
     } else {
       await supabase.auth.signOut();
+    }
+    // Clear remembered credentials on logout
+    localStorage.removeItem('rememberedEmail');
+    localStorage.removeItem('rememberedPassword');
+  };
+
+  // Load remembered credentials on component mount
+  useEffect(() => {
+    const rememberedEmail = localStorage.getItem('rememberedEmail');
+    const rememberedPassword = localStorage.getItem('rememberedPassword');
+    if (rememberedEmail && rememberedPassword) {
+      setEmail(rememberedEmail);
+      setPassword(rememberedPassword);
+      setRememberMe(true);
+    }
+  }, []);
+
+  // Save credentials if remember me is checked
+  const saveCredentials = (email: string, password: string) => {
+    if (rememberMe) {
+      localStorage.setItem('rememberedEmail', email);
+      localStorage.setItem('rememberedPassword', password);
+    } else {
+      localStorage.removeItem('rememberedEmail');
+      localStorage.removeItem('rememberedPassword');
+    }
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordChangeError('');
+    setPasswordChangeSuccess('');
+
+    // Validate form
+    if (passwordChangeForm.newPassword !== passwordChangeForm.confirmPassword) {
+      setPasswordChangeError('New passwords do not match');
+      return;
+    }
+
+    if (passwordChangeForm.newPassword.length < 6) {
+      setPasswordChangeError('Password must be at least 6 characters long');
+      return;
+    }
+
+    // Check for password complexity
+    const hasLowercase = /[a-z]/.test(passwordChangeForm.newPassword);
+    const hasUppercase = /[A-Z]/.test(passwordChangeForm.newPassword);
+    const hasNumber = /[0-9]/.test(passwordChangeForm.newPassword);
+    const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>?/~`]/.test(passwordChangeForm.newPassword);
+
+    if (!hasLowercase || !hasUppercase || !hasNumber || !hasSpecial) {
+      setPasswordChangeError('Password must contain at least one lowercase letter, one uppercase letter, one number, and one special character');
+      return;
+    }
+
+    try {
+      // Update password using Supabase
+      const { error } = await supabase.auth.updateUser({
+        password: passwordChangeForm.newPassword
+      });
+
+      if (error) {
+        setPasswordChangeError(error.message);
+      } else {
+        setPasswordChangeSuccess('Password updated successfully!');
+        setPasswordChangeForm({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
+        // Close modal after 2 seconds
+        setTimeout(() => {
+          setShowPasswordChangeModal(false);
+          setPasswordChangeSuccess('');
+        }, 2000);
+      }
+    } catch (error) {
+      setPasswordChangeError('An unexpected error occurred');
     }
   };
 
@@ -2357,6 +2453,21 @@ const MMCCalendar = () => {
                       required
                     />
             </div>
+
+            {!isSignUp && (
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="rememberMe"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="rememberMe" className="ml-2 block text-sm text-gray-700">
+                  Remember me
+                </label>
+              </div>
+            )}
             
             {authError && (
               <div className="text-red-600 text-sm text-center">
@@ -2805,6 +2916,96 @@ const MMCCalendar = () => {
               </button>
             </div>
             <div className="flex items-center space-x-2 md:space-x-4">
+              {/* User Menu - Moved to first position */}
+              {user && user !== 'guest' && (
+                <div className="flex items-center space-x-4">
+                  <div 
+                    className="relative group"
+                    onMouseEnter={() => setShowUserMenu(true)}
+                    onMouseLeave={() => setShowUserMenu(false)}
+                  >
+                    <button className="flex items-center space-x-1 px-2 py-1 rounded-md hover:bg-gray-100 transition-colors">
+                      <span className="text-sm md:text-base text-gray-600 hidden sm:inline">
+                        Hi, {user.user_metadata?.first_name || user.email?.split('@')[0]}
+                      </span>
+                      <span className="text-sm text-gray-600 sm:hidden">
+                        {user.user_metadata?.first_name || user.email?.split('@')[0]}
+                      </span>
+                      {getUserNotificationCount() > 0 && (
+                        <div 
+                          className="relative cursor-pointer hover:scale-105 transition-transform"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowPersonalTasks(true);
+                            setShowDrawer(true);
+                            setShowUserMenu(false);
+                          }}
+                          title={`${getUserNotificationCount()} urgent/overdue task${getUserNotificationCount() !== 1 ? 's' : ''} - Click to view`}
+                        >
+                          <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition-colors">
+                            <span className="text-white text-xs font-bold">
+                              {getUserNotificationCount() > 9 ? '9+' : getUserNotificationCount()}
+                            </span>
+                          </div>
+                          <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-600 rounded-full animate-pulse"></div>
+                        </div>
+                      )}
+                      <svg className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    
+                    {/* User Menu Dropdown */}
+                    <div 
+                      className={`absolute top-full left-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 transition-all duration-200 z-50 ${
+                        showUserMenu ? 'opacity-100 visible' : 'opacity-0 invisible'
+                      }`}
+                      onMouseEnter={() => setShowUserMenu(true)}
+                      onMouseLeave={() => setShowUserMenu(false)}
+                    >
+                      <div className="py-1">
+                        <button
+                          onClick={() => {
+                            setShowPersonalTasks(true);
+                            setShowDrawer(true);
+                            setShowUserMenu(false);
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center space-x-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span>Urgent/Overdue Tasks ({getUserNotificationCount()})</span>
+                        </button>
+                        <div className="border-t border-gray-100"></div>
+                        <button
+                          onClick={() => {
+                            setShowPasswordChangeModal(true);
+                            setShowUserMenu(false);
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center space-x-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                          </svg>
+                          <span>Change Password</span>
+                        </button>
+                        <div className="border-t border-gray-100"></div>
+                        <button
+                          onClick={handleSignOut}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center space-x-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                          </svg>
+                          <span>Logout</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Drawer Toggle Button */}
               <button
                 onClick={user !== 'guest' ? () => {
@@ -2838,7 +3039,7 @@ const MMCCalendar = () => {
               </button>
               
               {/* Recent Activities Button */}
-              <div className="relative group">
+              <div className="relative">
                 <button
                   onClick={user !== 'guest' ? () => setShowActivitiesDrawer(!showActivitiesDrawer) : undefined}
                   className={`relative p-2 rounded-lg transition-colors ${
@@ -2846,7 +3047,7 @@ const MMCCalendar = () => {
                       ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 cursor-pointer' 
                       : 'text-gray-400 cursor-not-allowed'
                   }`}
-                  title={user !== 'guest' ? "Open recent activities" : "Guest users cannot access activities"}
+                  title={user !== 'guest' ? "Recent activities (last 7 days)" : "Guest users cannot access activities"}
                   disabled={user === 'guest'}
                 >
                 <div className="w-6 h-6 relative">
@@ -2858,16 +3059,11 @@ const MMCCalendar = () => {
                 {recentActivities.length > 0 && (
                   <div className="absolute -top-1 -right-1 min-w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center px-1">
                     <span className="text-xs text-white font-bold">
-                      {recentActivities.length > 9 ? '9+' : recentActivities.length}
+                      {recentActivities.length}
                     </span>
                   </div>
                 )}
                 </button>
-                
-                {/* Tooltip */}
-                <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
-                  Recent activities (last 7 days)
-                </div>
               </div>
               
               {/* Search Box - Hidden on mobile, shown on desktop */}
@@ -2957,43 +3153,15 @@ const MMCCalendar = () => {
               )}
               
               <div className="flex items-center space-x-1 md:space-x-2">
-                {user && user !== 'guest' && (
-                  <div className="flex items-center space-x-2">
-                    <span className="text-xs md:text-sm text-gray-600 hidden sm:inline">
-                      Hi, {user.user_metadata?.first_name || user.email?.split('@')[0]}
-                    </span>
-                    <span className="text-xs text-gray-600 sm:hidden">
-                      {user.user_metadata?.first_name || user.email?.split('@')[0]}
-                    </span>
-                    {getUserNotificationCount() > 0 && (
-                      <div className="relative group">
-                        <div 
-                          className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center cursor-pointer hover:bg-red-600 transition-colors"
-                          onClick={user !== 'guest' ? () => {
-                            setShowPersonalTasks(true);
-                            setShowDrawer(true);
-                          } : undefined}
-                          title={`${getUserNotificationCount()} urgent/overdue task${getUserNotificationCount() !== 1 ? 's' : ''} - Click to view`}
-                        >
-                          <span className="text-white text-xs font-bold">
-                            {getUserNotificationCount() > 9 ? '9+' : getUserNotificationCount()}
-                          </span>
-                        </div>
-                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-600 rounded-full animate-pulse"></div>
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
-                          {getUserNotificationCount()} urgent/overdue task{getUserNotificationCount() !== 1 ? 's' : ''} - Click to view
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                {user === 'guest' && (
+                  <button 
+                    className="flex items-center space-x-1 md:space-x-2 bg-gray-100 text-gray-700 px-2 md:px-4 py-2 rounded-lg hover:bg-gray-200"
+                    onClick={handleSignOut}
+                  >
+                    <User className="w-4 h-4" />
+                    <span className="hidden sm:inline">Exit</span>
+                  </button>
                 )}
-                <button 
-                  className="flex items-center space-x-1 md:space-x-2 bg-gray-100 text-gray-700 px-2 md:px-4 py-2 rounded-lg hover:bg-gray-200"
-                  onClick={handleSignOut}
-                >
-                  <User className="w-4 h-4" />
-                  <span className="hidden sm:inline">{user === 'guest' ? 'Exit' : 'Logout'}</span>
-                </button>
               </div>
               
               
@@ -4909,7 +5077,10 @@ const MMCCalendar = () => {
             <div className="flex flex-col h-full">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
-                <h2 className="text-xl font-semibold text-gray-900">Recent Activities</h2>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Recent Activities</h2>
+                  <p className="text-sm text-gray-500 mt-1">Last 7 days</p>
+                </div>
                 <button
                   onClick={() => setShowActivitiesDrawer(false)}
                   className="p-2 rounded-lg transition-colors text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
@@ -5283,6 +5454,91 @@ const MMCCalendar = () => {
                 Save Changes
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Password Change Modal */}
+      {showPasswordChangeModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-2 md:p-4"
+          onClick={() => setShowPasswordChangeModal(false)}
+        >
+          <div 
+            className="bg-white rounded-lg p-4 md:p-6 w-full max-w-[95vw] md:w-[400px] mx-2 md:mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">Change Password</h3>
+              <button
+                onClick={() => setShowPasswordChangeModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handlePasswordChange} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  value={passwordChangeForm.newPassword}
+                  onChange={(e) => setPasswordChangeForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter new password"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Must contain at least 6 characters with lowercase, uppercase, number, and special character
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  value={passwordChangeForm.confirmPassword}
+                  onChange={(e) => setPasswordChangeForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Confirm new password"
+                  required
+                />
+              </div>
+
+              {passwordChangeError && (
+                <div className="text-red-600 text-sm bg-red-50 p-2 rounded">
+                  {passwordChangeError}
+                </div>
+              )}
+
+              {passwordChangeSuccess && (
+                <div className="text-green-600 text-sm bg-green-50 p-2 rounded">
+                  {passwordChangeSuccess}
+                </div>
+              )}
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordChangeModal(false)}
+                  className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!passwordChangeForm.newPassword || !passwordChangeForm.confirmPassword}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Change Password
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
