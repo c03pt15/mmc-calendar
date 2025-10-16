@@ -460,6 +460,30 @@ const MMCCalendar = () => {
   const [highlightPhase, setHighlightPhase] = useState<'appearing' | 'glowing' | 'disappearing' | null>(null);
   const [highlightedToday, setHighlightedToday] = useState<boolean>(false);
   const [todayHighlightPhase, setTodayHighlightPhase] = useState<'appearing' | 'glowing' | 'disappearing' | null>(null);
+  
+  // Custom notification system
+  const [notifications, setNotifications] = useState<Array<{
+    id: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+    message: string;
+    duration?: number;
+  }>>([]);
+
+  // Notification functions
+  const showNotification = (type: 'success' | 'error' | 'warning' | 'info', message: string, duration: number = 5000) => {
+    const id = Math.random().toString(36).substr(2, 9);
+    setNotifications(prev => [...prev, { id, type, message, duration }]);
+    
+    // Auto-remove notification after duration
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(notification => notification.id !== id));
+    }, duration);
+  };
+
+  const removeNotification = (id: string) => {
+    setNotifications(prev => prev.filter(notification => notification.id !== id));
+  };
+
   const [newTask, setNewTask] = useState<any>({
     title: '',
     description: '',
@@ -739,7 +763,7 @@ const MMCCalendar = () => {
         
         if (error) {
           console.error('Error fetching tasks:', error);
-          alert(`Error loading tasks: ${error.message}`);
+          showNotification('error', `Error loading tasks: ${error.message}`);
           return;
         }
         
@@ -751,7 +775,7 @@ const MMCCalendar = () => {
         }
       } catch (err) {
         console.error('Unexpected error fetching tasks:', err);
-        alert(`Unexpected error: ${err}`);
+        showNotification('error', `Unexpected error: ${err}`);
       } finally {
         setLoading(false);
       }
@@ -1178,7 +1202,7 @@ const MMCCalendar = () => {
   const handleCreateCustomCategory = async () => {
     try {
       if (!customCategory.name.trim()) {
-        alert('Please enter a category name');
+        showNotification('warning', 'Please enter a category name');
         return;
       }
 
@@ -1188,7 +1212,7 @@ const MMCCalendar = () => {
       );
       
       if (existingCategory) {
-        alert('A category with this name already exists');
+        showNotification('warning', 'A category with this name already exists');
         return;
       }
 
@@ -1212,7 +1236,7 @@ const MMCCalendar = () => {
 
       if (error) {
         console.error('Error creating category:', error);
-        alert(`Error creating category: ${error.message}`);
+        showNotification('error', `Error creating category: ${error.message}`);
         return;
       }
 
@@ -1235,11 +1259,11 @@ const MMCCalendar = () => {
           type: 'Custom'
         });
         
-        alert('Custom category created successfully!');
+        showNotification('success', 'Custom category created successfully!');
       }
     } catch (err) {
       console.error('Unexpected error:', err);
-      alert(`Unexpected error: ${err}`);
+      showNotification('error', `Unexpected error: ${err}`);
     } finally {
       setLoading(false);
     }
@@ -1293,7 +1317,7 @@ const MMCCalendar = () => {
   // Handle saving edited category
   const handleSaveEditCategory = async () => {
     if (!editingCategory || !editingCategory.name.trim()) {
-      alert('Please enter a category name');
+      showNotification('warning', 'Please enter a category name');
       return;
     }
 
@@ -1312,7 +1336,7 @@ const MMCCalendar = () => {
 
       if (error) {
         console.error('Error updating category:', error);
-        alert(`Error updating category: ${error.message}`);
+        showNotification('error', `Error updating category: ${error.message}`);
         return;
       }
 
@@ -1322,11 +1346,11 @@ const MMCCalendar = () => {
         );
         setShowEditCategoryModal(false);
         setEditingCategory(null);
-        alert('Category updated successfully!');
+        showNotification('success', 'Category updated successfully!');
       }
     } catch (err) {
       console.error('Unexpected error:', err);
-      alert(`Unexpected error: ${err}`);
+      showNotification('error', `Unexpected error: ${err}`);
     } finally {
       setLoading(false);
     }
@@ -1347,13 +1371,13 @@ const MMCCalendar = () => {
 
       if (tasksError) {
         console.error('Error fetching tasks:', tasksError);
-        alert(`Error fetching tasks: ${tasksError.message}`);
+        showNotification('error', `Error fetching tasks: ${tasksError.message}`);
         return;
       }
 
       if (tasksUsingCategory && tasksUsingCategory.length > 0) {
         if (!reassignToCategory) {
-          alert('Please select a category to reassign tasks to, or cancel to keep this category.');
+          showNotification('warning', 'Please select a category to reassign tasks to, or cancel to keep this category.');
           return;
         }
 
@@ -1365,7 +1389,7 @@ const MMCCalendar = () => {
 
         if (reassignError) {
           console.error('Error reassigning tasks:', reassignError);
-          alert(`Error reassigning tasks: ${reassignError.message}`);
+          showNotification('error', `Error reassigning tasks: ${reassignError.message}`);
           return;
         }
       }
@@ -1378,7 +1402,7 @@ const MMCCalendar = () => {
 
       if (deleteError) {
         console.error('Error deleting category:', deleteError);
-        alert(`Error deleting category: ${deleteError.message}`);
+        showNotification('error', `Error deleting category: ${deleteError.message}`);
         return;
       }
 
@@ -1388,10 +1412,10 @@ const MMCCalendar = () => {
       setCategoryToDelete(null);
       setReassignToCategory('');
       
-      alert(`Category deleted successfully! ${tasksUsingCategory?.length || 0} tasks were reassigned.`);
+        showNotification('success', `Category deleted successfully! ${tasksUsingCategory?.length || 0} tasks were reassigned.`);
     } catch (err) {
       console.error('Unexpected error:', err);
-      alert(`Unexpected error: ${err}`);
+      showNotification('error', `Unexpected error: ${err}`);
     } finally {
       setLoading(false);
     }
@@ -1406,7 +1430,7 @@ const MMCCalendar = () => {
   // Handle saving edited user
   const handleSaveEditUser = async () => {
     if (!editingUser || !editingUser.name.trim()) {
-      alert('Please enter a user name');
+      showNotification('warning', 'Please enter a user name');
       return;
     }
 
@@ -1415,13 +1439,13 @@ const MMCCalendar = () => {
 
       // For now, just show a placeholder message
       // In a real implementation, you would update the teamMembers array or database
-      alert('User management functionality coming soon! This would update user details in the database.');
+      showNotification('info', 'User management functionality coming soon! This would update user details in the database.');
       
       setShowEditUserModal(false);
       setEditingUser(null);
     } catch (err) {
       console.error('Unexpected error:', err);
-      alert(`Unexpected error: ${err}`);
+      showNotification('error', `Unexpected error: ${err}`);
     } finally {
       setLoading(false);
     }
@@ -1588,19 +1612,19 @@ const MMCCalendar = () => {
       
       // Validate required fields
       if (!newTask.category) {
-        alert('Please select a category');
+        showNotification('warning', 'Please select a category');
         return;
       }
       if (!newTask.assignees || newTask.assignees.length === 0) {
-        alert('Please select at least one assignee');
+        showNotification('warning', 'Please select at least one assignee');
         return;
       }
       if (!newTask.created_by) {
-        alert('Please select who created this task');
+        showNotification('warning', 'Please select who created this task');
         return;
       }
       if (newTask.is_recurring && (!newTask.recurring_unit || newTask.recurring_unit === '')) {
-        alert('Please select a recurring period');
+        showNotification('warning', 'Please select a recurring period');
         return;
       }
       
@@ -1621,7 +1645,7 @@ const MMCCalendar = () => {
       
       if (error) {
         console.error('Error saving task:', error);
-        alert(`Error saving task: ${error.message}`);
+        showNotification('error', `Error saving task: ${error.message}`);
         return;
       }
       
@@ -1640,7 +1664,7 @@ const MMCCalendar = () => {
       await refreshTasks();
     } catch (err) {
       console.error('Unexpected error:', err);
-      alert(`Unexpected error: ${err}`);
+      showNotification('error', `Unexpected error: ${err}`);
     } finally {
       setLoading(false);
     }
@@ -1673,7 +1697,7 @@ const MMCCalendar = () => {
       
       if (error) {
         console.error('Error fetching recurring task:', error);
-        alert(`Error loading recurring task: ${error.message}`);
+        showNotification('error', `Error loading recurring task: ${error.message}`);
         return;
       }
       
@@ -1688,7 +1712,7 @@ const MMCCalendar = () => {
       setShowEditModal(true);
     } catch (err) {
       console.error('Unexpected error:', err);
-      alert(`Unexpected error: ${err}`);
+      showNotification('error', `Unexpected error: ${err}`);
     } finally {
       setLoading(false);
     }
@@ -1868,7 +1892,7 @@ const MMCCalendar = () => {
           
           if (error) {
             console.error('Error updating modified instance:', error);
-            alert(`Error updating task: ${error.message}`);
+            showNotification('error', `Error updating task: ${error.message}`);
             return;
           }
         } else {
@@ -1879,7 +1903,7 @@ const MMCCalendar = () => {
           
           if (error) {
             console.error('Error creating modified instance:', error);
-            alert(`Error updating task: ${error.message}`);
+            showNotification('error', `Error updating task: ${error.message}`);
             return;
           }
         }
@@ -1891,7 +1915,7 @@ const MMCCalendar = () => {
         
         if (error) {
           console.error('Error updating task:', error);
-          alert(`Error updating task: ${error.message}`);
+          showNotification('error', `Error updating task: ${error.message}`);
           return;
         }
       }
@@ -1911,7 +1935,7 @@ const MMCCalendar = () => {
       await refreshTasks();
     } catch (err) {
       console.error('Unexpected error:', err);
-      alert(`Unexpected error: ${err}`);
+      showNotification('error', `Unexpected error: ${err}`);
     } finally {
       setLoading(false);
     }
@@ -1938,7 +1962,7 @@ const MMCCalendar = () => {
             
             if (result.error) {
               console.error('Error deleting recurring task:', result.error);
-              alert(`Error deleting recurring task: ${result.error.message}`);
+              showNotification('error', `Error deleting recurring task: ${result.error.message}`);
               return;
             }
           } else {
@@ -1973,7 +1997,7 @@ const MMCCalendar = () => {
             
             if (result.error) {
               console.error('Error marking instance as deleted:', result.error);
-              alert(`Error deleting task instance: ${result.error.message}`);
+              showNotification('error', `Error deleting task instance: ${result.error.message}`);
               return;
             }
             
@@ -1986,7 +2010,7 @@ const MMCCalendar = () => {
           await refreshTasks();
         } catch (err) {
           console.error('Unexpected error:', err);
-          alert(`Unexpected error: ${err}`);
+          showNotification('error', `Unexpected error: ${err}`);
         } finally {
           setLoading(false);
         }
@@ -2000,7 +2024,7 @@ const MMCCalendar = () => {
           
           if (result.error) {
             console.error('Error deleting task:', result.error);
-            alert(`Error deleting task: ${result.error.message}`);
+            showNotification('error', `Error deleting task: ${result.error.message}`);
             return;
           }
           
@@ -2009,7 +2033,7 @@ const MMCCalendar = () => {
           await refreshTasks();
         } catch (err) {
           console.error('Unexpected error:', err);
-          alert(`Unexpected error: ${err}`);
+          showNotification('error', `Unexpected error: ${err}`);
         } finally {
           setLoading(false);
         }
@@ -2610,6 +2634,73 @@ const MMCCalendar = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
+      {/* Notification System */}
+      <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[9999]">
+        {notifications.map((notification) => (
+          <div
+            key={notification.id}
+            className={`w-96 bg-white rounded-2xl shadow-2xl border-4 p-8 transform transition-all duration-300 ease-in-out relative ${
+              notification.type === 'success' ? 'border-green-500' :
+              notification.type === 'error' ? 'border-red-500' :
+              notification.type === 'warning' ? 'border-yellow-500' :
+              'border-blue-500'
+            }`}
+          >
+            {/* Close button in top-right corner */}
+            <button
+              className={`absolute top-2 right-2 inline-flex rounded-full p-1 bg-white border-2 shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                notification.type === 'success' ? 'text-green-500 border-green-500 hover:text-green-700 hover:bg-green-50 focus:ring-green-500' :
+                notification.type === 'error' ? 'text-red-500 border-red-500 hover:text-red-700 hover:bg-red-50 focus:ring-red-500' :
+                notification.type === 'warning' ? 'text-yellow-500 border-yellow-500 hover:text-yellow-700 hover:bg-yellow-50 focus:ring-yellow-500' :
+                'text-blue-500 border-blue-500 hover:text-blue-700 hover:bg-blue-50 focus:ring-blue-500'
+              }`}
+              onClick={() => removeNotification(notification.id)}
+            >
+              <span className="sr-only">Close</span>
+              <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+
+            {/* Main content */}
+            <div className="flex items-center justify-center">
+                <div className="flex-shrink-0 mr-4">
+                  {notification.type === 'success' && (
+                    <svg className="h-12 w-12 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                  {notification.type === 'error' && (
+                    <svg className="h-12 w-12 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                  {notification.type === 'warning' && (
+                    <svg className="h-12 w-12 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                  {notification.type === 'info' && (
+                    <svg className="h-12 w-12 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+                <div className="flex-1 text-center">
+                  <p className={`text-xl font-bold ${
+                    notification.type === 'success' ? 'text-green-800' :
+                    notification.type === 'error' ? 'text-red-800' :
+                    notification.type === 'warning' ? 'text-yellow-800' :
+                    'text-blue-800'
+                  }`}>
+                    {notification.message}
+                  </p>
+                </div>
+              </div>
+          </div>
+        ))}
+      </div>
+
       {/* Mobile Overlay */}
       {isMobile && sidebarOpen && (
         <div 
@@ -2929,7 +3020,7 @@ const MMCCalendar = () => {
                         <button
                           onClick={() => {
                             // TODO: Add user creation functionality
-                            alert('User creation functionality coming soon!');
+                            showNotification('info', 'User creation functionality coming soon!');
                           }}
                           className="w-full flex items-center justify-center space-x-2 p-2 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-lg border border-dashed border-blue-300"
                         >
@@ -5223,7 +5314,7 @@ const MMCCalendar = () => {
                           setShowActivitiesDrawer(false);
                         } else {
                           // Show a message that the task is not available
-                          alert(`Task "${taskTitle}" not found - it may have been deleted or is not currently loaded.`);
+                          showNotification('warning', `Task "${taskTitle}" not found - it may have been deleted or is not currently loaded.`);
                         }
                       }}
                     >
