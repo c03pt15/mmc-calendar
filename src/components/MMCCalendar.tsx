@@ -456,6 +456,8 @@ const MMCCalendar = () => {
   const [passwordChangeSuccess, setPasswordChangeSuccess] = useState('');
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [highlightedColumn, setHighlightedColumn] = useState<string | null>(null);
+  const [highlightPhase, setHighlightPhase] = useState<'appearing' | 'glowing' | 'disappearing' | null>(null);
   const [newTask, setNewTask] = useState<any>({
     title: '',
     description: '',
@@ -2540,6 +2542,31 @@ const MMCCalendar = () => {
     return tasks;
   };
 
+  const handleMonthlyOverviewClick = (status: string) => {
+    // Switch to Kanban view
+    setActiveView('Kanban');
+    
+    // Start the highlight animation sequence
+    setHighlightedColumn(status);
+    setHighlightPhase('appearing');
+    
+    // Phase 1: Appearing (0.5s)
+    setTimeout(() => {
+      setHighlightPhase('glowing');
+    }, 500);
+    
+    // Phase 2: Glowing (2s)
+    setTimeout(() => {
+      setHighlightPhase('disappearing');
+    }, 2500);
+    
+    // Phase 3: Disappearing (1s)
+    setTimeout(() => {
+      setHighlightedColumn(null);
+      setHighlightPhase(null);
+    }, 3500);
+  };
+
   const navigateMonth = (direction: number) => {
     setCurrentDate(prev => {
       const newDate = new Date(prev);
@@ -2576,7 +2603,15 @@ const MMCCalendar = () => {
       }`}>
         <div className="p-4 flex-1">
           <div className="mb-6">
-          <div className="flex items-center space-x-2 mb-4">
+          <div 
+            className="flex items-center space-x-2 mb-4 cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => {
+              const today = new Date();
+              setCurrentDate(new Date(today.getFullYear(), today.getMonth(), today.getDate()));
+              setActiveView('Calendar');
+            }}
+            title="Go to today"
+          >
             <div className="w-8 h-8 flex items-center justify-center">
               <img 
                 src={`${(import.meta as any).env?.BASE_URL || '/'}atlas-logo.png`} 
@@ -2591,19 +2626,35 @@ const MMCCalendar = () => {
         <div className="mb-6">
           <h3 className="text-sm font-medium text-gray-900 mb-3">Monthly Overview</h3>
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-green-50 rounded-lg p-3">
+            <div 
+              className="bg-green-50 rounded-lg p-3 cursor-pointer hover:bg-green-100 transition-colors"
+              onClick={() => handleMonthlyOverviewClick('planned')}
+              title="Click to view in Kanban"
+            >
               <div className="text-2xl font-bold text-green-600">{upcomingCount}</div>
-              <div className="text-xs text-gray-600">Upcoming</div>
+              <div className="text-xs text-gray-600">Planned</div>
             </div>
-            <div className="bg-yellow-50 rounded-lg p-3">
+            <div 
+              className="bg-yellow-50 rounded-lg p-3 cursor-pointer hover:bg-yellow-100 transition-colors"
+              onClick={() => handleMonthlyOverviewClick('in-progress')}
+              title="Click to view in Kanban"
+            >
               <div className="text-2xl font-bold text-yellow-600">{inProgressCount}</div>
               <div className="text-xs text-gray-600">In Progress</div>
             </div>
-            <div className="bg-orange-50 rounded-lg p-3">
+            <div 
+              className="bg-orange-50 rounded-lg p-3 cursor-pointer hover:bg-orange-100 transition-colors"
+              onClick={() => handleMonthlyOverviewClick('review')}
+              title="Click to view in Kanban"
+            >
               <div className="text-2xl font-bold text-orange-600">{reviewCount}</div>
-              <div className="text-xs text-gray-600">Under Review</div>
+              <div className="text-xs text-gray-600">Review</div>
             </div>
-            <div className="bg-blue-50 rounded-lg p-3">
+            <div 
+              className="bg-blue-50 rounded-lg p-3 cursor-pointer hover:bg-blue-100 transition-colors"
+              onClick={() => handleMonthlyOverviewClick('completed')}
+              title="Click to view in Kanban"
+            >
               <div className="text-2xl font-bold text-blue-600">{completedCount}</div>
               <div className="text-xs text-gray-600">Completed</div>
             </div>
@@ -2942,12 +2993,11 @@ const MMCCalendar = () => {
                           }}
                           title={`${getUserNotificationCount()} urgent/overdue task${getUserNotificationCount() !== 1 ? 's' : ''} - Click to view`}
                         >
-                          <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition-colors">
-                            <span className="text-white text-xs font-bold">
-                              {getUserNotificationCount() > 9 ? '9+' : getUserNotificationCount()}
-                            </span>
-                          </div>
-                          <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-600 rounded-full animate-pulse"></div>
+                      <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition-colors">
+                        <span className="text-white text-xs font-bold">
+                          {getUserNotificationCount() > 9 ? '9+' : getUserNotificationCount()}
+                        </span>
+                      </div>
                         </div>
                       )}
                       <svg className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3396,7 +3446,17 @@ const MMCCalendar = () => {
                 {kanbanColumns.map(column => (
                   <div 
                     key={column.id} 
-                    className={`${column.color} rounded-lg p-4`}
+                    className={`${column.color} rounded-lg p-4 transition-all duration-500 ${
+                      highlightedColumn === column.id 
+                        ? highlightPhase === 'appearing'
+                          ? 'ring-2 ring-blue-400 ring-opacity-50 shadow-md'
+                          : highlightPhase === 'glowing'
+                          ? 'ring-4 ring-blue-400 ring-opacity-75 shadow-xl'
+                          : highlightPhase === 'disappearing'
+                          ? 'ring-2 ring-blue-400 ring-opacity-25 shadow-sm'
+                          : ''
+                        : ''
+                    }`}
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, column.id)}
                   >
