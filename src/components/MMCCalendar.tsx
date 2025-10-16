@@ -458,6 +458,8 @@ const MMCCalendar = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [highlightedColumn, setHighlightedColumn] = useState<string | null>(null);
   const [highlightPhase, setHighlightPhase] = useState<'appearing' | 'glowing' | 'disappearing' | null>(null);
+  const [highlightedToday, setHighlightedToday] = useState<boolean>(false);
+  const [todayHighlightPhase, setTodayHighlightPhase] = useState<'appearing' | 'glowing' | 'disappearing' | null>(null);
   const [newTask, setNewTask] = useState<any>({
     title: '',
     description: '',
@@ -2567,6 +2569,31 @@ const MMCCalendar = () => {
     }, 3500);
   };
 
+  const handleTodayClick = () => {
+    const today = new Date();
+    setCurrentDate(new Date(today.getFullYear(), today.getMonth(), today.getDate()));
+    
+    // Start the highlight animation sequence for today's date
+    setHighlightedToday(true);
+    setTodayHighlightPhase('appearing');
+    
+    // Phase 1: Appearing (0.5s)
+    setTimeout(() => {
+      setTodayHighlightPhase('glowing');
+    }, 500);
+    
+    // Phase 2: Glowing (2s)
+    setTimeout(() => {
+      setTodayHighlightPhase('disappearing');
+    }, 2500);
+    
+    // Phase 3: Disappearing (1s)
+    setTimeout(() => {
+      setHighlightedToday(false);
+      setTodayHighlightPhase(null);
+    }, 3500);
+  };
+
   const navigateMonth = (direction: number) => {
     setCurrentDate(prev => {
       const newDate = new Date(prev);
@@ -2958,10 +2985,7 @@ const MMCCalendar = () => {
               </div>
               <button 
                 className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-md hover:bg-blue-200"
-                onClick={() => {
-                  const today = new Date();
-                  setCurrentDate(new Date(today.getFullYear(), today.getMonth(), today.getDate()));
-                }}
+                onClick={handleTodayClick}
               >
                 Today
               </button>
@@ -3264,8 +3288,20 @@ const MMCCalendar = () => {
                 {days.map((day, index) => (
                   <div
                     key={index}
-                    className={`border-r border-b border-gray-200 last:border-r-0 p-1 md:p-2 min-h-[80px] md:min-h-[120px] relative cursor-pointer hover:bg-gray-50 ${
+                    className={`border-r border-b border-gray-200 last:border-r-0 p-1 md:p-2 min-h-[80px] md:min-h-[120px] relative cursor-pointer hover:bg-gray-50 transition-all duration-500 ${
                       dragOverDate === day ? 'bg-blue-50 border-blue-300' : ''
+                    } ${
+                      day === today && isCurrentMonth ? 'bg-blue-100' : ''
+                    } ${
+                      highlightedToday && day === today && isCurrentMonth
+                        ? todayHighlightPhase === 'appearing'
+                          ? 'ring-2 ring-blue-400 ring-opacity-50 shadow-md'
+                          : todayHighlightPhase === 'glowing'
+                          ? 'ring-4 ring-blue-400 ring-opacity-75 shadow-xl'
+                          : todayHighlightPhase === 'disappearing'
+                          ? 'ring-2 ring-blue-400 ring-opacity-25 shadow-sm'
+                          : ''
+                        : ''
                     }`}
                     onClick={day && user !== 'guest' ? () => handleDayClick(day) : undefined}
                     onDragOver={day && user !== 'guest' ? (e) => handleCalendarDragOver(e, day) : undefined}
@@ -3275,7 +3311,7 @@ const MMCCalendar = () => {
                     {day && (
                       <>
                         <div className={`text-sm font-medium mb-2 ${
-                          day === today && isCurrentMonth ? 'text-blue-600' : 'text-gray-900'
+                          day === today && isCurrentMonth ? 'text-blue-700' : 'text-gray-900'
                         }`}>
                           {day}
                         </div>
@@ -3431,7 +3467,7 @@ const MMCCalendar = () => {
                           })}
                         </div>
                         {day === today && isCurrentMonth && (
-                          <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 rounded-full"></div>
+                          <div className="absolute top-1 right-1 w-2 h-2 bg-blue-500 rounded-full"></div>
                         )}
                       </>
                     )}
