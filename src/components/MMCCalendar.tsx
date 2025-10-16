@@ -2639,7 +2639,7 @@ const MMCCalendar = () => {
         {notifications.map((notification) => (
           <div
             key={notification.id}
-            className={`w-96 bg-white rounded-2xl shadow-2xl border-4 p-8 transform transition-all duration-300 ease-in-out relative ${
+            className={`w-[500px] bg-white rounded-2xl shadow-2xl border-4 p-12 transform transition-all duration-300 ease-in-out relative ${
               notification.type === 'success' ? 'border-green-500' :
               notification.type === 'error' ? 'border-red-500' :
               notification.type === 'warning' ? 'border-yellow-500' :
