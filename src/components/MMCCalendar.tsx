@@ -2595,9 +2595,19 @@ const MMCCalendar = () => {
 
   const handleTodayClick = () => {
     const today = new Date();
-    setCurrentDate(new Date(today.getFullYear(), today.getMonth(), today.getDate()));
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
     
-    // Start the highlight animation sequence for today's date
+    // Check if we're already viewing the current month
+    const isAlreadyOnCurrentMonth = currentDate.getMonth() === currentMonth && 
+                                   currentDate.getFullYear() === currentYear;
+    
+    // Only navigate if we're not already on the current month
+    if (!isAlreadyOnCurrentMonth) {
+      setCurrentDate(new Date(currentYear, currentMonth, today.getDate()));
+    }
+    
+    // Always show the highlight animation
     setHighlightedToday(true);
     setTodayHighlightPhase('appearing');
     
@@ -2725,8 +2735,39 @@ const MMCCalendar = () => {
             className="flex items-center space-x-2 mb-4 cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => {
               const today = new Date();
-              setCurrentDate(new Date(today.getFullYear(), today.getMonth(), today.getDate()));
+              const currentYear = today.getFullYear();
+              const currentMonth = today.getMonth();
+              
+              // Check if we're already viewing the current month
+              const isAlreadyOnCurrentMonth = currentDate.getMonth() === currentMonth && 
+                                             currentDate.getFullYear() === currentYear;
+              
+              // Only navigate if we're not already on the current month
+              if (!isAlreadyOnCurrentMonth) {
+                setCurrentDate(new Date(currentYear, currentMonth, today.getDate()));
+              }
+              
               setActiveView('Calendar');
+              
+              // Always show the highlight animation
+              setHighlightedToday(true);
+              setTodayHighlightPhase('appearing');
+              
+              // Phase 1: Appearing (0.5s)
+              setTimeout(() => {
+                setTodayHighlightPhase('glowing');
+              }, 500);
+              
+              // Phase 2: Glowing (2s)
+              setTimeout(() => {
+                setTodayHighlightPhase('disappearing');
+              }, 2500);
+              
+              // Phase 3: Disappearing (1s)
+              setTimeout(() => {
+                setHighlightedToday(false);
+                setTodayHighlightPhase(null);
+              }, 3500);
             }}
             title="Go to today"
           >
@@ -3447,12 +3488,12 @@ const MMCCalendar = () => {
                                   zIndex: 10
                                 }}
                               >
-                                <div className="flex items-center justify-between w-full p-1 md:p-2">
-                                  <div className="flex items-center space-x-1">
-                                    <div className="text-xs font-medium truncate">
+                                <div className="flex items-center justify-between w-full p-1 md:p-2 min-w-0">
+                                  <div className="flex items-center space-x-1 min-w-0 flex-1">
+                                    <div className="text-xs font-medium truncate min-w-0 flex-1">
                                       {task.title}
                                     </div>
-                                    <div className="flex -space-x-1 ml-1">
+                                    <div className="flex -space-x-1 ml-1 flex-shrink-0">
                                       {getAssigneesAvatars(task).map((avatar: string, index: number) => {
                                         const assigneeIds = task.assignees && task.assignees.length > 0 ? task.assignees : (task.assignee ? [task.assignee] : []);
                                         const member = teamMembers.find(m => m.id === assigneeIds[index]);
@@ -3469,9 +3510,9 @@ const MMCCalendar = () => {
                                       )}
                                     </div>
                                   </div>
-                                  <div className="flex items-center space-x-1">
+                                  <div className="flex items-center space-x-1 flex-shrink-0 ml-1">
                                     {task.priority && task.priority !== 'medium' && (
-                                      <span className="text-xs ml-1 mr-0.5">
+                                      <span className="text-xs">
                                         {priorityConfig[task.priority]?.icon || '🟡'}
                                       </span>
                                     )}
@@ -3508,16 +3549,16 @@ const MMCCalendar = () => {
                                   <div className="w-full h-0.5 bg-gray-600 transform rotate-12"></div>
                                 </div>
                               )}
-                              <div className="flex items-center justify-between">
-                                <div className={`font-medium truncate ${
+                              <div className="flex items-center justify-between min-w-0">
+                                <div className={`font-medium truncate min-w-0 flex-1 ${
                                   task.status === 'completed' ? 'text-gray-500' : ''
                                 }`}>{task.title}</div>
-                                <div className="flex items-center space-x-1">
+                                <div className="flex items-center space-x-1 flex-shrink-0 ml-1">
                                   {task.is_recurring && (
                                     <Repeat className="w-3 h-3 text-blue-500" />
                                   )}
                                   {task.priority && task.priority !== 'medium' && (
-                                    <span className="text-xs ml-1">
+                                    <span className="text-xs">
                                       {priorityConfig[task.priority]?.icon || '🟡'}
                                     </span>
                                   )}
@@ -5092,7 +5133,7 @@ const MMCCalendar = () => {
         <div className="fixed inset-0 z-50 overflow-hidden">
           {/* Backdrop */}
           <div 
-            className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
+            className="absolute inset-0 bg-black bg-opacity-0 transition-all duration-300 ease-in-out animate-[fadeIn_0.3s_ease-in-out_forwards]"
             onClick={user !== 'guest' ? () => {
               setShowDrawer(false);
               setShowPersonalTasks(false);
@@ -5100,7 +5141,7 @@ const MMCCalendar = () => {
           />
           
           {/* Drawer */}
-          <div className="absolute right-0 top-0 h-full w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out">
+          <div className="absolute right-0 top-0 h-full w-96 bg-white shadow-xl transform translate-x-full transition-transform duration-300 ease-in-out animate-[slideInRight_0.3s_ease-in-out_forwards]">
             <div className="flex flex-col h-full">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
@@ -5255,12 +5296,12 @@ const MMCCalendar = () => {
         <div className="fixed inset-0 z-50 overflow-hidden">
           {/* Backdrop */}
           <div 
-            className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
+            className="absolute inset-0 bg-black bg-opacity-0 transition-all duration-300 ease-in-out animate-[fadeIn_0.3s_ease-in-out_forwards]"
             onClick={() => setShowActivitiesDrawer(false)}
           />
           
           {/* Drawer */}
-          <div className="absolute right-0 top-0 h-full w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out">
+          <div className="absolute right-0 top-0 h-full w-96 bg-white shadow-xl transform translate-x-full transition-transform duration-300 ease-in-out animate-[slideInRight_0.3s_ease-in-out_forwards]">
             <div className="flex flex-col h-full">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
