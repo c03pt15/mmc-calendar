@@ -425,6 +425,8 @@ const MMCCalendar = () => {
   const [showDrawer, setShowDrawer] = useState(false);
   const [showPersonalTasks, setShowPersonalTasks] = useState(false);
   const [showActivitiesDrawer, setShowActivitiesDrawer] = useState(false);
+  const [isDrawerClosing, setIsDrawerClosing] = useState(false);
+  const [isActivitiesDrawerClosing, setIsActivitiesDrawerClosing] = useState(false);
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [activitiesLoaded, setActivitiesLoaded] = useState(false);
   const [preSelectedDate, setPreSelectedDate] = useState<{date: number, month: number, year: number} | null>(null);
@@ -2626,6 +2628,24 @@ const MMCCalendar = () => {
       setHighlightedToday(false);
       setTodayHighlightPhase(null);
     }, 3500);
+  };
+
+  // Drawer closing functions
+  const closeDrawer = () => {
+    setIsDrawerClosing(true);
+    setTimeout(() => {
+      setShowDrawer(false);
+      setShowPersonalTasks(false);
+      setIsDrawerClosing(false);
+    }, 300); // Match animation duration
+  };
+
+  const closeActivitiesDrawer = () => {
+    setIsActivitiesDrawerClosing(true);
+    setTimeout(() => {
+      setShowActivitiesDrawer(false);
+      setIsActivitiesDrawerClosing(false);
+    }, 300); // Match animation duration
   };
 
   const navigateMonth = (direction: number) => {
@@ -5133,15 +5153,20 @@ const MMCCalendar = () => {
         <div className="fixed inset-0 z-50 overflow-hidden">
           {/* Backdrop */}
           <div 
-            className="absolute inset-0 bg-black bg-opacity-0 transition-all duration-300 ease-in-out animate-[fadeIn_0.3s_ease-in-out_forwards]"
-            onClick={user !== 'guest' ? () => {
-              setShowDrawer(false);
-              setShowPersonalTasks(false);
-            } : undefined}
+            className={`absolute inset-0 bg-black transition-all duration-300 ease-in-out ${
+              isDrawerClosing 
+                ? 'bg-opacity-0 animate-[fadeOut_0.3s_ease-in-out_forwards]' 
+                : 'bg-opacity-0 animate-[fadeIn_0.3s_ease-in-out_forwards]'
+            }`}
+            onClick={user !== 'guest' ? closeDrawer : undefined}
           />
           
           {/* Drawer */}
-          <div className="absolute right-0 top-0 h-full w-96 bg-white shadow-xl transform translate-x-full transition-transform duration-300 ease-in-out animate-[slideInRight_0.3s_ease-in-out_forwards]">
+          <div className={`absolute right-0 top-0 h-full w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
+            isDrawerClosing 
+              ? 'translate-x-full animate-[slideOutRight_0.3s_ease-in-out_forwards]' 
+              : 'translate-x-full animate-[slideInRight_0.3s_ease-in-out_forwards]'
+          }`}>
             <div className="flex flex-col h-full">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
@@ -5149,10 +5174,7 @@ const MMCCalendar = () => {
                   {showPersonalTasks ? 'My Tasks' : 'Task Overview'}
                 </h2>
                 <button
-                  onClick={user !== 'guest' ? () => {
-                    setShowDrawer(false);
-                    setShowPersonalTasks(false);
-                  } : undefined}
+                  onClick={user !== 'guest' ? closeDrawer : undefined}
                   className={`p-2 rounded-lg transition-colors ${
                     user !== 'guest' 
                       ? 'text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer' 
@@ -5296,12 +5318,20 @@ const MMCCalendar = () => {
         <div className="fixed inset-0 z-50 overflow-hidden">
           {/* Backdrop */}
           <div 
-            className="absolute inset-0 bg-black bg-opacity-0 transition-all duration-300 ease-in-out animate-[fadeIn_0.3s_ease-in-out_forwards]"
-            onClick={() => setShowActivitiesDrawer(false)}
+            className={`absolute inset-0 bg-black transition-all duration-300 ease-in-out ${
+              isActivitiesDrawerClosing 
+                ? 'bg-opacity-0 animate-[fadeOut_0.3s_ease-in-out_forwards]' 
+                : 'bg-opacity-0 animate-[fadeIn_0.3s_ease-in-out_forwards]'
+            }`}
+            onClick={closeActivitiesDrawer}
           />
           
           {/* Drawer */}
-          <div className="absolute right-0 top-0 h-full w-96 bg-white shadow-xl transform translate-x-full transition-transform duration-300 ease-in-out animate-[slideInRight_0.3s_ease-in-out_forwards]">
+          <div className={`absolute right-0 top-0 h-full w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
+            isActivitiesDrawerClosing 
+              ? 'translate-x-full animate-[slideOutRight_0.3s_ease-in-out_forwards]' 
+              : 'translate-x-full animate-[slideInRight_0.3s_ease-in-out_forwards]'
+          }`}>
             <div className="flex flex-col h-full">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
@@ -5310,7 +5340,7 @@ const MMCCalendar = () => {
                   <p className="text-sm text-gray-500 mt-1">Last 7 days</p>
                 </div>
                 <button
-                  onClick={() => setShowActivitiesDrawer(false)}
+                  onClick={closeActivitiesDrawer}
                   className="p-2 rounded-lg transition-colors text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
                 >
                   <X className="w-5 h-5" />
