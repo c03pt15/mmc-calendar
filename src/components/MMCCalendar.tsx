@@ -393,6 +393,52 @@ const MMCCalendar = () => {
   });
   
   const [activeView, setActiveView] = useState('Calendar');
+  const [selectedDay, setSelectedDay] = useState<Date>(() => new Date());
+  const [showEarlyHours, setShowEarlyHours] = useState(false);
+  const [showLateHours, setShowLateHours] = useState(false);
+  const [showMonthYearPicker, setShowMonthYearPicker] = useState(false);
+  const [showDayPicker, setShowDayPicker] = useState(false);
+  const [dayPickerMonth, setDayPickerMonth] = useState<Date>(() => new Date());
+
+  // Close pickers when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.month-year-picker') && !target.closest('.day-picker')) {
+        setShowMonthYearPicker(false);
+        setShowDayPicker(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Initialize day picker month when opening
+  useEffect(() => {
+    if (showDayPicker) {
+      setDayPickerMonth(selectedDay);
+    }
+  }, [showDayPicker, selectedDay]);
+
+  // When in day view and month changes in top bar, go to first of that month
+  useEffect(() => {
+    if (activeView === 'Day') {
+      const selectedMonth = selectedDay.getMonth();
+      const selectedYear = selectedDay.getFullYear();
+      const currentMonth = currentDate.getMonth();
+      const currentYear = currentDate.getFullYear();
+      
+      // If the top bar month is different from the selected day's month, update selected day
+      if (selectedMonth !== currentMonth || selectedYear !== currentYear) {
+        const firstOfMonth = new Date(currentYear, currentMonth, 1);
+        setSelectedDay(firstOfMonth);
+      }
+    }
+  }, [currentDate, activeView]);
+
   const [selectedFilters, setSelectedFilters] = useState<{ [key: string]: boolean }>({});
   const [selectedTeamMember, setSelectedTeamMember] = useState<number | null>(null);
   const [showNewEntryModal, setShowNewEntryModal] = useState(false);
@@ -1524,6 +1570,18 @@ const MMCCalendar = () => {
   };
 
   const handleDayClick = (day: number) => {
+    // Switch to day view for the clicked day
+    const clickedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+    setSelectedDay(clickedDate);
+    setActiveView('Day');
+    
+    // Use the robust scroll function
+    scrollDayViewToTop();
+  };
+
+  const handleNewTaskFromDay = (day: number, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent day click from firing
+    
     setPreSelectedDate({
       date: day,
       month: currentDate.getMonth(),
@@ -2636,46 +2694,392 @@ const MMCCalendar = () => {
     }
   };
 
+  // Dedicated function to scroll day view to top
+  const scrollDayViewToTop = () => {
+    const scrollToTop = () => {
+      // Try multiple selectors to find the scrollable container
+      const selectors = [
+        '.day-view-container',
+        '[class*="overflow-y-auto"]',
+        '.flex-1.overflow-y-auto'
+      ];
+      
+      for (const selector of selectors) {
+        const container = document.querySelector(selector) as HTMLElement;
+        if (container && container.scrollTop !== undefined) {
+          container.scrollTop = 0;
+          return true;
+        }
+      }
+      
+      // Fallback: scroll window to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return true;
+    };
+
+    // Immediate attempt
+    scrollToTop();
+    
+    // Multiple retry attempts with increasing delays
+    setTimeout(scrollToTop, 50);
+    setTimeout(scrollToTop, 100);
+    setTimeout(scrollToTop, 200);
+    setTimeout(scrollToTop, 500);
+  };
+
+  // Month/Year Picker Component
+  const MonthYearPicker = () => {
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
+    
+    return (
+      <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-6 min-w-80 month-year-picker">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Select Month & Year</h3>
+          <button
+            onClick={() => setShowMonthYearPicker(false)}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        {/* Year Selection */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setCurrentDate(new Date(currentYear - 1, currentMonth, 1))}
+              className="p-1 hover:bg-gray-100 rounded"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-lg font-semibold text-gray-900 min-w-16 text-center">
+              {currentYear}
+            </span>
+            <button
+              onClick={() => setCurrentDate(new Date(currentYear + 1, currentMonth, 1))}
+              className="p-1 hover:bg-gray-100 rounded"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+        
+        {/* Month Grid */}
+        <div className="grid grid-cols-3 gap-2">
+          {monthNames.map((month, index) => (
+            <button
+              key={index}
+              onClick={() => {
+                setCurrentDate(new Date(currentYear, index, 1));
+                setShowMonthYearPicker(false);
+              }}
+              className={`p-2 text-sm rounded-md transition-colors ${
+                index === currentMonth
+                  ? 'bg-blue-100 text-blue-800 font-semibold border border-blue-200'
+                  : 'hover:bg-gray-100 text-gray-700'
+              }`}
+            >
+              {month}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // Day Picker Component
+  const DayPicker = () => {
+    const today = new Date();
+    const currentYear = dayPickerMonth.getFullYear();
+    const currentMonth = dayPickerMonth.getMonth();
+    const selectedDayValue = selectedDay.getDate();
+    const selectedMonth = selectedDay.getMonth();
+    const selectedYear = selectedDay.getFullYear();
+    
+    // Generate calendar days
+    const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
+    const firstDayOfWeek = firstDayOfMonth.getDay();
+    const daysInMonth = lastDayOfMonth.getDate();
+    
+    const calendarDays: Array<number | null> = [];
+    
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < firstDayOfWeek; i++) {
+      calendarDays.push(null);
+    }
+    
+    // Add days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      calendarDays.push(day);
+    }
+    
+    return (
+      <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-4 min-w-80 day-picker">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Select Date</h3>
+          <button
+            onClick={() => setShowDayPicker(false)}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        {/* Month/Year Navigation */}
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={() => {
+              const prevMonth = new Date(currentYear, currentMonth - 1, 1);
+              setDayPickerMonth(prevMonth);
+            }}
+            className="p-1 hover:bg-gray-100 rounded"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <h4 className="text-lg font-semibold text-gray-900">
+            {monthNames[currentMonth]} {currentYear}
+          </h4>
+          <button
+            onClick={() => {
+              const nextMonth = new Date(currentYear, currentMonth + 1, 1);
+              setDayPickerMonth(nextMonth);
+            }}
+            className="p-1 hover:bg-gray-100 rounded"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+        
+        {/* Day Headers */}
+        <div className="grid grid-cols-7 gap-1 mb-2">
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+            <div key={day} className="text-center text-xs font-medium text-gray-500 p-2">
+              {day}
+            </div>
+          ))}
+        </div>
+        
+        {/* Calendar Grid */}
+        <div className="grid grid-cols-7 gap-1">
+          {calendarDays.map((day, index) => {
+            if (day === null) {
+              return <div key={index} className="p-2"></div>;
+            }
+            
+            const isToday = day === today.getDate() && 
+                           currentMonth === today.getMonth() && 
+                           currentYear === today.getFullYear();
+            const isSelected = day === selectedDayValue && 
+                              currentMonth === selectedMonth && 
+                              currentYear === selectedYear;
+            
+            return (
+              <button
+                key={index}
+                onClick={() => {
+                  const newSelectedDay = new Date(currentYear, currentMonth, day);
+                  setSelectedDay(newSelectedDay);
+                  setShowDayPicker(false);
+                  
+                  // Update top bar month if selecting a day from different month
+                  const currentTopMonth = currentDate.getMonth();
+                  const currentTopYear = currentDate.getFullYear();
+                  
+                  if (currentMonth !== currentTopMonth || currentYear !== currentTopYear) {
+                    setCurrentDate(new Date(currentYear, currentMonth, 1));
+                  }
+                }}
+                className={`p-2 text-sm rounded-md transition-colors ${
+                  isSelected
+                    ? 'bg-blue-100 text-blue-800 font-semibold'
+                    : isToday
+                    ? 'bg-gray-100 text-gray-900 font-semibold'
+                    : 'hover:bg-gray-100 text-gray-700'
+                }`}
+              >
+                {day}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // Helper function to get tasks for day view
+  const getTasksForDayView = (date: Date, hour: number) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const day = date.getDate();
+    
+    const filteredTasks = allTasksWithRecurring.filter(task => {
+      // Only exclude deleted tasks, include completed tasks for now
+      if (task.status === 'deleted') return false;
+      
+      // Check if task is on this date - more robust comparison
+      const taskDate = new Date(task.year, task.month, task.date);
+      const targetDate = new Date(year, month, day);
+      
+      if (taskDate.getFullYear() !== targetDate.getFullYear() ||
+          taskDate.getMonth() !== targetDate.getMonth() ||
+          taskDate.getDate() !== targetDate.getDate()) {
+        return false;
+      }
+      
+      // Exclude all-day tasks from hourly sections (they're shown in the all-day section)
+      if (task.is_all_day) {
+        return false;
+      }
+      
+      // For multi-day tasks, check if this date falls within the range
+      if (task.is_multiday && task.start_date && task.end_date) {
+        try {
+          // Parse dates safely to avoid timezone issues
+          const startDate = new Date(task.start_date + 'T00:00:00');
+          const endDate = new Date(task.end_date + 'T23:59:59');
+          
+          return targetDate >= startDate && targetDate <= endDate;
+        } catch (error) {
+          console.error('Error parsing multi-day task dates:', error, task);
+          return false;
+        }
+      }
+      
+      // For regular tasks, check if task is scheduled for this hour
+      const taskHour = parseInt(task.time.split(':')[0]);
+      return taskHour === hour;
+    });
+    
+    return filteredTasks;
+  };
+
+  // Helper function to get all-day and multi-day tasks for the day
+  const getAllDayTasksForDay = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const day = date.getDate();
+    const targetDate = new Date(year, month, day);
+    
+    return allTasksWithRecurring.filter(task => {
+      // Only exclude deleted tasks, include completed tasks for now
+      if (task.status === 'deleted') return false;
+      
+      // All-day tasks
+      if (task.is_all_day) {
+        const taskDate = new Date(task.year, task.month, task.date);
+        // More robust date comparison
+        return taskDate.getFullYear() === targetDate.getFullYear() &&
+               taskDate.getMonth() === targetDate.getMonth() &&
+               taskDate.getDate() === targetDate.getDate();
+      }
+      
+      // Multi-day tasks
+      if (task.is_multiday && task.start_date && task.end_date) {
+        try {
+          // Parse dates safely to avoid timezone issues
+          const startDate = new Date(task.start_date + 'T00:00:00');
+          const endDate = new Date(task.end_date + 'T23:59:59');
+          
+          return targetDate >= startDate && targetDate <= endDate;
+        } catch (error) {
+          console.error('Error parsing multi-day task dates:', error, task);
+          return false;
+        }
+      }
+      
+      return false;
+    });
+  };
+
+  // Helper function to count tasks in early hours (0-7)
+  const getEarlyHoursTaskCount = (date: Date) => {
+    let count = 0;
+    for (let hour = 0; hour < 8; hour++) {
+      count += getTasksForDayView(date, hour).length;
+    }
+    return count;
+  };
+
+  // Helper function to count tasks in late hours (21-23)
+  const getLateHoursTaskCount = (date: Date) => {
+    let count = 0;
+    for (let hour = 21; hour < 24; hour++) {
+      count += getTasksForDayView(date, hour).length;
+    }
+    return count;
+  };
+
+  // Helper function to get priority color
+  const getPriorityColor = (priority: string, opacity: number = 1) => {
+    switch (priority) {
+      case 'high':
+        return `rgba(239, 68, 68, ${opacity})`; // red-500
+      case 'medium':
+        return `rgba(245, 158, 11, ${opacity})`; // yellow-500
+      case 'low':
+        return `rgba(34, 197, 94, ${opacity})`; // green-500
+      default:
+        return `rgba(107, 114, 128, ${opacity})`; // gray-500
+    }
+  };
+
   const handleTodayClick = () => {
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
     
-    // Check if we're already viewing the current month
-    const isAlreadyOnCurrentMonth = currentDate.getMonth() === currentMonth && 
-                                   currentDate.getFullYear() === currentYear;
-    
-    // Only navigate if we're not already on the current month
-    if (!isAlreadyOnCurrentMonth) {
-      setCurrentDate(new Date(currentYear, currentMonth, today.getDate()));
+    if (activeView === 'Day') {
+      // In day view, just switch to today's date
+      setSelectedDay(today);
+      // Use the robust scroll function
+      scrollDayViewToTop();
+    } else {
+      // In calendar or kanban view, use the same logic as logo click
+      // Check if we're already viewing the current month
+      const isAlreadyOnCurrentMonth = currentDate.getMonth() === currentMonth && 
+                                     currentDate.getFullYear() === currentYear;
+      
+      // Only navigate if we're not already on the current month
+      if (!isAlreadyOnCurrentMonth) {
+        setCurrentDate(new Date(currentYear, currentMonth, today.getDate()));
+      }
+      
+      setActiveView('Calendar');
+      
+      // Always show the highlight animation
+      setHighlightedToday(true);
+      setTodayHighlightPhase('appearing');
+      
+      // Scroll to today's day after a delay to ensure the calendar is rendered
+      // Use longer delay when navigating from different month
+      const scrollDelay = isAlreadyOnCurrentMonth ? 100 : 500;
+      setTimeout(() => {
+        scrollToToday();
+      }, scrollDelay);
+      
+      // Phase 1: Appearing (0.5s)
+      setTimeout(() => {
+        setTodayHighlightPhase('glowing');
+      }, 500);
+      
+      // Phase 2: Glowing (2s)
+      setTimeout(() => {
+        setTodayHighlightPhase('disappearing');
+      }, 2500);
+      
+      // Phase 3: Disappearing (1s)
+      setTimeout(() => {
+        setHighlightedToday(false);
+        setTodayHighlightPhase(null);
+      }, 3500);
     }
-    
-    // Always show the highlight animation
-    setHighlightedToday(true);
-    setTodayHighlightPhase('appearing');
-    
-    // Scroll to today's day after a delay to ensure the calendar is rendered
-    // Use longer delay when navigating from different month
-    const scrollDelay = isAlreadyOnCurrentMonth ? 100 : 500;
-    setTimeout(() => {
-      scrollToToday();
-    }, scrollDelay);
-    
-    // Phase 1: Appearing (0.5s)
-    setTimeout(() => {
-      setTodayHighlightPhase('glowing');
-    }, 500);
-    
-    // Phase 2: Glowing (2s)
-    setTimeout(() => {
-      setTodayHighlightPhase('disappearing');
-    }, 2500);
-    
-    // Phase 3: Disappearing (1s)
-    setTimeout(() => {
-      setHighlightedToday(false);
-      setTodayHighlightPhase(null);
-    }, 3500);
   };
 
   // Drawer closing functions
@@ -3173,19 +3577,25 @@ const MMCCalendar = () => {
                   </svg>
                 </button>
               )}
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-4">
                 <button
                   onClick={() => navigateMonth(-1)}
-                  className="p-1 hover:bg-gray-100 rounded"
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {monthNames[currentDate.getMonth()]} '{currentDate.getFullYear().toString().slice(-2)}
-                </h2>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowMonthYearPicker(!showMonthYearPicker)}
+                    className="text-xl font-semibold text-gray-900 hover:text-blue-600 transition-colors cursor-pointer"
+                  >
+                    {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+                  </button>
+                  {showMonthYearPicker && <MonthYearPicker />}
+                </div>
                 <button
                   onClick={() => navigateMonth(1)}
-                  className="p-1 hover:bg-gray-100 rounded"
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>
@@ -3393,7 +3803,7 @@ const MMCCalendar = () => {
                                 {getTaskCategoryDisplayName(task)}
                               </span>
                               <span className="text-xs text-gray-500">
-                                {monthNames[task.month || currentDate.getMonth()]} {task.date}, '{(task.year || currentDate.getFullYear()).toString().slice(-2)}
+                                {monthNames[task.month || currentDate.getMonth()]} {task.date}, {task.year || currentDate.getFullYear()}
                               </span>
                               <span className="text-xs text-gray-500">
                                 {getAssigneesDisplay(task)}
@@ -3425,6 +3835,17 @@ const MMCCalendar = () => {
                 >
                   <span className="hidden sm:inline">Calendar</span>
                   <span className="sm:hidden">Cal</span>
+                </button>
+                <button
+                  className={`px-2 md:px-3 py-1 text-xs md:text-sm rounded-md ${
+                    activeView === 'Day' 
+                      ? 'bg-white text-gray-900 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                  onClick={() => setActiveView('Day')}
+                >
+                  <span className="hidden sm:inline">Day</span>
+                  <span className="sm:hidden">Day</span>
                 </button>
                 <button
                   className={`px-2 md:px-3 py-1 text-xs md:text-sm rounded-md ${
@@ -3513,7 +3934,7 @@ const MMCCalendar = () => {
                   <div
                     key={index}
                     id={day === today && isCurrentMonth ? 'today-calendar-day' : undefined}
-                    className={`border-r border-b border-gray-200 last:border-r-0 p-1 md:p-2 min-h-[80px] md:min-h-[120px] relative cursor-pointer hover:bg-gray-50 transition-all duration-500 ${
+                    className={`border-r border-b border-gray-200 last:border-r-0 p-1 md:p-2 min-h-[80px] md:min-h-[120px] relative cursor-pointer hover:bg-gray-50 transition-all duration-500 group ${
                       dragOverDate === day ? 'bg-blue-50 border-blue-300' : ''
                     } ${
                       day === today && isCurrentMonth ? 'bg-blue-100' : ''
@@ -3691,13 +4112,515 @@ const MMCCalendar = () => {
                             );
                           })}
                         </div>
+                        {/* Add Task Button */}
+                        {user && user !== 'guest' && (
+                          <button
+                            onClick={(e) => handleNewTaskFromDay(day, e)}
+                            className="absolute top-2 right-2 w-7 h-7 bg-white hover:bg-blue-50 border border-gray-300 hover:border-blue-400 text-gray-600 hover:text-blue-600 rounded-lg flex items-center justify-center text-sm font-medium transition-all duration-200 opacity-0 group-hover:opacity-100 shadow-sm hover:shadow-md"
+                            title="Add new task"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                          </button>
+                        )}
+                        
+                        {/* Today indicator */}
                         {day === today && isCurrentMonth && (
-                          <div className="absolute top-1 right-1 w-2 h-2 bg-blue-500 rounded-full"></div>
+                          <div className="absolute top-1 left-1 w-2 h-2 bg-blue-500 rounded-full"></div>
                         )}
                       </>
                     )}
                   </div>
                 ))}
+              </div>
+            </div>
+          ) : activeView === 'Day' ? (
+            /* Day View */
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 h-full flex flex-col day-view-container">
+              {/* Day View Header */}
+              <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                <div className="flex items-center space-x-4">
+                  <button
+                    onClick={() => {
+                      const prevDay = new Date(selectedDay);
+                      prevDay.setDate(prevDay.getDate() - 1);
+                      setSelectedDay(prevDay);
+                      
+                      // Update top bar month if navigating to different month
+                      const prevMonth = prevDay.getMonth();
+                      const prevYear = prevDay.getFullYear();
+                      const currentMonth = currentDate.getMonth();
+                      const currentYear = currentDate.getFullYear();
+                      
+                      if (prevMonth !== currentMonth || prevYear !== currentYear) {
+                        setCurrentDate(new Date(prevYear, prevMonth, 1));
+                      }
+                    }}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowDayPicker(!showDayPicker)}
+                      className="text-xl font-semibold text-gray-900 hover:text-blue-600 transition-colors cursor-pointer"
+                    >
+                      {selectedDay.toLocaleDateString('en-US', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })}
+                    </button>
+                    {showDayPicker && <DayPicker />}
+                  </div>
+                  <button
+                    onClick={() => {
+                      const nextDay = new Date(selectedDay);
+                      nextDay.setDate(nextDay.getDate() + 1);
+                      setSelectedDay(nextDay);
+                      
+                      // Update top bar month if navigating to different month
+                      const nextMonth = nextDay.getMonth();
+                      const nextYear = nextDay.getFullYear();
+                      const currentMonth = currentDate.getMonth();
+                      const currentYear = currentDate.getFullYear();
+                      
+                      if (nextMonth !== currentMonth || nextYear !== currentYear) {
+                        setCurrentDate(new Date(nextYear, nextMonth, 1));
+                      }
+                    }}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
+                <button
+                  onClick={handleTodayClick}
+                  className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-md hover:bg-blue-200"
+                >
+                  Today
+                </button>
+              </div>
+
+              {/* All-Day Tasks Section */}
+              {getAllDayTasksForDay(selectedDay).length > 0 && (
+                <div className="border-b border-gray-200 p-4">
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">All-Day Tasks</h3>
+                  <div className="space-y-2">
+                    {getAllDayTasksForDay(selectedDay).map((task, index) => (
+                      <div
+                        key={`allday-${task.id}-${index}`}
+                        className="p-3 rounded-lg border-l-4 cursor-pointer hover:shadow-sm transition-shadow bg-gray-50"
+                        style={{
+                          borderLeftColor: getPriorityColor(task.priority),
+                          backgroundColor: getPriorityColor(task.priority, 0.05)
+                        }}
+                        onClick={() => {
+                          setSelectedTask(task);
+                          setShowTaskModal(true);
+                        }}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <span className="text-sm font-medium text-gray-900">
+                                {task.title}
+                              </span>
+                              <span className="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded">
+                                All Day
+                              </span>
+                            </div>
+                            {task.description && (
+                              <p className="text-xs text-gray-600 line-clamp-2 mb-2">
+                                {task.description}
+                              </p>
+                            )}
+                            <div className="flex items-center space-x-2 text-xs">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                task.type === 'Blog' ? 'bg-blue-100 text-blue-800' :
+                                task.type === 'Video' ? 'bg-purple-100 text-purple-800' :
+                                task.type === 'Social' ? 'bg-green-100 text-green-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {task.type}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="ml-2 flex-shrink-0">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              task.priority === 'high' ? 'bg-red-100 text-red-800' :
+                              task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-green-100 text-green-800'
+                            }`}>
+                              {task.priority}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Day Timeline */}
+              <div className="flex-1 overflow-y-auto">
+                <div className="relative">
+                  {/* Early Hours (0-7) - Collapsible */}
+                  <div className="border-b border-gray-200">
+                    <button
+                      onClick={() => setShowEarlyHours(!showEarlyHours)}
+                      className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm font-medium text-gray-700">Early Hours (12:00 AM - 7:00 AM)</span>
+                        {getEarlyHoursTaskCount(selectedDay) > 0 && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {getEarlyHoursTaskCount(selectedDay)} task{getEarlyHoursTaskCount(selectedDay) !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
+                      <svg 
+                        className={`w-4 h-4 transform transition-transform ${showEarlyHours ? 'rotate-180' : ''}`}
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    {showEarlyHours && (
+                      <div>
+                        {Array.from({ length: 8 }, (_, i) => {
+                          const hour = i;
+                          const timeString = `${hour.toString().padStart(2, '0')}:00`;
+                          const isCurrentHour = selectedDay.toDateString() === new Date().toDateString() && 
+                                             new Date().getHours() === hour;
+                          const tasksForHour = getTasksForDayView(selectedDay, hour);
+                          const hasTasks = tasksForHour.length > 0;
+                          
+                          return (
+                            <div key={hour} className="relative">
+                              <div className="sticky top-0 bg-white z-10 flex items-center h-12 border-b border-gray-100">
+                                <div className="w-16 text-right pr-3 text-sm text-gray-500 font-medium">
+                                  {timeString}
+                                </div>
+                                <div className="flex-1 h-px bg-gray-200"></div>
+                              </div>
+                              <div className={`relative bg-white hover:bg-gray-50 transition-colors ${
+                                hasTasks ? 'min-h-20 py-2' : 'h-8'
+                              }`}>
+                                {isCurrentHour && (
+                                  <div className="absolute left-16 right-0 h-0.5 bg-red-500 z-20">
+                                    <div className="absolute -left-1 -top-1 w-2 h-2 bg-red-500 rounded-full"></div>
+                                  </div>
+                                )}
+                                <div className="ml-16 pr-4">
+                                  {tasksForHour.map((task, index) => (
+                                    <div
+                                      key={`${task.id}-${index}`}
+                                      className="mb-3 p-3 rounded-lg border-l-4 cursor-pointer hover:shadow-md transition-all duration-200"
+                                      style={{
+                                        borderLeftColor: getPriorityColor(task.priority),
+                                        backgroundColor: getPriorityColor(task.priority, 0.05)
+                                      }}
+                                      onClick={() => {
+                                        setSelectedTask(task);
+                                        setShowTaskModal(true);
+                                      }}
+                                    >
+                                      <div className="flex items-start justify-between">
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center space-x-3 mb-2">
+                                            <span className="text-base font-semibold text-gray-900 truncate">
+                                              {task.title}
+                                            </span>
+                                            <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                              {task.time}
+                                            </span>
+                                          </div>
+                                          {task.description && (
+                                            <p className="text-sm text-gray-600 mb-3 leading-relaxed">
+                                              {task.description}
+                                            </p>
+                                          )}
+                                          <div className="flex items-center space-x-2 mb-2">
+                                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                                              task.type === 'Blog' ? 'bg-blue-100 text-blue-800' :
+                                              task.type === 'Video' ? 'bg-purple-100 text-purple-800' :
+                                              task.type === 'Social' ? 'bg-green-100 text-green-800' :
+                                              'bg-gray-100 text-gray-800'
+                                            }`}>
+                                              {task.type}
+                                            </span>
+                                            {task.category && task.category !== task.type && (
+                                              <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
+                                                {task.category}
+                                              </span>
+                                            )}
+                                          </div>
+                                          {task.tags && task.tags.length > 0 && (
+                                            <div className="flex flex-wrap gap-2">
+                                              {task.tags.slice(0, 4).map((tag, tagIndex) => (
+                                                <span key={tagIndex} className="text-sm bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                                                  #{tag}
+                                                </span>
+                                              ))}
+                                              {task.tags.length > 4 && (
+                                                <span className="text-sm text-gray-400">+{task.tags.length - 4}</span>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div className="ml-3 flex-shrink-0">
+                                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                                            task.priority === 'high' ? 'bg-red-100 text-red-800' :
+                                            task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                            'bg-green-100 text-green-800'
+                                          }`}>
+                                            {task.priority}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Core Hours (8-20) - Always visible */}
+                  {Array.from({ length: 13 }, (_, i) => {
+                    const hour = i + 8;
+                    const timeString = `${hour.toString().padStart(2, '0')}:00`;
+                    const isCurrentHour = selectedDay.toDateString() === new Date().toDateString() && 
+                                       new Date().getHours() === hour;
+                    const tasksForHour = getTasksForDayView(selectedDay, hour);
+                    const hasTasks = tasksForHour.length > 0;
+                    
+                    return (
+                      <div key={hour} className="relative">
+                        <div className="sticky top-0 bg-white z-10 flex items-center h-12 border-b border-gray-100">
+                          <div className="w-16 text-right pr-3 text-sm text-gray-500 font-medium">
+                            {timeString}
+                          </div>
+                          <div className="flex-1 h-px bg-gray-200"></div>
+                        </div>
+                        <div className={`relative bg-white hover:bg-gray-50 transition-colors ${
+                          hasTasks ? 'min-h-20 py-2' : 'h-8'
+                        }`}>
+                          {isCurrentHour && (
+                            <div className="absolute left-16 right-0 h-0.5 bg-red-500 z-20">
+                              <div className="absolute -left-1 -top-1 w-2 h-2 bg-red-500 rounded-full"></div>
+                            </div>
+                          )}
+                          <div className="ml-16 pr-4">
+                            {tasksForHour.map((task, index) => (
+                              <div
+                                key={`${task.id}-${index}`}
+                                className="mb-3 p-3 rounded-lg border-l-4 cursor-pointer hover:shadow-md transition-all duration-200"
+                                style={{
+                                  borderLeftColor: getPriorityColor(task.priority),
+                                  backgroundColor: getPriorityColor(task.priority, 0.05)
+                                }}
+                                onClick={() => {
+                                  setSelectedTask(task);
+                                  setShowTaskModal(true);
+                                }}
+                              >
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center space-x-3 mb-2">
+                                      <span className="text-base font-semibold text-gray-900 truncate">
+                                        {task.title}
+                                      </span>
+                                      <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                        {task.time}
+                                      </span>
+                                    </div>
+                                    {task.description && (
+                                      <p className="text-sm text-gray-600 mb-3 leading-relaxed">
+                                        {task.description}
+                                      </p>
+                                    )}
+                                    <div className="flex items-center space-x-2 mb-2">
+                                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                                        task.type === 'Blog' ? 'bg-blue-100 text-blue-800' :
+                                        task.type === 'Video' ? 'bg-purple-100 text-purple-800' :
+                                        task.type === 'Social' ? 'bg-green-100 text-green-800' :
+                                        'bg-gray-100 text-gray-800'
+                                      }`}>
+                                        {task.type}
+                                      </span>
+                                      {task.category && task.category !== task.type && (
+                                        <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
+                                          {task.category}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {task.tags && task.tags.length > 0 && (
+                                      <div className="flex flex-wrap gap-2">
+                                        {task.tags.slice(0, 4).map((tag, tagIndex) => (
+                                          <span key={tagIndex} className="text-sm bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                                            #{tag}
+                                          </span>
+                                        ))}
+                                        {task.tags.length > 4 && (
+                                          <span className="text-sm text-gray-400">+{task.tags.length - 4}</span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="ml-3 flex-shrink-0">
+                                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                                      task.priority === 'high' ? 'bg-red-100 text-red-800' :
+                                      task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                      'bg-green-100 text-green-800'
+                                    }`}>
+                                      {task.priority}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Late Hours (21-23) - Collapsible */}
+                  <div className="border-t border-gray-200">
+                    <button
+                      onClick={() => setShowLateHours(!showLateHours)}
+                      className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm font-medium text-gray-700">Late Hours (9:00 PM - 11:00 PM)</span>
+                        {getLateHoursTaskCount(selectedDay) > 0 && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {getLateHoursTaskCount(selectedDay)} task{getLateHoursTaskCount(selectedDay) !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
+                      <svg 
+                        className={`w-4 h-4 transform transition-transform ${showLateHours ? 'rotate-180' : ''}`}
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    {showLateHours && (
+                      <div>
+                        {Array.from({ length: 3 }, (_, i) => {
+                          const hour = i + 21;
+                          const timeString = `${hour.toString().padStart(2, '0')}:00`;
+                          const isCurrentHour = selectedDay.toDateString() === new Date().toDateString() && 
+                                             new Date().getHours() === hour;
+                          const tasksForHour = getTasksForDayView(selectedDay, hour);
+                          const hasTasks = tasksForHour.length > 0;
+                          
+                          return (
+                            <div key={hour} className="relative">
+                              <div className="sticky top-0 bg-white z-10 flex items-center h-12 border-b border-gray-100">
+                                <div className="w-16 text-right pr-3 text-sm text-gray-500 font-medium">
+                                  {timeString}
+                                </div>
+                                <div className="flex-1 h-px bg-gray-200"></div>
+                              </div>
+                              <div className={`relative bg-white hover:bg-gray-50 transition-colors ${
+                                hasTasks ? 'min-h-20 py-2' : 'h-8'
+                              }`}>
+                                {isCurrentHour && (
+                                  <div className="absolute left-16 right-0 h-0.5 bg-red-500 z-20">
+                                    <div className="absolute -left-1 -top-1 w-2 h-2 bg-red-500 rounded-full"></div>
+                                  </div>
+                                )}
+                                <div className="ml-16 pr-4">
+                                  {tasksForHour.map((task, index) => (
+                                    <div
+                                      key={`${task.id}-${index}`}
+                                      className="mb-3 p-3 rounded-lg border-l-4 cursor-pointer hover:shadow-md transition-all duration-200"
+                                      style={{
+                                        borderLeftColor: getPriorityColor(task.priority),
+                                        backgroundColor: getPriorityColor(task.priority, 0.05)
+                                      }}
+                                      onClick={() => {
+                                        setSelectedTask(task);
+                                        setShowTaskModal(true);
+                                      }}
+                                    >
+                                      <div className="flex items-start justify-between">
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center space-x-3 mb-2">
+                                            <span className="text-base font-semibold text-gray-900 truncate">
+                                              {task.title}
+                                            </span>
+                                            <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                              {task.time}
+                                            </span>
+                                          </div>
+                                          {task.description && (
+                                            <p className="text-sm text-gray-600 mb-3 leading-relaxed">
+                                              {task.description}
+                                            </p>
+                                          )}
+                                          <div className="flex items-center space-x-2 mb-2">
+                                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                                              task.type === 'Blog' ? 'bg-blue-100 text-blue-800' :
+                                              task.type === 'Video' ? 'bg-purple-100 text-purple-800' :
+                                              task.type === 'Social' ? 'bg-green-100 text-green-800' :
+                                              'bg-gray-100 text-gray-800'
+                                            }`}>
+                                              {task.type}
+                                            </span>
+                                            {task.category && task.category !== task.type && (
+                                              <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
+                                                {task.category}
+                                              </span>
+                                            )}
+                                          </div>
+                                          {task.tags && task.tags.length > 0 && (
+                                            <div className="flex flex-wrap gap-2">
+                                              {task.tags.slice(0, 4).map((tag, tagIndex) => (
+                                                <span key={tagIndex} className="text-sm bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                                                  #{tag}
+                                                </span>
+                                              ))}
+                                              {task.tags.length > 4 && (
+                                                <span className="text-sm text-gray-400">+{task.tags.length - 4}</span>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div className="ml-3 flex-shrink-0">
+                                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                                            task.priority === 'high' ? 'bg-red-100 text-red-800' :
+                                            task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                            'bg-green-100 text-green-800'
+                                          }`}>
+                                            {task.priority}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           ) : (
@@ -3843,7 +4766,7 @@ const MMCCalendar = () => {
                 New Entry
                 {preSelectedDate && (
                   <span className="text-sm text-blue-600 ml-2">
-                    (for {monthNames[preSelectedDate.month]} {preSelectedDate.date}, '{preSelectedDate.year.toString().slice(-2)})
+                    (for {monthNames[preSelectedDate.month]} {preSelectedDate.date}, {preSelectedDate.year})
                   </span>
                 )}
               </h3>
@@ -4536,7 +5459,7 @@ const MMCCalendar = () => {
                 <div className="flex items-center space-x-2">
                   <Calendar className="w-4 h-4 text-gray-400" />
                   <span className="text-sm text-gray-900">
-                    {monthNames[selectedTask.month || currentDate.getMonth()]} {selectedTask.date}, '{(selectedTask.year || currentDate.getFullYear()).toString().slice(-2)}
+                    {monthNames[selectedTask.month || currentDate.getMonth()]} {selectedTask.date}, {selectedTask.year || currentDate.getFullYear()}
                   </span>
                   {selectedTask.is_multiday ? (
                     <>
