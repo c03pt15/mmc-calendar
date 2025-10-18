@@ -420,6 +420,7 @@ const MMCCalendar = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [showSearchInput, setShowSearchInput] = useState(false);
   const [dragOverDate, setDragOverDate] = useState<number | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showDrawer, setShowDrawer] = useState(false);
@@ -1771,6 +1772,19 @@ const MMCCalendar = () => {
     setSearchQuery('');
     setSearchResults([]);
     setShowSearchResults(false);
+    setShowSearchInput(false);
+  };
+
+  const handleSearchIconClick = () => {
+    setShowSearchInput(true);
+  };
+
+  const handleSearchInputBlur = () => {
+    // Delay hiding the input to allow clicking on search results
+    setTimeout(() => {
+      setShowSearchInput(false);
+      setShowSearchResults(false);
+    }, 200);
   };
 
   // Export functionality
@@ -1811,6 +1825,7 @@ const MMCCalendar = () => {
       const target = event.target as HTMLElement;
       if (!target.closest('.search-container')) {
         setShowSearchResults(false);
+        setShowSearchInput(false);
       }
       if (!target.closest('.export-container')) {
         setShowExportMenu(false);
@@ -3126,7 +3141,7 @@ const MMCCalendar = () => {
                   <ChevronLeft className="w-5 h-5" />
                 </button>
                 <h2 className="text-xl font-semibold text-gray-900">
-                  {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+                  {monthNames[currentDate.getMonth()]} '{currentDate.getFullYear().toString().slice(-2)}
                 </h2>
                 <button
                   onClick={() => navigateMonth(1)}
@@ -3294,50 +3309,67 @@ const MMCCalendar = () => {
               
               {/* Search Box - Hidden on mobile, shown on desktop */}
               <div className="relative search-container hidden md:block">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <input
-                    type="text"
-                    placeholder="Search tasks..."
-                    value={searchQuery}
-                    onChange={user !== 'guest' ? (e) => handleSearch(e.target.value) : undefined}
-                    onFocus={user !== 'guest' ? () => searchQuery && setShowSearchResults(true) : undefined}
-                    disabled={user === 'guest'}
-                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-64 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  />
-                </div>
+                <button
+                  onClick={user !== 'guest' ? handleSearchIconClick : undefined}
+                  disabled={user === 'guest'}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:cursor-not-allowed"
+                  title="Search tasks"
+                >
+                  <Search className="w-5 h-5" />
+                </button>
                 
-                {/* Search Results Dropdown */}
-                {showSearchResults && searchResults.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
-                    {searchResults.map((task) => (
-                      <div
-                        key={task.id}
-                        onClick={() => handleSearchResultClick(task)}
-                        className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
-                      >
-                        <div className="font-medium text-gray-900">{task.title}</div>
-                        <div className="text-sm text-gray-600 truncate">{task.description}</div>
-                        <div className="flex items-center space-x-2 mt-1">
-                          <span className={`text-xs px-2 py-1 rounded ${task.color}`}>
-                            {getTaskCategoryDisplayName(task)}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {monthNames[task.month || currentDate.getMonth()]} {task.date}, {task.year || currentDate.getFullYear()}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {getAssigneesDisplay(task)}
-                          </span>
-                        </div>
+                {/* Search Dropdown */}
+                {showSearchInput && (
+                  <div className="absolute top-full right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                    <div className="p-3 border-b border-gray-100">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <input
+                          type="text"
+                          placeholder="Search tasks..."
+                          value={searchQuery}
+                          onChange={user !== 'guest' ? (e) => handleSearch(e.target.value) : undefined}
+                          onFocus={user !== 'guest' ? () => searchQuery && setShowSearchResults(true) : undefined}
+                          disabled={user === 'guest'}
+                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                          autoFocus
+                        />
                       </div>
-                    ))}
-                  </div>
-                )}
-                
-                {/* No Results Message */}
-                {showSearchResults && searchResults.length === 0 && searchQuery && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-3">
-                    <div className="text-gray-500 text-sm">No tasks found matching "{searchQuery}"</div>
+                    </div>
+                    
+                    {/* Search Results */}
+                    {showSearchResults && searchResults.length > 0 && (
+                      <div className="max-h-64 overflow-y-auto">
+                        {searchResults.map((task) => (
+                          <div
+                            key={task.id}
+                            onClick={() => handleSearchResultClick(task)}
+                            className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                          >
+                            <div className="font-medium text-gray-900">{task.title}</div>
+                            <div className="text-sm text-gray-600 truncate">{task.description}</div>
+                            <div className="flex items-center space-x-2 mt-1">
+                              <span className={`text-xs px-2 py-1 rounded ${task.color}`}>
+                                {getTaskCategoryDisplayName(task)}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {monthNames[task.month || currentDate.getMonth()]} {task.date}, '{(task.year || currentDate.getFullYear()).toString().slice(-2)}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {getAssigneesDisplay(task)}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* No Results Message */}
+                    {showSearchResults && searchResults.length === 0 && searchQuery && (
+                      <div className="p-3">
+                        <div className="text-gray-500 text-sm">No tasks found matching "{searchQuery}"</div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -3770,7 +3802,7 @@ const MMCCalendar = () => {
                 New Entry
                 {preSelectedDate && (
                   <span className="text-sm text-blue-600 ml-2">
-                    (for {monthNames[preSelectedDate.month]} {preSelectedDate.date}, {preSelectedDate.year})
+                    (for {monthNames[preSelectedDate.month]} {preSelectedDate.date}, '{preSelectedDate.year.toString().slice(-2)})
                   </span>
                 )}
               </h3>
@@ -4463,7 +4495,7 @@ const MMCCalendar = () => {
                 <div className="flex items-center space-x-2">
                   <Calendar className="w-4 h-4 text-gray-400" />
                   <span className="text-sm text-gray-900">
-                    {monthNames[selectedTask.month || currentDate.getMonth()]} {selectedTask.date}, {selectedTask.year || currentDate.getFullYear()}
+                    {monthNames[selectedTask.month || currentDate.getMonth()]} {selectedTask.date}, '{(selectedTask.year || currentDate.getFullYear()).toString().slice(-2)}
                   </span>
                   {selectedTask.is_multiday ? (
                     <>
