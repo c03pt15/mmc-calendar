@@ -26,6 +26,9 @@ CREATE TABLE IF NOT EXISTS tasks (
   is_recurring_instance BOOLEAN DEFAULT FALSE,
   is_deleted_instance BOOLEAN DEFAULT FALSE,
   tags TEXT[],
+  reminders JSONB DEFAULT '[]'::jsonb,
+  reminder_times TEXT[] DEFAULT '{}',
+  reminder_custom_time TIMESTAMP WITH TIME ZONE,
   created_by INTEGER,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -44,6 +47,9 @@ CREATE INDEX IF NOT EXISTS idx_tasks_recurring_interval ON tasks(recurring_inter
 CREATE INDEX IF NOT EXISTS idx_tasks_recurring_unit ON tasks(recurring_unit);
 CREATE INDEX IF NOT EXISTS idx_tasks_deleted_instance ON tasks(is_deleted_instance);
 CREATE INDEX IF NOT EXISTS idx_tasks_tags ON tasks USING GIN (tags);
+CREATE INDEX IF NOT EXISTS idx_tasks_reminders ON tasks USING GIN (reminders);
+CREATE INDEX IF NOT EXISTS idx_tasks_reminder_times ON tasks USING GIN (reminder_times);
+CREATE INDEX IF NOT EXISTS idx_tasks_reminder_custom_time ON tasks(reminder_custom_time);
 CREATE INDEX IF NOT EXISTS idx_tasks_created_by ON tasks(created_by);
 
 -- Add RLS (Row Level Security) policies if needed
