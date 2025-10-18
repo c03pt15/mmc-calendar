@@ -624,16 +624,12 @@ const MMCCalendar = () => {
   // Function to load activities from database
   const loadActivities = useCallback(async () => {
     try {
-      // Only fetch activities from the last 7 days
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      
+      // Fetch recent activities without date filtering (let UI handle the filtering)
       const { data, error } = await supabase
         .from('activities')
         .select('*')
-        .gte('created_at', sevenDaysAgo.toISOString())
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(500);
       
       if (error) {
         console.error('Error loading activities:', error);
@@ -657,6 +653,7 @@ const MMCCalendar = () => {
           oldStatus: activity.old_status || null,
           newStatus: activity.new_status || null
         }));
+        
         
         setRecentActivities(formattedActivities);
         setActivitiesLoaded(true);
@@ -1819,14 +1816,22 @@ const MMCCalendar = () => {
   };
 
   const getRecentActivities = useCallback(() => {
-    // Filter activities to only show those from the last 7 days
+    // Filter to show the last 7 days
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
     
-    return recentActivities
+    const filteredActivities = recentActivities
       .filter(activity => activity.timestamp >= sevenDaysAgo)
       .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    
+    return filteredActivities;
   }, [recentActivities]);
+
+  // Memoized recent activities count to prevent flicker
+  const recentActivitiesCount = useMemo(() => {
+    return getRecentActivities().length;
+  }, [getRecentActivities]);
 
   // Dynamic filter counts based on available categories
   const filterCounts = useMemo(() => {
@@ -2056,6 +2061,8 @@ const MMCCalendar = () => {
       
       setShowNewEntryModal(false);
       await refreshTasks();
+      // Refresh activities to show the new activity
+      loadActivities();
     } catch (err) {
       console.error('Unexpected error:', err);
       showNotification('error', `Unexpected error: ${err}`);
@@ -2359,6 +2366,8 @@ const MMCCalendar = () => {
       setShowEditModal(false);
       setEditingTask(null);
       await refreshTasks();
+      // Refresh activities to show the new activity
+      loadActivities();
     } catch (err) {
       console.error('Unexpected error:', err);
       showNotification('error', `Unexpected error: ${err}`);
@@ -2495,6 +2504,8 @@ const MMCCalendar = () => {
       });
       
       await refreshTasks();
+      // Refresh activities to show the new activity
+      loadActivities();
     }
     setDraggedTask(null);
   };
@@ -4161,19 +4172,19 @@ const MMCCalendar = () => {
                       ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 cursor-pointer' 
                       : 'text-gray-400 cursor-not-allowed'
                   }`}
-                  title={user !== 'guest' ? "Tasks Overview" : "Guest users cannot access tasks"}
+                  title={user !== 'guest' ? "Recent Activities" : "Guest users cannot access activities"}
                   disabled={user === 'guest'}
                 >
                 <div className="w-6 h-6 relative">
-                  {/* Grid Icon */}
+                  {/* Clock/Activity Icon */}
                   <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                {recentActivities.length > 0 && (
+                {recentActivitiesCount > 0 && (
                   <div className="absolute -top-1 -right-1 min-w-5 h-5 bg-red-500 rounded-full flex items-center justify-center px-1">
                     <span className="text-xs text-white font-bold">
-                      {recentActivities.length}
+                      {recentActivitiesCount}
                     </span>
                   </div>
                 )}
@@ -6734,9 +6745,14 @@ const MMCCalendar = () => {
             <div className="flex flex-col h-full">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
+                <div>
                 <h2 className="text-xl font-semibold text-gray-900">
                   {showPersonalTasks ? 'My Tasks' : 'Task Overview'}
                 </h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {showPersonalTasks ? 'Your personal tasks and assignments' : 'Overdue and high priority tasks'}
+                  </p>
+                </div>
                 <button
                   onClick={user !== 'guest' ? closeDrawer : undefined}
                   className={`p-2 rounded-lg transition-colors ${
@@ -6900,8 +6916,8 @@ const MMCCalendar = () => {
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Tasks Overview</h2>
-                  <p className="text-sm text-gray-500 mt-1">Overdue and high priority tasks</p>
+                  <h2 className="text-xl font-semibold text-gray-900">Recent Activities</h2>
+                  <p className="text-sm text-gray-500 mt-1">All activities for the past 7 days</p>
                 </div>
                 <button
                   onClick={closeActivitiesDrawer}
