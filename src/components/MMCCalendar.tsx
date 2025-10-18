@@ -3639,7 +3639,7 @@ const MMCCalendar = () => {
           <h3 className="text-sm font-medium text-gray-900 mb-3">Monthly Overview</h3>
           <div className="grid grid-cols-2 gap-3">
             <div 
-              className="bg-green-50 rounded-lg p-3 cursor-pointer hover:bg-green-100 transition-colors"
+              className="bg-green-50 rounded-lg p-3 cursor-pointer hover:bg-green-100 transition-colors text-center"
               onClick={() => handleMonthlyOverviewClick('planned')}
               title="Click to view in Kanban"
             >
@@ -3647,7 +3647,7 @@ const MMCCalendar = () => {
               <div className="text-xs text-gray-600">Planned</div>
             </div>
             <div 
-              className="bg-yellow-50 rounded-lg p-3 cursor-pointer hover:bg-yellow-100 transition-colors"
+              className="bg-yellow-50 rounded-lg p-3 cursor-pointer hover:bg-yellow-100 transition-colors text-center"
               onClick={() => handleMonthlyOverviewClick('in-progress')}
               title="Click to view in Kanban"
             >
@@ -3655,7 +3655,7 @@ const MMCCalendar = () => {
               <div className="text-xs text-gray-600">In Progress</div>
             </div>
             <div 
-              className="bg-orange-50 rounded-lg p-3 cursor-pointer hover:bg-orange-100 transition-colors"
+              className="bg-orange-50 rounded-lg p-3 cursor-pointer hover:bg-orange-100 transition-colors text-center"
               onClick={() => handleMonthlyOverviewClick('review')}
               title="Click to view in Kanban"
             >
@@ -3663,7 +3663,7 @@ const MMCCalendar = () => {
               <div className="text-xs text-gray-600">Review</div>
             </div>
             <div 
-              className="bg-blue-50 rounded-lg p-3 cursor-pointer hover:bg-blue-100 transition-colors"
+              className="bg-blue-50 rounded-lg p-3 cursor-pointer hover:bg-blue-100 transition-colors text-center"
               onClick={() => handleMonthlyOverviewClick('completed')}
               title="Click to view in Kanban"
             >
