@@ -396,6 +396,9 @@ const MMCCalendar = () => {
   const [selectedDay, setSelectedDay] = useState<Date>(() => new Date());
   const [showEarlyHours, setShowEarlyHours] = useState(false);
   const [showLateHours, setShowLateHours] = useState(false);
+  const [upcomingReminders, setUpcomingReminders] = useState<any[]>([]);
+  const [dismissedReminders, setDismissedReminders] = useState<any[]>([]);
+  const [reminderNotifications, setReminderNotifications] = useState<any[]>([]);
   const [showMonthYearPicker, setShowMonthYearPicker] = useState(false);
   const [showDayPicker, setShowDayPicker] = useState(false);
   const [dayPickerMonth, setDayPickerMonth] = useState<Date>(() => new Date());
@@ -439,6 +442,7 @@ const MMCCalendar = () => {
     }
   }, [currentDate, activeView]);
 
+
   const [selectedFilters, setSelectedFilters] = useState<{ [key: string]: boolean }>({});
   const [selectedTeamMember, setSelectedTeamMember] = useState<number | null>(null);
   const [showNewEntryModal, setShowNewEntryModal] = useState(false);
@@ -472,8 +476,10 @@ const MMCCalendar = () => {
   const [showDrawer, setShowDrawer] = useState(false);
   const [showPersonalTasks, setShowPersonalTasks] = useState(false);
   const [showActivitiesDrawer, setShowActivitiesDrawer] = useState(false);
+  const [showRemindersDrawer, setShowRemindersDrawer] = useState(false);
   const [isDrawerClosing, setIsDrawerClosing] = useState(false);
   const [isActivitiesDrawerClosing, setIsActivitiesDrawerClosing] = useState(false);
+  const [isRemindersDrawerClosing, setIsRemindersDrawerClosing] = useState(false);
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [activitiesLoaded, setActivitiesLoaded] = useState(false);
   const [preSelectedDate, setPreSelectedDate] = useState<{date: number, month: number, year: number} | null>(null);
@@ -558,7 +564,10 @@ const MMCCalendar = () => {
     is_all_day: false,
     is_multiday: false,
     start_date: '',
-    end_date: ''
+    end_date: '',
+    reminders: [],
+    reminder_times: [],
+    reminder_custom_time: ''
   });
 
   const teamMembers = [
@@ -1087,6 +1096,250 @@ const MMCCalendar = () => {
       return allTasksFlat || [];
     }
   }, [allTasks, currentDate.getMonth(), currentDate.getFullYear(), deletedInstances]);
+
+  // Helper functions for reminders
+  const getReminderTime = (task: any, reminderType: string) => {
+    const taskDate = new Date(task.year, task.month, task.date); // task.month is already 0-based
+    if (task.time) {
+      const [hours, minutes] = task.time.split(':').map(Number);
+      taskDate.setHours(hours, minutes, 0, 0);
+    } else {
+      // If no time is set, default to 9:00 AM
+      taskDate.setHours(9, 0, 0, 0);
+    }
+    
+    const reminderDate = new Date(taskDate);
+    
+    switch (reminderType) {
+      case '15min':
+        reminderDate.setMinutes(reminderDate.getMinutes() - 15);
+        break;
+      case '30min':
+        reminderDate.setMinutes(reminderDate.getMinutes() - 30);
+        break;
+      case '1hour':
+        reminderDate.setHours(reminderDate.getHours() - 1);
+        break;
+      case '2hours':
+        reminderDate.setHours(reminderDate.getHours() - 2);
+        break;
+      case '1day':
+        reminderDate.setDate(reminderDate.getDate() - 1);
+        break;
+      case '2days':
+        reminderDate.setDate(reminderDate.getDate() - 2);
+        break;
+      case '1week':
+        reminderDate.setDate(reminderDate.getDate() - 7);
+        break;
+      case 'custom':
+        // For custom reminders, we need to get the custom_time from the reminder object
+        // This will be handled in the calling function
+        return null;
+      default:
+        return null;
+    }
+    
+    return reminderDate;
+  };
+
+  const getUpcomingReminders = () => {
+    const now = new Date();
+    const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const upcomingReminders: Array<{id: string, taskId: string, type: string, reminderType: string, reminderTime: Date, taskTitle: string, taskDate: Date, dismissed?: boolean, snoozedUntil?: Date}> = [];
+    const pastReminders: Array<{id: string, taskId: string, type: string, reminderType: string, reminderTime: Date, taskTitle: string, taskDate: Date, dismissed?: boolean, snoozedUntil?: Date}> = [];
+    
+    allTasksWithRecurring.forEach(task => {
+      if (task.reminders && task.reminders.length > 0) {
+        task.reminders.forEach((reminder: any) => {
+          // Skip dismissed reminders
+          if (reminder.dismissed) {
+            return;
+          }
+
+          let reminderTime;
+          if (reminder.type === 'custom' && reminder.custom_time) {
+            // Handle custom reminder time
+            reminderTime = new Date(reminder.custom_time);
+          } else {
+            // Handle predefined reminder types
+            reminderTime = getReminderTime(task, reminder.type);
+          }
+          
+          if (reminderTime) {
+            const reminderData = {
+              id: `${task.id}-${reminder.type}`,
+              taskId: task.id,
+              type: reminder.type,
+              taskTitle: task.title,
+              reminderTime: reminderTime,
+              reminderType: reminder.type,
+              taskDate: new Date(task.year, task.month, task.date), // task.month is already 0-based
+              dismissed: reminder.dismissed || false,
+              snoozedUntil: undefined
+            };
+            
+            if (reminderTime >= now && reminderTime <= nextWeek) {
+              upcomingReminders.push(reminderData);
+            } else if (reminderTime < now) {
+              pastReminders.push(reminderData);
+            }
+          }
+        });
+      }
+    });
+    
+    return {
+      upcoming: upcomingReminders.sort((a, b) => a.reminderTime.getTime() - b.reminderTime.getTime()),
+      past: pastReminders.sort((a, b) => b.reminderTime.getTime() - a.reminderTime.getTime()) // Most recent first
+    };
+  };
+
+  const dismissReminder = async (reminderId: string) => {
+    const [taskIdStr, reminderType] = reminderId.split('-');
+    const taskId = parseInt(taskIdStr, 10); // Convert string to number
+
+    // Try to find the task in allTasksWithRecurring first
+    let taskToUpdate = allTasksWithRecurring.find(task => task.id === taskId);
+    
+    // If not found, try to find by parent_task_id (for recurring instances)
+    if (!taskToUpdate) {
+      taskToUpdate = allTasksWithRecurring.find(task => task.parent_task_id === taskId);
+    }
+    
+    // If still not found, try to find in the original allTasks data
+    if (!taskToUpdate) {
+      const allTasksFlat = Object.values(allTasks).flat();
+      taskToUpdate = allTasksFlat.find(task => task.id === taskId);
+    }
+
+    if (!taskToUpdate) {
+      console.error('Task not found for reminder dismissal:', reminderId);
+      return;
+    }
+
+    const updatedReminders = taskToUpdate.reminders.map((r: any) => {
+      if (r.type === reminderType) {
+        return { ...r, dismissed: true };
+      }
+      return r;
+    });
+
+    // Update in database - use the actual task ID we found
+    const actualTaskId = taskToUpdate.id;
+    const { error } = await supabase
+      .from('tasks')
+      .update({ reminders: updatedReminders })
+      .eq('id', actualTaskId);
+
+    if (error) {
+      console.error('Error dismissing reminder in DB:', error);
+      return;
+    }
+
+    // If DB update is successful, update local state
+    // This will trigger the useEffect that updates upcomingReminders and dismissedReminders
+    setAllTasks(prevTasks => {
+      const updatedTasks = { ...prevTasks };
+      Object.keys(updatedTasks).forEach(monthKey => {
+        updatedTasks[monthKey] = updatedTasks[monthKey].map(task =>
+          task.id === actualTaskId
+            ? { ...task, reminders: updatedReminders }
+            : task
+        );
+      });
+      return updatedTasks;
+    });
+
+    // Update reminder notifications (this is for browser notifications, not the drawer lists)
+    setReminderNotifications(prev =>
+      prev.map(reminder =>
+        reminder.id === reminderId
+          ? { ...reminder, dismissed: true }
+          : reminder
+      )
+    );
+  };
+
+  const handleReminderClick = (reminder: any) => {
+    // Find the task by taskId
+    const task = allTasksWithRecurring.find(t => t.id === reminder.taskId);
+    if (task) {
+      setSelectedTask(ensureCompleteTaskData(task));
+      setShowTaskModal(true);
+      setShowRemindersDrawer(false); // Close the reminders drawer
+    }
+  };
+
+
+  const showReminderNotification = (reminder: any) => {
+    if ('Notification' in window) {
+      if (Notification.permission === 'granted') {
+        try {
+          new Notification(`Reminder: ${reminder.taskTitle}`, {
+            body: `Task is due ${reminder.taskDate.toLocaleDateString()}`,
+            icon: '/favicon.ico',
+            tag: `reminder-${reminder.id}` // Prevent duplicate notifications
+          });
+        } catch (error) {
+          console.error('Error showing notification:', error);
+        }
+      } else if (Notification.permission === 'default') {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            new Notification(`Reminder: ${reminder.taskTitle}`, {
+              body: `Task is due ${reminder.taskDate.toLocaleDateString()}`,
+              icon: '/favicon.ico',
+              tag: `reminder-${reminder.id}`
+            });
+          }
+        });
+      }
+    }
+  };
+
+  // Reminder management useEffect
+  useEffect(() => {
+    // Request notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+    
+    // Update upcoming reminders
+    const reminders = getUpcomingReminders();
+    setUpcomingReminders(reminders.upcoming);
+    setDismissedReminders(reminders.past);
+    
+    // Check for due reminders every minute
+    const interval = setInterval(() => {
+      const now = new Date();
+      const currentReminders = getUpcomingReminders();
+      
+      const dueReminders = currentReminders.upcoming.filter(reminder => 
+        reminder.reminderTime <= now && 
+        !reminder.dismissed && 
+        (!reminder.snoozedUntil || reminder.snoozedUntil <= now)
+      );
+      
+      dueReminders.forEach(reminder => {
+        showReminderNotification(reminder);
+        setReminderNotifications(prev => [...prev, reminder]);
+      });
+      
+      // Update upcoming reminders
+      setUpcomingReminders(currentReminders.upcoming);
+      setDismissedReminders(currentReminders.past);
+    }, 60000);
+    
+    return () => clearInterval(interval);
+  }, [allTasksWithRecurring]);
+
+  // Update reminders when tasks change
+  useEffect(() => {
+    const reminders = getUpcomingReminders();
+    setUpcomingReminders(reminders.upcoming);
+    setDismissedReminders(reminders.past);
+  }, [allTasksWithRecurring]);
 
   const getTasksForDate = useCallback((date: number) => {
     let tasks = allTasksWithRecurring.filter(task => 
@@ -1695,10 +1948,25 @@ const MMCCalendar = () => {
       if (cleanedTask.end_date === '') cleanedTask.end_date = null;
       if (cleanedTask.recurring_end_date === '') cleanedTask.recurring_end_date = null;
       
+      // Process reminders
+      const reminders: Array<{type: string, custom_time?: any}> = [];
+      if (cleanedTask.reminder_times && cleanedTask.reminder_times.length > 0) {
+        cleanedTask.reminder_times.forEach((time: string) => {
+          reminders.push({ type: time });
+        });
+      }
+      if (cleanedTask.reminder_custom_time) {
+        reminders.push({ 
+          type: 'custom', 
+          custom_time: cleanedTask.reminder_custom_time 
+        });
+      }
+      
       const task = {
         ...cleanedTask,
         color: getCategoryConfig(newTask.category).color,
-        created_by: newTask.created_by
+        created_by: newTask.created_by,
+        reminders: reminders
       };
       
       
@@ -1920,7 +2188,25 @@ const MMCCalendar = () => {
       if (cleanedTask.end_date === '') cleanedTask.end_date = null;
       if (cleanedTask.recurring_end_date === '') cleanedTask.recurring_end_date = null;
       
-      const updatedTask = { ...cleanedTask, color: getCategoryConfig(editingTask.category).color };
+      // Process reminders
+      const reminders: Array<{type: string, custom_time?: any}> = [];
+      if (cleanedTask.reminder_times && cleanedTask.reminder_times.length > 0) {
+        cleanedTask.reminder_times.forEach((time: string) => {
+          reminders.push({ type: time });
+        });
+      }
+      if (cleanedTask.reminder_custom_time) {
+        reminders.push({ 
+          type: 'custom', 
+          custom_time: cleanedTask.reminder_custom_time 
+        });
+      }
+      
+      const updatedTask = { 
+        ...cleanedTask, 
+        color: getCategoryConfig(editingTask.category).color,
+        reminders: reminders
+      };
       
       const isRecurring = editingTask.is_recurring || editingTask.is_recurring_instance;
       
@@ -3115,6 +3401,14 @@ const MMCCalendar = () => {
     }, 300); // Match animation duration
   };
 
+  const closeRemindersDrawer = () => {
+    setIsRemindersDrawerClosing(true);
+    setTimeout(() => {
+      setShowRemindersDrawer(false);
+      setIsRemindersDrawerClosing(false);
+    }, 300); // Match animation duration
+  };
+
   const navigateMonth = (direction: number) => {
     setCurrentDate(prev => {
       const newDate = new Date(prev);
@@ -3622,6 +3916,8 @@ const MMCCalendar = () => {
                 Today
               </button>
             </div>
+
+
             <div className="flex items-center space-x-2 md:space-x-4">
               {/* User Menu - Moved to first position */}
               {user && user !== 'guest' && (
@@ -3683,6 +3979,18 @@ const MMCCalendar = () => {
                           </svg>
                           <span>Urgent/Overdue Tasks ({getUserNotificationCount()})</span>
                         </button>
+                        <button
+                          onClick={() => {
+                            setShowRemindersDrawer(true);
+                            setShowUserMenu(false);
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center space-x-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                          </svg>
+                          <span>Upcoming Reminders ({upcomingReminders.length})</span>
+                        </button>
                         <div className="border-t border-gray-100"></div>
                         <button
                           onClick={() => {
@@ -3711,6 +4019,38 @@ const MMCCalendar = () => {
                   </div>
                 </div>
               )}
+
+              
+                  {/* Reminders Button */}
+                  <div className="relative">
+                <button
+                  onClick={user !== 'guest' ? () => setShowRemindersDrawer(!showRemindersDrawer) : undefined}
+                  className={`relative p-2 rounded-lg transition-colors ${
+                    user !== 'guest' 
+                      ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 cursor-pointer' 
+                      : 'text-gray-400 cursor-not-allowed'
+                  }`}
+                  title={user !== 'guest' ? "Upcoming Reminders" : "Guest users cannot access reminders"}
+                  disabled={user === 'guest'}
+                >
+                <div className="w-6 h-6 relative">
+                  {/* Bell Icon */}
+                  <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                </div>
+                {upcomingReminders.length > 0 && (
+                  <div className="absolute -top-1 -right-1 min-w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center px-1">
+                    <span className="text-xs text-white font-bold">
+                      {upcomingReminders.length}
+                    </span>
+                  </div>
+                )}
+                </button>
+              </div>
+
+                            {/* Separator */}
+                            <div className="text-gray-300 text-lg">|</div>
 
               {/* Drawer Toggle Button */}
               <button
@@ -3743,8 +4083,11 @@ const MMCCalendar = () => {
                   </div>
                 )}
               </button>
+
+          
+
               
-              {/* Recent Activities Button */}
+              {/* Tasks Overview Button */}
               <div className="relative">
                 <button
                   onClick={user !== 'guest' ? () => setShowActivitiesDrawer(!showActivitiesDrawer) : undefined}
@@ -3753,24 +4096,28 @@ const MMCCalendar = () => {
                       ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 cursor-pointer' 
                       : 'text-gray-400 cursor-not-allowed'
                   }`}
-                  title={user !== 'guest' ? "Recent activities (last 7 days)" : "Guest users cannot access activities"}
+                  title={user !== 'guest' ? "Tasks Overview" : "Guest users cannot access tasks"}
                   disabled={user === 'guest'}
                 >
                 <div className="w-6 h-6 relative">
-                  {/* Clock/History Icon */}
+                  {/* Grid Icon */}
                   <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                   </svg>
                 </div>
                 {recentActivities.length > 0 && (
-                  <div className="absolute -top-1 -right-1 min-w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center px-1">
+                  <div className="absolute -top-1 -right-1 min-w-5 h-5 bg-red-500 rounded-full flex items-center justify-center px-1">
                     <span className="text-xs text-white font-bold">
                       {recentActivities.length}
                     </span>
                   </div>
                 )}
                 </button>
-              </div>
+              </div> 
+             
+              {/* Separator */}
+              <div className="text-gray-300 text-lg">|</div>
+              
               
               {/* Search Box - Hidden on mobile, shown on desktop */}
               <div className="relative search-container hidden md:block">
@@ -3979,83 +4326,83 @@ const MMCCalendar = () => {
                         {/* Multi-day tasks container with negative margin */}
                         {getTasksForDate(day).filter(task => task.is_multiday).length > 0 && (
                           <div className="space-y-1 mb-2" style={{ margin: '0px -7px' }}>
-                            {getTasksForDate(day).filter(task => task.is_multiday).map((task, index) => {
-                              let isStart = false;
-                              let isEnd = false;
-                              let isMiddle = false;
-                              
-                              try {
-                                if (task.start_date) {
-                                  const startDate = new Date(task.start_date + 'T00:00:00');
-                                  isStart = startDate.getDate() === day && startDate.getMonth() === currentDate.getMonth() && startDate.getFullYear() === currentDate.getFullYear();
-                                }
-                                if (task.end_date) {
-                                  const endDate = new Date(task.end_date + 'T00:00:00');
-                                  isEnd = endDate.getDate() === day && endDate.getMonth() === currentDate.getMonth() && endDate.getFullYear() === currentDate.getFullYear();
-                                }
-                                isMiddle = !isStart && !isEnd;
-                              } catch (error) {
-                                console.error('Error parsing multi-day task dates for rendering:', error, task);
-                                isStart = false;
-                                isEnd = false;
-                                isMiddle = true;
+                          {getTasksForDate(day).filter(task => task.is_multiday).map((task, index) => {
+                            let isStart = false;
+                            let isEnd = false;
+                            let isMiddle = false;
+                            
+                            try {
+                              if (task.start_date) {
+                                const startDate = new Date(task.start_date + 'T00:00:00');
+                                isStart = startDate.getDate() === day && startDate.getMonth() === currentDate.getMonth() && startDate.getFullYear() === currentDate.getFullYear();
                               }
-                              
-                              return (
-                                <div
-                                  key={`multiday-${task.id}-${day}`}
-                                  className={`h-6 ${task.color} cursor-pointer hover:opacity-80 relative flex items-center border-t-2 ${
+                              if (task.end_date) {
+                                const endDate = new Date(task.end_date + 'T00:00:00');
+                                isEnd = endDate.getDate() === day && endDate.getMonth() === currentDate.getMonth() && endDate.getFullYear() === currentDate.getFullYear();
+                              }
+                              isMiddle = !isStart && !isEnd;
+                            } catch (error) {
+                              console.error('Error parsing multi-day task dates for rendering:', error, task);
+                              isStart = false;
+                              isEnd = false;
+                              isMiddle = true;
+                            }
+                            
+                            return (
+                              <div
+                                key={`multiday-${task.id}-${day}`}
+                                className={`h-6 ${task.color} cursor-pointer hover:opacity-80 relative flex items-center border-t-2 ${
                                     isStart ? 'border-l-2' : ''
                                   } ${isEnd ? 'border-r-2' : ''} ${
-                                    task.status === 'completed' ? 'opacity-50' : ''
-                                  } ${draggedTask?.id === task.id ? 'opacity-50' : ''} rounded-none`}
-                                  onClick={user !== 'guest' ? (e) => {
-                                    e.stopPropagation();
-                                    handleTaskClick(task);
-                                  } : undefined}
-                                  title={`${task.title}${isStart ? ' (Start)' : isEnd ? ' (End)' : ''}`}
-                                  style={{
-                                    marginLeft: isStart ? '0' : '-1px',
-                                    marginRight: isEnd ? '0' : '-1px',
-                                    zIndex: 10
-                                  }}
-                                >
-                                  <div className="flex items-center justify-between w-full p-1 md:p-2 min-w-0">
-                                    <div className="flex items-center space-x-1 min-w-0 flex-1">
-                                      <div className="text-xs font-medium truncate min-w-0 flex-1">
-                                        {task.title}
-                                      </div>
-                                      <div className="flex -space-x-1 ml-1 flex-shrink-0">
-                                        {getAssigneesAvatars(task).map((avatar: string, index: number) => {
-                                          const assigneeIds = task.assignees && task.assignees.length > 0 ? task.assignees : (task.assignee ? [task.assignee] : []);
-                                          const member = teamMembers.find(m => m.id === assigneeIds[index]);
-                                          return (
-                                            <div key={index} className={`w-4 h-4 ${member?.color || 'bg-gray-400'} rounded-full flex items-center justify-center text-white text-[8px] font-medium border border-white`}>
-                                              {avatar}
-                                            </div>
-                                          );
-                                        })}
-                                        {task.assignees && task.assignees.length > 3 && (
-                                          <div className="w-4 h-4 bg-gray-400 rounded-full flex items-center justify-center text-white text-[8px] font-medium border border-white">
-                                            +{task.assignees.length - 3}
-                                          </div>
-                                        )}
-                                      </div>
+                                  task.status === 'completed' ? 'opacity-50' : ''
+                                } ${draggedTask?.id === task.id ? 'opacity-50' : ''} rounded-none`}
+                                onClick={user !== 'guest' ? (e) => {
+                                  e.stopPropagation();
+                                  handleTaskClick(task);
+                                } : undefined}
+                                title={`${task.title}${isStart ? ' (Start)' : isEnd ? ' (End)' : ''}`}
+                                style={{
+                                  marginLeft: isStart ? '0' : '-1px',
+                                  marginRight: isEnd ? '0' : '-1px',
+                                  zIndex: 10
+                                }}
+                              >
+                                <div className="flex items-center justify-between w-full p-1 md:p-2 min-w-0">
+                                  <div className="flex items-center space-x-1 min-w-0 flex-1">
+                                    <div className="text-xs font-medium truncate min-w-0 flex-1">
+                                      {task.title}
                                     </div>
-                                    <div className="flex items-center space-x-1 flex-shrink-0 ml-1">
-                                      {task.priority && task.priority !== 'medium' && (
-                                        <span className="text-xs">
-                                          {priorityConfig[task.priority]?.icon || '🟡'}
-                                        </span>
+                                    <div className="flex -space-x-1 ml-1 flex-shrink-0">
+                                      {getAssigneesAvatars(task).map((avatar: string, index: number) => {
+                                        const assigneeIds = task.assignees && task.assignees.length > 0 ? task.assignees : (task.assignee ? [task.assignee] : []);
+                                        const member = teamMembers.find(m => m.id === assigneeIds[index]);
+                                        return (
+                                          <div key={index} className={`w-4 h-4 ${member?.color || 'bg-gray-400'} rounded-full flex items-center justify-center text-white text-[8px] font-medium border border-white`}>
+                                            {avatar}
+                                          </div>
+                                        );
+                                      })}
+                                      {task.assignees && task.assignees.length > 3 && (
+                                        <div className="w-4 h-4 bg-gray-400 rounded-full flex items-center justify-center text-white text-[8px] font-medium border border-white">
+                                          +{task.assignees.length - 3}
+                                        </div>
                                       )}
                                     </div>
                                   </div>
+                                  <div className="flex items-center space-x-1 flex-shrink-0 ml-1">
+                                    {task.priority && task.priority !== 'medium' && (
+                                      <span className="text-xs">
+                                        {priorityConfig[task.priority]?.icon || '🟡'}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
-                              );
-                            })}
+                              </div>
+                            );
+                          })}
                           </div>
                         )}
-                        
+                          
                         {/* Regular tasks container with normal spacing */}
                         <div className={`space-y-1 ${getTasksForDate(day).filter(task => task.is_multiday).length > 0 ? 'mt-3' : ''}`}>
                           {getTasksForDate(day).filter(task => !task.is_multiday).map((task, index) => {
@@ -5285,6 +5632,50 @@ const MMCCalendar = () => {
               </div>
               
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Reminders</label>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { value: '15min', label: '15 min before' },
+                      { value: '30min', label: '30 min before' },
+                      { value: '1hour', label: '1 hour before' },
+                      { value: '2hours', label: '2 hours before' },
+                      { value: '1day', label: '1 day before' },
+                      { value: '2days', label: '2 days before' },
+                      { value: '1week', label: '1 week before' }
+                    ].map((reminder) => (
+                      <label key={reminder.value} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={newTask.reminder_times?.includes(reminder.value) || false}
+                          onChange={(e) => {
+                            const currentTimes = newTask.reminder_times || [];
+                            const newTimes = e.target.checked
+                              ? [...currentTimes, reminder.value]
+                              : currentTimes.filter((time: string) => time !== reminder.value);
+                            setNewTask((prev: any) => ({ ...prev, reminder_times: newTimes }));
+                          }}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">{reminder.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Custom reminder time</label>
+                    <input
+                      type="datetime-local"
+                      value={newTask.reminder_custom_time}
+                      onChange={(e) => setNewTask((prev: any) => ({ ...prev, reminder_custom_time: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Set a specific date and time for the reminder</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
                 <input
                   type="text"
@@ -6128,6 +6519,50 @@ const MMCCalendar = () => {
               </div>
               
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Reminders</label>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { value: '15min', label: '15 min before' },
+                      { value: '30min', label: '30 min before' },
+                      { value: '1hour', label: '1 hour before' },
+                      { value: '2hours', label: '2 hours before' },
+                      { value: '1day', label: '1 day before' },
+                      { value: '2days', label: '2 days before' },
+                      { value: '1week', label: '1 week before' }
+                    ].map((reminder) => (
+                      <label key={reminder.value} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={editingTask.reminder_times?.includes(reminder.value) || false}
+                          onChange={(e) => {
+                            const currentTimes = editingTask.reminder_times || [];
+                            const newTimes = e.target.checked
+                              ? [...currentTimes, reminder.value]
+                              : currentTimes.filter((time: string) => time !== reminder.value);
+                            setEditingTask((prev: any) => ({ ...prev, reminder_times: newTimes }));
+                          }}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">{reminder.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Custom reminder time</label>
+                    <input
+                      type="datetime-local"
+                      value={editingTask.reminder_custom_time || ''}
+                      onChange={(e) => setEditingTask((prev: any) => ({ ...prev, reminder_custom_time: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Set a specific date and time for the reminder</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
                 <input
                   type="text"
@@ -6369,8 +6804,8 @@ const MMCCalendar = () => {
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Recent Activities</h2>
-                  <p className="text-sm text-gray-500 mt-1">Last 7 days</p>
+                  <h2 className="text-xl font-semibold text-gray-900">Tasks Overview</h2>
+                  <p className="text-sm text-gray-500 mt-1">Overdue and high priority tasks</p>
                 </div>
                 <button
                   onClick={closeActivitiesDrawer}
@@ -6474,9 +6909,167 @@ const MMCCalendar = () => {
                           <span className="text-white text-sm">📝</span>
                         </div>
                       </div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">No recent activities</h3>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">All caught up!</h3>
                       <p className="text-gray-500 text-sm">
-                        Activities from the last 7 days will appear here as you create and update tasks.
+                        Overdue and high priority tasks will appear here.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reminders Drawer */}
+      {showRemindersDrawer && user !== 'guest' && (
+        <div className="fixed inset-0 z-50 overflow-hidden">
+          {/* Backdrop */}
+          <div 
+            className={`absolute inset-0 bg-black transition-opacity duration-300 ${
+              isRemindersDrawerClosing 
+                ? 'bg-opacity-0 animate-[fadeOut_0.3s_ease-in-out_forwards]' 
+                : 'bg-opacity-0 animate-[fadeIn_0.3s_ease-in-out_forwards]'
+            }`}
+            onClick={closeRemindersDrawer}
+          />
+          
+          {/* Drawer */}
+          <div className={`absolute right-0 top-0 h-full w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
+            isRemindersDrawerClosing 
+              ? 'translate-x-full animate-[slideOutRight_0.3s_ease-in-out_forwards]' 
+              : 'translate-x-full animate-[slideInRight_0.3s_ease-in-out_forwards]'
+          }`}>
+            <div className="flex flex-col h-full">
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Upcoming Reminders</h2>
+                  <p className="text-sm text-gray-500 mt-1">Next 7 days</p>
+                </div>
+                <button
+                  onClick={closeRemindersDrawer}
+                  className="p-2 rounded-lg transition-colors text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="space-y-6">
+                  {/* Past Reminders */}
+                  {dismissedReminders.length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-medium text-gray-700 mb-3">Past Reminders</h3>
+                      {dismissedReminders.map((reminder) => (
+                        <div
+                          key={reminder.id}
+                          className="p-4 bg-gray-50 border border-gray-200 rounded-lg transition-colors hover:bg-gray-100 cursor-pointer"
+                          onClick={() => handleReminderClick(reminder)}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-gray-900 text-sm mb-1">{reminder.taskTitle}</h4>
+                              <p className="text-xs text-gray-600 mb-2">
+                                Due: {reminder.taskDate.toLocaleDateString()}
+                              </p>
+                              <div className="flex items-center space-x-3">
+                                <span className="text-xs text-gray-600 font-medium bg-gray-100 px-2 py-1 rounded">
+                                  {reminder.reminderType === '15min' ? '15 min before' :
+                                   reminder.reminderType === '30min' ? '30 min before' :
+                                   reminder.reminderType === '1hour' ? '1 hour before' :
+                                   reminder.reminderType === '2hours' ? '2 hours before' :
+                                   reminder.reminderType === '1day' ? '1 day before' :
+                                   reminder.reminderType === '2days' ? '2 days before' :
+                                   reminder.reminderType === '1week' ? '1 week before' :
+                                   'Custom reminder'}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  {reminder.reminderTime.toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex space-x-1 ml-3">
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  await dismissReminder(reminder.id);
+                                }}
+                                className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                                title="Dismiss"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Upcoming Reminders */}
+                  {upcomingReminders.length > 0 ? (
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-medium text-gray-700 mb-3">Upcoming Reminders</h3>
+                      {upcomingReminders.map((reminder) => (
+                        <div
+                          key={reminder.id}
+                          className="p-4 bg-blue-50 border border-blue-200 rounded-lg transition-colors hover:bg-blue-100 cursor-pointer"
+                          onClick={() => handleReminderClick(reminder)}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-gray-900 text-sm mb-1">{reminder.taskTitle}</h4>
+                              <p className="text-xs text-gray-600 mb-2">
+                                Due: {reminder.taskDate.toLocaleDateString()}
+                              </p>
+                              <div className="flex items-center space-x-3">
+                                <span className="text-xs text-blue-600 font-medium bg-blue-100 px-2 py-1 rounded">
+                                  {reminder.reminderType === '15min' ? '15 min before' :
+                                   reminder.reminderType === '30min' ? '30 min before' :
+                                   reminder.reminderType === '1hour' ? '1 hour before' :
+                                   reminder.reminderType === '2hours' ? '2 hours before' :
+                                   reminder.reminderType === '1day' ? '1 day before' :
+                                   reminder.reminderType === '2days' ? '2 days before' :
+                                   reminder.reminderType === '1week' ? '1 week before' :
+                                   'Custom reminder'}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  {reminder.reminderTime.toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex space-x-1 ml-3">
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  await dismissReminder(reminder.id);
+                                }}
+                                className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                                title="Dismiss"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {/* Empty State - Only show if no reminders at all */}
+                  {upcomingReminders.length === 0 && dismissedReminders.length === 0 && (
+                    <div className="text-center py-8">
+                      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                          <span className="text-white text-lg">🔔</span>
+                        </div>
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No reminders</h3>
+                      <p className="text-gray-500 text-sm">
+                        Set reminders when creating or editing tasks to see them here.
                       </p>
                     </div>
                   )}
