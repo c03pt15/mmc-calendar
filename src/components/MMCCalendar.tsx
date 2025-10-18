@@ -1271,6 +1271,48 @@ const MMCCalendar = () => {
     }
   };
 
+  const handleHourSlotClick = (hour: number) => {
+    if (user === 'guest') return;
+    
+    const timeString = `${hour.toString().padStart(2, '0')}:00`;
+    
+    setPreSelectedDate({
+      date: selectedDay.getDate(),
+      month: selectedDay.getMonth(),
+      year: selectedDay.getFullYear()
+    });
+    
+    setNewTask({
+      id: Date.now(),
+      title: '',
+      description: '',
+      type: 'Blog',
+      category: '',
+      date: selectedDay.getDate(),
+      month: selectedDay.getMonth(),
+      year: selectedDay.getFullYear(),
+      time: timeString,
+      assignee: null,
+      assignees: [],
+      priority: 'medium',
+      status: 'planned',
+      is_all_day: false,
+      is_multiday: false,
+      start_date: '',
+      end_date: '',
+      tags: [],
+      comments: '',
+      recurring: false,
+      recurring_type: '',
+      recurring_end_date: '',
+      reminders: [],
+      reminder_times: [],
+      reminder_custom_time: ''
+    });
+    
+    setShowNewEntryModal(true);
+  };
+
 
   const showReminderNotification = (reminder: any) => {
     if ('Notification' in window) {
@@ -4083,7 +4125,7 @@ const MMCCalendar = () => {
                   </div>
                 )}
               </button>
-
+              
           
 
               
@@ -4113,7 +4155,7 @@ const MMCCalendar = () => {
                   </div>
                 )}
                 </button>
-              </div> 
+              </div>
              
               {/* Separator */}
               <div className="text-gray-300 text-lg">|</div>
@@ -4484,7 +4526,7 @@ const MMCCalendar = () => {
                         {user && user !== 'guest' && (
                           <button
                             onClick={(e) => handleNewTaskFromDay(day, e)}
-                            className="absolute top-2 right-2 w-7 h-7 bg-white hover:bg-blue-50 border border-gray-300 hover:border-blue-400 text-gray-600 hover:text-blue-600 rounded-lg flex items-center justify-center text-sm font-medium transition-all duration-200 opacity-0 group-hover:opacity-100 shadow-sm hover:shadow-md"
+                            className="absolute top-1 right-1 w-7 h-7 bg-white hover:bg-blue-50 border border-gray-300 hover:border-blue-400 text-gray-600 hover:text-blue-600 rounded-lg flex items-center justify-center text-sm font-medium transition-all duration-200 opacity-0 group-hover:opacity-100 shadow-sm hover:shadow-md"
                             title="Add new task"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -4585,7 +4627,8 @@ const MMCCalendar = () => {
                           borderLeftColor: getPriorityColor(task.priority),
                           backgroundColor: getPriorityColor(task.priority, 0.05)
                         }}
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setSelectedTask(task);
                           setShowTaskModal(true);
                         }}
@@ -4685,15 +4728,23 @@ const MMCCalendar = () => {
                                 </div>
                                 <div className="flex-1 h-px bg-gray-200"></div>
                               </div>
-                              <div className={`relative bg-white hover:bg-gray-50 transition-colors ${
-                                hasTasks ? 'min-h-20 py-2' : 'h-8'
-                              }`}>
+                              <div 
+                                className={`relative bg-white hover:bg-gray-50 transition-colors cursor-pointer ${
+                                  hasTasks ? 'min-h-20 py-2' : 'min-h-12'
+                                }`}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleHourSlotClick(hour);
+                                }}
+                                title={user !== 'guest' ? `Click to add task at ${timeString}` : 'Guest users cannot add tasks'}
+                              >
                                 {isCurrentHour && (
                                   <div className="absolute left-16 right-0 h-0.5 bg-red-500 z-20">
                                     <div className="absolute -left-1 -top-1 w-2 h-2 bg-red-500 rounded-full"></div>
                                   </div>
                                 )}
-                                <div className="ml-16 pr-4">
+                                <div className="ml-16 pr-4 min-h-12">
                                   {tasksForHour.map((task, index) => (
                                     <div
                                       key={`${task.id}-${index}`}
@@ -4702,7 +4753,9 @@ const MMCCalendar = () => {
                                         borderLeftColor: getPriorityColor(task.priority),
                                         backgroundColor: getPriorityColor(task.priority, 0.05)
                                       }}
-                                      onClick={() => {
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
                                         setSelectedTask(task);
                                         setShowTaskModal(true);
                                       }}
@@ -4787,15 +4840,23 @@ const MMCCalendar = () => {
                           </div>
                           <div className="flex-1 h-px bg-gray-200"></div>
                         </div>
-                        <div className={`relative bg-white hover:bg-gray-50 transition-colors ${
-                          hasTasks ? 'min-h-20 py-2' : 'h-8'
-                        }`}>
+                        <div 
+                          className={`relative bg-white hover:bg-gray-50 transition-colors cursor-pointer ${
+                            hasTasks ? 'min-h-20 py-2' : 'min-h-12'
+                          }`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleHourSlotClick(hour);
+                          }}
+                          title={user !== 'guest' ? `Click to add task at ${timeString}` : 'Guest users cannot add tasks'}
+                        >
                           {isCurrentHour && (
                             <div className="absolute left-16 right-0 h-0.5 bg-red-500 z-20">
                               <div className="absolute -left-1 -top-1 w-2 h-2 bg-red-500 rounded-full"></div>
                             </div>
                           )}
-                          <div className="ml-16 pr-4">
+                          <div className="ml-16 pr-4 min-h-12">
                             {tasksForHour.map((task, index) => (
                               <div
                                 key={`${task.id}-${index}`}
@@ -4804,7 +4865,9 @@ const MMCCalendar = () => {
                                   borderLeftColor: getPriorityColor(task.priority),
                                   backgroundColor: getPriorityColor(task.priority, 0.05)
                                 }}
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
                                   setSelectedTask(task);
                                   setShowTaskModal(true);
                                 }}
@@ -4915,15 +4978,23 @@ const MMCCalendar = () => {
                                 </div>
                                 <div className="flex-1 h-px bg-gray-200"></div>
                               </div>
-                              <div className={`relative bg-white hover:bg-gray-50 transition-colors ${
-                                hasTasks ? 'min-h-20 py-2' : 'h-8'
-                              }`}>
+                              <div 
+                                className={`relative bg-white hover:bg-gray-50 transition-colors cursor-pointer ${
+                                  hasTasks ? 'min-h-20 py-2' : 'min-h-12'
+                                }`}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleHourSlotClick(hour);
+                                }}
+                                title={user !== 'guest' ? `Click to add task at ${timeString}` : 'Guest users cannot add tasks'}
+                              >
                                 {isCurrentHour && (
                                   <div className="absolute left-16 right-0 h-0.5 bg-red-500 z-20">
                                     <div className="absolute -left-1 -top-1 w-2 h-2 bg-red-500 rounded-full"></div>
                                   </div>
                                 )}
-                                <div className="ml-16 pr-4">
+                                <div className="ml-16 pr-4 min-h-12">
                                   {tasksForHour.map((task, index) => (
                                     <div
                                       key={`${task.id}-${index}`}
@@ -4932,7 +5003,9 @@ const MMCCalendar = () => {
                                         borderLeftColor: getPriorityColor(task.priority),
                                         backgroundColor: getPriorityColor(task.priority, 0.05)
                                       }}
-                                      onClick={() => {
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
                                         setSelectedTask(task);
                                         setShowTaskModal(true);
                                       }}
