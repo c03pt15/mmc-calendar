@@ -3976,82 +3976,88 @@ const MMCCalendar = () => {
                         }`}>
                           {day}
                         </div>
-                        <div className="space-y-1">
-                          {/* Multi-day tasks as continuous bars at the top */}
-                          {getTasksForDate(day).filter(task => task.is_multiday).map((task, index) => {
-                            let isStart = false;
-                            let isEnd = false;
-                            let isMiddle = false;
-                            
-                            try {
-                              if (task.start_date) {
-                                const startDate = new Date(task.start_date + 'T00:00:00');
-                                isStart = startDate.getDate() === day && startDate.getMonth() === currentDate.getMonth() && startDate.getFullYear() === currentDate.getFullYear();
+                        {/* Multi-day tasks container with negative margin */}
+                        {getTasksForDate(day).filter(task => task.is_multiday).length > 0 && (
+                          <div className="space-y-1 mb-2" style={{ margin: '0px -7px' }}>
+                            {getTasksForDate(day).filter(task => task.is_multiday).map((task, index) => {
+                              let isStart = false;
+                              let isEnd = false;
+                              let isMiddle = false;
+                              
+                              try {
+                                if (task.start_date) {
+                                  const startDate = new Date(task.start_date + 'T00:00:00');
+                                  isStart = startDate.getDate() === day && startDate.getMonth() === currentDate.getMonth() && startDate.getFullYear() === currentDate.getFullYear();
+                                }
+                                if (task.end_date) {
+                                  const endDate = new Date(task.end_date + 'T00:00:00');
+                                  isEnd = endDate.getDate() === day && endDate.getMonth() === currentDate.getMonth() && endDate.getFullYear() === currentDate.getFullYear();
+                                }
+                                isMiddle = !isStart && !isEnd;
+                              } catch (error) {
+                                console.error('Error parsing multi-day task dates for rendering:', error, task);
+                                isStart = false;
+                                isEnd = false;
+                                isMiddle = true;
                               }
-                              if (task.end_date) {
-                                const endDate = new Date(task.end_date + 'T00:00:00');
-                                isEnd = endDate.getDate() === day && endDate.getMonth() === currentDate.getMonth() && endDate.getFullYear() === currentDate.getFullYear();
-                              }
-                              isMiddle = !isStart && !isEnd;
-                            } catch (error) {
-                              console.error('Error parsing multi-day task dates for rendering:', error, task);
-                              isStart = false;
-                              isEnd = false;
-                              isMiddle = true;
-                            }
-                            
-                            return (
-                              <div
-                                key={`multiday-${task.id}-${day}`}
-                                className={`h-6 ${task.color} cursor-pointer hover:opacity-80 relative flex items-center border-t-2 ${
-                                  task.status === 'completed' ? 'opacity-50' : ''
-                                } ${draggedTask?.id === task.id ? 'opacity-50' : ''} rounded-none`}
-                                onClick={user !== 'guest' ? (e) => {
-                                  e.stopPropagation();
-                                  handleTaskClick(task);
-                                } : undefined}
-                                title={`${task.title}${isStart ? ' (Start)' : isEnd ? ' (End)' : ''}`}
-                                style={{
-                                  marginLeft: isStart ? '0' : '-1px',
-                                  marginRight: isEnd ? '0' : '-1px',
-                                  zIndex: 10
-                                }}
-                              >
-                                <div className="flex items-center justify-between w-full p-1 md:p-2 min-w-0">
-                                  <div className="flex items-center space-x-1 min-w-0 flex-1">
-                                    <div className="text-xs font-medium truncate min-w-0 flex-1">
-                                      {task.title}
-                                    </div>
-                                    <div className="flex -space-x-1 ml-1 flex-shrink-0">
-                                      {getAssigneesAvatars(task).map((avatar: string, index: number) => {
-                                        const assigneeIds = task.assignees && task.assignees.length > 0 ? task.assignees : (task.assignee ? [task.assignee] : []);
-                                        const member = teamMembers.find(m => m.id === assigneeIds[index]);
-                                        return (
-                                          <div key={index} className={`w-4 h-4 ${member?.color || 'bg-gray-400'} rounded-full flex items-center justify-center text-white text-[8px] font-medium border border-white`}>
-                                            {avatar}
+                              
+                              return (
+                                <div
+                                  key={`multiday-${task.id}-${day}`}
+                                  className={`h-6 ${task.color} cursor-pointer hover:opacity-80 relative flex items-center border-t-2 ${
+                                    isStart ? 'border-l-2' : ''
+                                  } ${isEnd ? 'border-r-2' : ''} ${
+                                    task.status === 'completed' ? 'opacity-50' : ''
+                                  } ${draggedTask?.id === task.id ? 'opacity-50' : ''} rounded-none`}
+                                  onClick={user !== 'guest' ? (e) => {
+                                    e.stopPropagation();
+                                    handleTaskClick(task);
+                                  } : undefined}
+                                  title={`${task.title}${isStart ? ' (Start)' : isEnd ? ' (End)' : ''}`}
+                                  style={{
+                                    marginLeft: isStart ? '0' : '-1px',
+                                    marginRight: isEnd ? '0' : '-1px',
+                                    zIndex: 10
+                                  }}
+                                >
+                                  <div className="flex items-center justify-between w-full p-1 md:p-2 min-w-0">
+                                    <div className="flex items-center space-x-1 min-w-0 flex-1">
+                                      <div className="text-xs font-medium truncate min-w-0 flex-1">
+                                        {task.title}
+                                      </div>
+                                      <div className="flex -space-x-1 ml-1 flex-shrink-0">
+                                        {getAssigneesAvatars(task).map((avatar: string, index: number) => {
+                                          const assigneeIds = task.assignees && task.assignees.length > 0 ? task.assignees : (task.assignee ? [task.assignee] : []);
+                                          const member = teamMembers.find(m => m.id === assigneeIds[index]);
+                                          return (
+                                            <div key={index} className={`w-4 h-4 ${member?.color || 'bg-gray-400'} rounded-full flex items-center justify-center text-white text-[8px] font-medium border border-white`}>
+                                              {avatar}
+                                            </div>
+                                          );
+                                        })}
+                                        {task.assignees && task.assignees.length > 3 && (
+                                          <div className="w-4 h-4 bg-gray-400 rounded-full flex items-center justify-center text-white text-[8px] font-medium border border-white">
+                                            +{task.assignees.length - 3}
                                           </div>
-                                        );
-                                      })}
-                                      {task.assignees && task.assignees.length > 3 && (
-                                        <div className="w-4 h-4 bg-gray-400 rounded-full flex items-center justify-center text-white text-[8px] font-medium border border-white">
-                                          +{task.assignees.length - 3}
-                                        </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center space-x-1 flex-shrink-0 ml-1">
+                                      {task.priority && task.priority !== 'medium' && (
+                                        <span className="text-xs">
+                                          {priorityConfig[task.priority]?.icon || '🟡'}
+                                        </span>
                                       )}
                                     </div>
                                   </div>
-                                  <div className="flex items-center space-x-1 flex-shrink-0 ml-1">
-                                    {task.priority && task.priority !== 'medium' && (
-                                      <span className="text-xs">
-                                        {priorityConfig[task.priority]?.icon || '🟡'}
-                                      </span>
-                                    )}
-                                  </div>
                                 </div>
-                              </div>
-                            );
-                          })}
-                          
-                          {/* Regular tasks */}
+                              );
+                            })}
+                          </div>
+                        )}
+                        
+                        {/* Regular tasks container with normal spacing */}
+                        <div className={`space-y-1 ${getTasksForDate(day).filter(task => task.is_multiday).length > 0 ? 'mt-3' : ''}`}>
                           {getTasksForDate(day).filter(task => !task.is_multiday).map((task, index) => {
                             // Check for time conflicts
                             const hasTimeConflict = !task.is_all_day && getTasksForDate(day).filter(t => 
