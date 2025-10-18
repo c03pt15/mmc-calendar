@@ -2610,6 +2610,32 @@ const MMCCalendar = () => {
     }, 3500);
   };
 
+  const scrollToToday = () => {
+    const scrollToElement = () => {
+      const todayElement = document.getElementById('today-calendar-day');
+      if (todayElement) {
+        todayElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+          inline: 'center'
+        });
+        return true;
+      }
+      return false;
+    };
+
+    // Try immediately first
+    if (!scrollToElement()) {
+      // If not found, try again after a longer delay to allow calendar to re-render
+      setTimeout(() => {
+        if (!scrollToElement()) {
+          // Final attempt after even longer delay
+          setTimeout(scrollToElement, 500);
+        }
+      }, 300);
+    }
+  };
+
   const handleTodayClick = () => {
     const today = new Date();
     const currentYear = today.getFullYear();
@@ -2627,6 +2653,13 @@ const MMCCalendar = () => {
     // Always show the highlight animation
     setHighlightedToday(true);
     setTodayHighlightPhase('appearing');
+    
+    // Scroll to today's day after a delay to ensure the calendar is rendered
+    // Use longer delay when navigating from different month
+    const scrollDelay = isAlreadyOnCurrentMonth ? 100 : 500;
+    setTimeout(() => {
+      scrollToToday();
+    }, scrollDelay);
     
     // Phase 1: Appearing (0.5s)
     setTimeout(() => {
@@ -2787,6 +2820,13 @@ const MMCCalendar = () => {
               // Always show the highlight animation
               setHighlightedToday(true);
               setTodayHighlightPhase('appearing');
+              
+              // Scroll to today's day after a delay to ensure the calendar is rendered
+              // Use longer delay when navigating from different month
+              const scrollDelay = isAlreadyOnCurrentMonth ? 100 : 500;
+              setTimeout(() => {
+                scrollToToday();
+              }, scrollDelay);
               
               // Phase 1: Appearing (0.5s)
               setTimeout(() => {
@@ -3472,6 +3512,7 @@ const MMCCalendar = () => {
                 {days.map((day, index) => (
                   <div
                     key={index}
+                    id={day === today && isCurrentMonth ? 'today-calendar-day' : undefined}
                     className={`border-r border-b border-gray-200 last:border-r-0 p-1 md:p-2 min-h-[80px] md:min-h-[120px] relative cursor-pointer hover:bg-gray-50 transition-all duration-500 ${
                       dragOverDate === day ? 'bg-blue-50 border-blue-300' : ''
                     } ${
