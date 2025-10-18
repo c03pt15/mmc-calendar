@@ -3030,6 +3030,21 @@ const MMCCalendar = () => {
     }
   };
 
+  // Helper function to format category name for display
+  const getCategoryDisplayName = (category: string) => {
+    const categoryMap: { [key: string]: string } = {
+      'blogPosts': 'Blog Posts',
+      'campaigns': 'Campaigns',
+      'emailMarketing': 'Email Marketing',
+      'socialMedia': 'Social Media',
+      'vacations': 'Vacations',
+      'eventsWebinars': 'Events/webinars',
+      'events/webinars': 'Events/webinars',
+      'halloween': 'Halloween'
+    };
+    return categoryMap[category] || category;
+  };
+
   const handleTodayClick = () => {
     const today = new Date();
     const currentYear = today.getFullYear();
@@ -4239,12 +4254,16 @@ const MMCCalendar = () => {
                             )}
                             <div className="flex items-center space-x-2 text-xs">
                               <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                task.type === 'Blog' ? 'bg-blue-100 text-blue-800' :
-                                task.type === 'Video' ? 'bg-purple-100 text-purple-800' :
-                                task.type === 'Social' ? 'bg-green-100 text-green-800' :
+                                task.category === 'blogPosts' || task.category === 'Blog Posts' ? 'bg-blue-100 text-blue-800' :
+                                task.category === 'campaigns' || task.category === 'Campaigns' ? 'bg-purple-100 text-purple-800' :
+                                task.category === 'emailMarketing' || task.category === 'Email Marketing' ? 'bg-orange-100 text-orange-800' :
+                                task.category === 'socialMedia' || task.category === 'Social Media' ? 'bg-green-100 text-green-800' :
+                                task.category === 'vacations' || task.category === 'Vacations' ? 'bg-gray-100 text-gray-800' :
+                                task.category === 'eventsWebinars' || task.category === 'Events/webinars' ? 'bg-lime-100 text-lime-800' :
+                                task.category === 'halloween' || task.category === 'Halloween' ? 'bg-orange-100 text-orange-800' :
                                 'bg-gray-100 text-gray-800'
                               }`}>
-                                {task.type}
+                                {getCategoryDisplayName(task.category) || task.type}
                               </span>
                             </div>
                           </div>
@@ -4347,18 +4366,17 @@ const MMCCalendar = () => {
                                           )}
                                           <div className="flex items-center space-x-2 mb-2">
                                             <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                              task.type === 'Blog' ? 'bg-blue-100 text-blue-800' :
-                                              task.type === 'Video' ? 'bg-purple-100 text-purple-800' :
-                                              task.type === 'Social' ? 'bg-green-100 text-green-800' :
+                                              task.category === 'blogPosts' || task.category === 'Blog Posts' ? 'bg-blue-100 text-blue-800' :
+                                              task.category === 'campaigns' || task.category === 'Campaigns' ? 'bg-purple-100 text-purple-800' :
+                                              task.category === 'emailMarketing' || task.category === 'Email Marketing' ? 'bg-orange-100 text-orange-800' :
+                                              task.category === 'socialMedia' || task.category === 'Social Media' ? 'bg-green-100 text-green-800' :
+                                              task.category === 'vacations' || task.category === 'Vacations' ? 'bg-gray-100 text-gray-800' :
+                                              task.category === 'eventsWebinars' || task.category === 'Events/webinars' || task.category === 'events/webinars' ? 'bg-lime-100 text-lime-800' :
+                                              task.category === 'halloween' || task.category === 'Halloween' ? 'bg-orange-100 text-orange-800' :
                                               'bg-gray-100 text-gray-800'
                                             }`}>
-                                              {task.type}
+                                              {getCategoryDisplayName(task.category) || task.type}
                                             </span>
-                                            {task.category && task.category !== task.type && (
-                                              <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
-                                                {task.category}
-                                              </span>
-                                            )}
                                           </div>
                                           {task.tags && task.tags.length > 0 && (
                                             <div className="flex flex-wrap gap-2">
@@ -4450,18 +4468,17 @@ const MMCCalendar = () => {
                                     )}
                                     <div className="flex items-center space-x-2 mb-2">
                                       <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                        task.type === 'Blog' ? 'bg-blue-100 text-blue-800' :
-                                        task.type === 'Video' ? 'bg-purple-100 text-purple-800' :
-                                        task.type === 'Social' ? 'bg-green-100 text-green-800' :
+                                        task.category === 'blogPosts' || task.category === 'Blog Posts' ? 'bg-blue-100 text-blue-800' :
+                                        task.category === 'campaigns' || task.category === 'Campaigns' ? 'bg-purple-100 text-purple-800' :
+                                        task.category === 'emailMarketing' || task.category === 'Email Marketing' ? 'bg-orange-100 text-orange-800' :
+                                        task.category === 'socialMedia' || task.category === 'Social Media' ? 'bg-green-100 text-green-800' :
+                                        task.category === 'vacations' || task.category === 'Vacations' ? 'bg-gray-100 text-gray-800' :
+                                        task.category === 'eventsWebinars' || task.category === 'Events/webinars' || task.category === 'events/webinars' ? 'bg-lime-100 text-lime-800' :
+                                        task.category === 'halloween' || task.category === 'Halloween' ? 'bg-orange-100 text-orange-800' :
                                         'bg-gray-100 text-gray-800'
                                       }`}>
-                                        {task.type}
+                                        {getCategoryDisplayName(task.category) || task.type}
                                       </span>
-                                      {task.category && task.category !== task.type && (
-                                        <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
-                                          {task.category}
-                                        </span>
-                                      )}
                                     </div>
                                     {task.tags && task.tags.length > 0 && (
                                       <div className="flex flex-wrap gap-2">
@@ -4574,18 +4591,17 @@ const MMCCalendar = () => {
                                           )}
                                           <div className="flex items-center space-x-2 mb-2">
                                             <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                              task.type === 'Blog' ? 'bg-blue-100 text-blue-800' :
-                                              task.type === 'Video' ? 'bg-purple-100 text-purple-800' :
-                                              task.type === 'Social' ? 'bg-green-100 text-green-800' :
+                                              task.category === 'blogPosts' || task.category === 'Blog Posts' ? 'bg-blue-100 text-blue-800' :
+                                              task.category === 'campaigns' || task.category === 'Campaigns' ? 'bg-purple-100 text-purple-800' :
+                                              task.category === 'emailMarketing' || task.category === 'Email Marketing' ? 'bg-orange-100 text-orange-800' :
+                                              task.category === 'socialMedia' || task.category === 'Social Media' ? 'bg-green-100 text-green-800' :
+                                              task.category === 'vacations' || task.category === 'Vacations' ? 'bg-gray-100 text-gray-800' :
+                                              task.category === 'eventsWebinars' || task.category === 'Events/webinars' || task.category === 'events/webinars' ? 'bg-lime-100 text-lime-800' :
+                                              task.category === 'halloween' || task.category === 'Halloween' ? 'bg-orange-100 text-orange-800' :
                                               'bg-gray-100 text-gray-800'
                                             }`}>
-                                              {task.type}
+                                              {getCategoryDisplayName(task.category) || task.type}
                                             </span>
-                                            {task.category && task.category !== task.type && (
-                                              <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
-                                                {task.category}
-                                              </span>
-                                            )}
                                           </div>
                                           {task.tags && task.tags.length > 0 && (
                                             <div className="flex flex-wrap gap-2">
