@@ -1142,7 +1142,7 @@ const MMCCalendar = () => {
 
   const getUpcomingReminders = () => {
     const now = new Date();
-    const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const nextTwoWeeks = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
     const upcomingReminders: Array<{id: string, taskId: string, type: string, reminderType: string, reminderTime: Date, taskTitle: string, taskDate: Date, dismissed?: boolean, snoozedUntil?: Date}> = [];
     const pastReminders: Array<{id: string, taskId: string, type: string, reminderType: string, reminderTime: Date, taskTitle: string, taskDate: Date, dismissed?: boolean, snoozedUntil?: Date}> = [];
     
@@ -1176,7 +1176,7 @@ const MMCCalendar = () => {
               snoozedUntil: undefined
             };
             
-            if (reminderTime >= now && reminderTime <= nextWeek) {
+            if (reminderTime >= now && reminderTime <= nextTwoWeeks) {
               upcomingReminders.push(reminderData);
             } else if (reminderTime < now) {
               pastReminders.push(reminderData);
@@ -7058,7 +7058,7 @@ const MMCCalendar = () => {
               <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
                 <div>
                   <h2 className="text-xl font-semibold text-gray-900">Upcoming Reminders</h2>
-                  <p className="text-sm text-gray-500 mt-1">Next 7 days</p>
+                  <p className="text-sm text-gray-500 mt-1">Next 14 days</p>
                 </div>
                 <button
                   onClick={closeRemindersDrawer}
