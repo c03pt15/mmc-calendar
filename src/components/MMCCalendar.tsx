@@ -1302,6 +1302,7 @@ const MMCCalendar = () => {
       end_date: '',
       tags: [],
       comments: '',
+      created_by: user && user !== 'guest' ? loggedInUserTeamMemberId : null,
       recurring: false,
       recurring_type: '',
       recurring_end_date: '',
