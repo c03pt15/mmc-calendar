@@ -1358,15 +1358,21 @@ const MMCCalendar = () => {
       const now = new Date();
       const currentReminders = getUpcomingReminders();
       
-      const dueReminders = currentReminders.upcoming.filter(reminder => 
+      // Check for due reminders in both upcoming and past sections
+      const allReminders = [...currentReminders.upcoming, ...currentReminders.past];
+      const dueReminders = allReminders.filter(reminder => 
         reminder.reminderTime <= now && 
         !reminder.dismissed && 
         (!reminder.snoozedUntil || reminder.snoozedUntil <= now)
       );
       
+      // Only show notifications for reminders we haven't already notified about
       dueReminders.forEach(reminder => {
-        showReminderNotification(reminder);
-        setReminderNotifications(prev => [...prev, reminder]);
+        const alreadyNotified = reminderNotifications.some(notif => notif.id === reminder.id);
+        if (!alreadyNotified) {
+          showReminderNotification(reminder);
+          setReminderNotifications(prev => [...prev, reminder]);
+        }
       });
       
       // Update upcoming reminders
