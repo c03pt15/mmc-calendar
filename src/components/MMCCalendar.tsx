@@ -4142,7 +4142,7 @@ const MMCCalendar = () => {
                         
                         {/* Today indicator */}
                         {day === today && isCurrentMonth && (
-                          <div className="absolute top-1 left-1 w-2 h-2 bg-blue-500 rounded-full"></div>
+                          <div className="absolute top-1 right-1 w-2 h-2 bg-blue-500 rounded-full"></div>
                         )}
                       </>
                     )}
@@ -4250,6 +4250,11 @@ const MMCCalendar = () => {
                             {task.description && (
                               <p className="text-xs text-gray-600 line-clamp-2 mb-2">
                                 {task.description}
+                              </p>
+                            )}
+                            {task.comments && (
+                              <p className="text-xs text-gray-500 italic line-clamp-2 mb-2">
+                                {task.comments}
                               </p>
                             )}
                             <div className="flex items-center space-x-2 text-xs">
@@ -4466,6 +4471,11 @@ const MMCCalendar = () => {
                                         {task.description}
                                       </p>
                                     )}
+                                    {task.comments && (
+                                      <p className="text-sm text-gray-500 italic mb-3 leading-relaxed">
+                                        {task.comments}
+                                      </p>
+                                    )}
                                     <div className="flex items-center space-x-2 mb-2">
                                       <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                                         task.category === 'blogPosts' || task.category === 'Blog Posts' ? 'bg-blue-100 text-blue-800' :
@@ -4587,6 +4597,11 @@ const MMCCalendar = () => {
                                           {task.description && (
                                             <p className="text-sm text-gray-600 mb-3 leading-relaxed">
                                               {task.description}
+                                            </p>
+                                          )}
+                                          {task.comments && (
+                                            <p className="text-sm text-gray-500 italic mb-3 leading-relaxed">
+                                              {task.comments}
                                             </p>
                                           )}
                                           <div className="flex items-center space-x-2 mb-2">
