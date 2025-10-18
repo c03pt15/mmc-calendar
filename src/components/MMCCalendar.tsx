@@ -3632,17 +3632,17 @@ const MMCCalendar = () => {
                                 }`}>{task.time}</div>
                               )}
                               {task.tags && task.tags.length > 0 && (
-                                <div className="absolute bottom-1 right-1 hidden sm:flex flex-wrap gap-1">
+                                <div className="flex flex-wrap gap-0.5 sm:gap-1 mt-1">
                                   {task.tags.slice(0, 2).map((tag: string, index: number) => (
                                     <span
                                       key={index}
-                                      className="text-[10px] bg-gray-50 text-gray-600 px-1 py-0.5 rounded"
+                                      className="text-[9px] sm:text-[10px] bg-gray-50 text-gray-600 px-1 py-0.5 rounded truncate max-w-[60px] sm:max-w-none"
                                     >
                                       {tag}
                                     </span>
                                   ))}
                                   {task.tags.length > 2 && (
-                                    <span className="text-[10px] text-gray-500">+{task.tags.length - 2}</span>
+                                    <span className="text-[9px] sm:text-[10px] text-gray-500">+{task.tags.length - 2}</span>
                                   )}
                                 </div>
                               )}
@@ -3763,11 +3763,11 @@ const MMCCalendar = () => {
                             </span>
                           </div>
                           {task.tags && task.tags.length > 0 && (
-                            <div className="hidden sm:flex flex-wrap gap-1 mt-2">
+                            <div className="flex flex-wrap gap-1 mt-2">
                               {task.tags.slice(0, 3).map((tag: string, index: number) => (
                                 <span
                                   key={index}
-                                  className="text-[10px] bg-gray-50 text-gray-600 px-1.5 py-0.5 rounded"
+                                  className="text-[10px] bg-gray-50 text-gray-600 px-1.5 py-0.5 rounded truncate max-w-[80px] sm:max-w-none"
                                 >
                                   {tag}
                                 </span>
