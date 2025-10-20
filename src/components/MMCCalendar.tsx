@@ -1067,6 +1067,7 @@ const MMCCalendar = () => {
         const endDate = new Date(task.end_date + 'T23:59:59');
         const checkDate = new Date(year, month, date);
         
+        
         return checkDate >= startDate && checkDate <= endDate;
       } catch (error) {
         console.error('Error parsing multi-day task dates:', error, task);
@@ -1093,7 +1094,35 @@ const MMCCalendar = () => {
     try {
       // Include all tasks (including modified instances) for the recurring generation process
       const allTasksIncludingModified = Object.values(allTasks).flat();
-      return generateRecurringInstances(allTasksIncludingModified, currentDate.getMonth(), currentDate.getFullYear(), deletedInstances);
+      
+      // Generate recurring instances for current month and surrounding months (3 months range)
+      const currentMonth = currentDate.getMonth();
+      const currentYear = currentDate.getFullYear();
+      const recurringInstances: any[] = [];
+      
+      // Generate instances for current month and 2 months before/after for better coverage
+      for (let monthOffset = -2; monthOffset <= 2; monthOffset++) {
+        const targetMonth = (currentMonth + monthOffset + 12) % 12;
+        const targetYear = currentYear + Math.floor((currentMonth + monthOffset) / 12);
+        
+        const monthInstances = generateRecurringInstances(allTasksIncludingModified, targetMonth, targetYear, deletedInstances);
+        recurringInstances.push(...monthInstances);
+      }
+      
+      // Add multiday tasks from all months to ensure they appear across month boundaries
+      const multidayTasksFromAllMonths = allTasksIncludingModified.filter(task => 
+        task.is_multiday && task.start_date && task.end_date
+      );
+      
+      // Combine recurring instances with multiday tasks from all months
+      const allTasksWithMultiday = [...recurringInstances, ...multidayTasksFromAllMonths];
+      
+      // Remove duplicates based on task ID and date
+      const uniqueTasks = allTasksWithMultiday.filter((task, index, self) => 
+        index === self.findIndex(t => t.id === task.id && t.year === task.year && t.month === task.month && t.date === task.date)
+      );
+      
+      return uniqueTasks;
     } catch (error) {
       console.error('Error generating recurring instances:', error);
       // Return just the flat tasks as fallback
@@ -1425,8 +1454,12 @@ const MMCCalendar = () => {
 
 
   const getTasksForDate = useCallback((date: number) => {
+    const currentMonth = currentDate.getMonth();
+    const currentYear = currentDate.getFullYear();
+    
+    
     let tasks = allTasksWithRecurring.filter(task => 
-      isTaskOnDate(task, date, currentDate.getMonth(), currentDate.getFullYear()) && 
+      isTaskOnDate(task, date, currentMonth, currentYear) && 
       selectedFilters[task.category] &&
       task.status !== 'deleted' // Exclude deleted tasks
     );
@@ -1490,12 +1523,13 @@ const MMCCalendar = () => {
 
   // Helper functions for drawer content
   const getOverdueTasks = useCallback(() => {
+    // Use actual current date for overdue calculation
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
-    const currentDate = today.getDate();
+    const currentDay = today.getDate();
     
-    const todayDate = new Date(currentYear, currentMonth, currentDate);
+    const todayDate = new Date(currentYear, currentMonth, currentDay);
     
     const overdueTasks = allTasksWithRecurring.filter(task => {
       if (task.status === 'completed' || task.status === 'deleted') return false;
@@ -1515,23 +1549,27 @@ const MMCCalendar = () => {
   }, [allTasksWithRecurring]);
 
   const getHighPriorityTasks = useCallback(() => {
+    // Use actual current date for overdue calculation, but show tasks from viewed month
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
-    const currentDate = today.getDate();
+    const currentDay = today.getDate();
     
-    const todayDate = new Date(currentYear, currentMonth, currentDate);
+    const todayDate = new Date(currentYear, currentMonth, currentDay);
+    const viewedYear = currentDate.getFullYear();
+    const viewedMonth = currentDate.getMonth();
     
     const highPriorityTasks = allTasksWithRecurring.filter(task => {
       if (task.priority !== 'high' || task.status === 'completed' || task.status === 'deleted') return false;
       
-      // Exclude tasks that are overdue (they should appear in overdue section instead)
       const taskDate = new Date(task.year, task.month, task.date);
       const isOverdue = taskDate < todayDate;
-      const isHighPriority = !isOverdue;
+      
+      // Show high priority tasks from viewed month that are not overdue
+      const isViewedMonth = task.year === viewedYear && task.month === viewedMonth;
       
       
-      return isHighPriority;
+      return !isOverdue && isViewedMonth;
     }).sort((a, b) => {
       const dateA = new Date(a.year, a.month, a.date);
       const dateB = new Date(b.year, b.month, b.date);
@@ -2741,10 +2779,11 @@ const MMCCalendar = () => {
   const getUserNotificationCount = () => {
     if (!loggedInUserTeamMemberId) return 0;
     
+    // Use actual current date for overdue calculation
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
-    const currentDate = today.getDate();
+    const currentDay = today.getDate();
     
     const userTasks = allTasksWithRecurring.filter(task => 
       task.status !== 'deleted' && 
@@ -2755,17 +2794,23 @@ const MMCCalendar = () => {
     
     const overdueTasks = userTasks.filter(task => {
       const taskDate = new Date(task.year, task.month, task.date);
-      const todayDate = new Date(currentYear, currentMonth, currentDate);
+      const todayDate = new Date(currentYear, currentMonth, currentDay);
       return taskDate < todayDate;
     });
     
     const highPriorityTasks = userTasks.filter(task => {
       if (task.priority !== 'high') return false;
       
-      // Exclude tasks that are overdue (they should appear in overdue section instead)
       const taskDate = new Date(task.year, task.month, task.date);
-      const todayDate = new Date(currentYear, currentMonth, currentDate);
-      return taskDate >= todayDate;
+      const todayDate = new Date(currentYear, currentMonth, currentDay);
+      const isOverdue = taskDate < todayDate;
+      
+      // Only show high priority tasks from viewed month
+      const viewedYear = currentDate.getFullYear();
+      const viewedMonth = currentDate.getMonth();
+      const isViewedMonth = task.year === viewedYear && task.month === viewedMonth;
+      
+      return !isOverdue && isViewedMonth;
     });
     
     // Combine overdue and high priority tasks, removing duplicates
@@ -2781,10 +2826,11 @@ const MMCCalendar = () => {
   const getPersonalOverdueTasks = useCallback(() => {
     if (!loggedInUserTeamMemberId) return [];
     
+    // Use actual current date for overdue calculation
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
-    const currentDate = today.getDate();
+    const currentDay = today.getDate();
     
     return allTasksWithRecurring.filter(task => {
       if (task.status === 'completed' || task.status === 'deleted') return false;
@@ -2795,7 +2841,7 @@ const MMCCalendar = () => {
       if (!isAssignedToUser) return false;
       
       const taskDate = new Date(task.year, task.month, task.date);
-      const todayDate = new Date(currentYear, currentMonth, currentDate);
+      const todayDate = new Date(currentYear, currentMonth, currentDay);
       
       return taskDate < todayDate;
     }).sort((a, b) => {
@@ -2808,10 +2854,15 @@ const MMCCalendar = () => {
   const getPersonalHighPriorityTasks = useCallback(() => {
     if (!loggedInUserTeamMemberId) return [];
     
+    // Use actual current date for overdue calculation, but show tasks from viewed month
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
-    const currentDate = today.getDate();
+    const currentDay = today.getDate();
+    
+    const todayDate = new Date(currentYear, currentMonth, currentDay);
+    const viewedYear = currentDate.getFullYear();
+    const viewedMonth = currentDate.getMonth();
     
     return allTasksWithRecurring.filter(task => {
       if (task.priority !== 'high' || task.status === 'completed' || task.status === 'deleted') return false;
@@ -2821,12 +2872,14 @@ const MMCCalendar = () => {
                                task.assignee === loggedInUserTeamMemberId;
       if (!isAssignedToUser) return false;
       
-      // Exclude tasks that are overdue (they should appear in overdue section instead)
       const taskDate = new Date(task.year, task.month, task.date);
-      const todayDate = new Date(currentYear, currentMonth, currentDate);
-      if (taskDate < todayDate) return false;
+      const isOverdue = taskDate < todayDate;
       
-      return true;
+      // Only show high priority tasks from viewed month
+      const isViewedMonth = task.year === viewedYear && task.month === viewedMonth;
+      
+      
+      return !isOverdue && isViewedMonth;
     }).sort((a, b) => {
       const dateA = new Date(a.year, a.month, a.date);
       const dateB = new Date(b.year, b.month, b.date);
@@ -3158,8 +3211,14 @@ const MMCCalendar = () => {
   ];
 
   const getTasksByStatus = (status: string) => {
-    const tasks = getAllFilteredTasks().filter(task => task.status === status);
+    const currentMonth = currentDate.getMonth();
+    const currentYear = currentDate.getFullYear();
     
+    const tasks = getAllFilteredTasks().filter(task => 
+      task.status === status && 
+      task.month === currentMonth && 
+      task.year === currentYear
+    );
     
     return tasks;
   };
@@ -3444,7 +3503,17 @@ const MMCCalendar = () => {
       // Only exclude deleted tasks, include completed tasks for now
       if (task.status === 'deleted') return false;
       
-      // Check if task is on this date - more robust comparison
+      // Exclude all-day tasks from hourly sections (they're shown in the all-day section)
+      if (task.is_all_day) {
+        return false;
+      }
+      
+      // Exclude multi-day tasks from hourly sections (they're shown in the all-day section)
+      if (task.is_multiday) {
+        return false;
+      }
+      
+      // For regular tasks, check if task is on this date
       const taskDate = new Date(task.year, task.month, task.date);
       const targetDate = new Date(year, month, day);
       
@@ -3452,25 +3521,6 @@ const MMCCalendar = () => {
           taskDate.getMonth() !== targetDate.getMonth() ||
           taskDate.getDate() !== targetDate.getDate()) {
         return false;
-      }
-      
-      // Exclude all-day tasks from hourly sections (they're shown in the all-day section)
-      if (task.is_all_day) {
-        return false;
-      }
-      
-      // For multi-day tasks, check if this date falls within the range
-      if (task.is_multiday && task.start_date && task.end_date) {
-        try {
-          // Parse dates safely to avoid timezone issues
-          const startDate = new Date(task.start_date + 'T00:00:00');
-          const endDate = new Date(task.end_date + 'T23:59:59');
-          
-          return targetDate >= startDate && targetDate <= endDate;
-        } catch (error) {
-          console.error('Error parsing multi-day task dates:', error, task);
-          return false;
-        }
       }
       
       // For regular tasks, check if task is scheduled for this hour
@@ -4637,21 +4687,21 @@ const MMCCalendar = () => {
                             return (
                               <div
                                 key={`multiday-${task.id}-${day}`}
-                                className={`h-6 ${task.color} cursor-pointer hover:opacity-80 relative flex items-center border-t-2 ${
-                                    isStart ? 'border-l-2' : ''
-                                  } ${isEnd ? 'border-r-2' : ''} ${
+                                className={`h-6 ${task.color} cursor-pointer hover:opacity-80 relative flex items-center border-t-4 border-b-4 ${
+                                    isStart ? 'border-l-4' : ''
+                                  } ${isEnd ? 'border-r-4' : ''} ${
                                   task.status === 'completed' ? 'opacity-50' : ''
                                 } ${draggedTask?.id === task.id ? 'opacity-50' : ''} rounded-none`}
+                                style={{
+                                  marginLeft: isStart ? '0' : '-3px',
+                                  marginRight: isEnd ? '0' : '-3px',
+                                  zIndex: 10
+                                }}
                                 onClick={user !== 'guest' ? (e) => {
                                   e.stopPropagation();
                                   handleTaskClick(task);
                                 } : undefined}
                                 title={`${task.title}${isStart ? ' (Start)' : isEnd ? ' (End)' : ''}`}
-                                style={{
-                                  marginLeft: isStart ? '0' : '-1px',
-                                  marginRight: isEnd ? '0' : '-1px',
-                                  zIndex: 10
-                                }}
                               >
                                 <div className="flex items-center justify-between w-full p-1 md:p-2 min-w-0">
                                   <div className="flex items-center space-x-1 min-w-0 flex-1">
