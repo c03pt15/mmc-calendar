@@ -567,7 +567,11 @@ const MMCCalendar = () => {
     end_date: '',
     reminders: [],
     reminder_times: [],
-    reminder_custom_time: ''
+    reminder_custom_time: '',
+    reminder_names: {},
+    reminder_custom_name: '',
+    custom_reminders: [],
+    has_reminders: false
   });
 
   const teamMembers = [
@@ -1171,6 +1175,7 @@ const MMCCalendar = () => {
               taskTitle: task.title,
               reminderTime: reminderTime,
               reminderType: reminder.type,
+              reminderName: reminder.name || '',
               taskDate: new Date(task.year, task.month, task.date), // task.month is already 0-based
               dismissed: reminder.dismissed || false,
               snoozedUntil: undefined
@@ -1305,7 +1310,11 @@ const MMCCalendar = () => {
       recurring_end_date: '',
       reminders: [],
       reminder_times: [],
-      reminder_custom_time: ''
+      reminder_custom_time: '',
+      reminder_names: {},
+      reminder_custom_name: '',
+      custom_reminders: [],
+      has_reminders: false
     });
     
     setShowNewEntryModal(true);
@@ -1317,7 +1326,7 @@ const MMCCalendar = () => {
       if (Notification.permission === 'granted') {
         try {
           new Notification(`Reminder: ${reminder.taskTitle}`, {
-            body: `Task is due ${reminder.taskDate.toLocaleDateString()}`,
+            body: reminder.reminderName ? `${reminder.reminderName} - Task is due ${reminder.taskDate.toLocaleDateString()}` : `Task is due ${reminder.taskDate.toLocaleDateString()}`,
             icon: '/favicon.ico',
             tag: `reminder-${reminder.id}` // Prevent duplicate notifications
           });
@@ -1328,7 +1337,7 @@ const MMCCalendar = () => {
         Notification.requestPermission().then(permission => {
           if (permission === 'granted') {
             new Notification(`Reminder: ${reminder.taskTitle}`, {
-              body: `Task is due ${reminder.taskDate.toLocaleDateString()}`,
+              body: reminder.reminderName ? `${reminder.reminderName} - Task is due ${reminder.taskDate.toLocaleDateString()}` : `Task is due ${reminder.taskDate.toLocaleDateString()}`,
               icon: '/favicon.ico',
               tag: `reminder-${reminder.id}`
             });
@@ -2019,16 +2028,29 @@ const MMCCalendar = () => {
       if (cleanedTask.recurring_end_date === '') cleanedTask.recurring_end_date = null;
       
       // Process reminders
-      const reminders: Array<{type: string, custom_time?: any}> = [];
+      const reminders: Array<{type: string, custom_time?: any, name?: string}> = [];
       if (cleanedTask.reminder_times && cleanedTask.reminder_times.length > 0) {
         cleanedTask.reminder_times.forEach((time: string) => {
-          reminders.push({ type: time });
+          reminders.push({ type: time, name: cleanedTask.reminder_names?.[time] || '' });
         });
       }
+      // Process custom reminders (both single and multiple)
       if (cleanedTask.reminder_custom_time) {
         reminders.push({ 
           type: 'custom', 
-          custom_time: cleanedTask.reminder_custom_time 
+          custom_time: cleanedTask.reminder_custom_time,
+          name: cleanedTask.reminder_custom_name || ''
+        });
+      }
+      if (cleanedTask.custom_reminders && cleanedTask.custom_reminders.length > 0) {
+        cleanedTask.custom_reminders.forEach((customReminder: any) => {
+          if (customReminder.time && customReminder.time.trim() !== '') {
+            reminders.push({
+              type: 'custom',
+              custom_time: customReminder.time,
+              name: customReminder.name || ''
+            });
+          }
         });
       }
       
@@ -2038,6 +2060,9 @@ const MMCCalendar = () => {
         created_by: newTask.created_by,
         reminders: reminders
       };
+      
+      // Remove has_reminders as it's only used for UI state, not database
+      delete task.has_reminders;
       
       
       const { data, error } = await supabase.from('tasks').insert([task]).select();
@@ -2072,11 +2097,44 @@ const MMCCalendar = () => {
   };
 
   const handleEditTask = () => {
+    // Get the latest task data from allTasksWithRecurring to ensure we have the most up-to-date information
+    const latestTask = allTasksWithRecurring.find(task => task.id === selectedTask.id) || selectedTask;
+    
+    // Initialize reminder names from existing reminders (only non-dismissed ones)
+    const reminderNames: { [key: string]: string } = {};
+    const customReminders: Array<{time: string, name: string}> = [];
+    const activeReminderTypes: string[] = []; // Track active reminder types for checkboxes
+    
+    if (latestTask.reminders) {
+      latestTask.reminders.forEach((reminder: any) => {
+        // Only include non-dismissed reminders
+        if (!reminder.dismissed) {
+          if (reminder.type !== 'custom') {
+            // Add to active reminder types for checkboxes
+            activeReminderTypes.push(reminder.type);
+            if (reminder.name) {
+              reminderNames[reminder.type] = reminder.name;
+            }
+          } else if (reminder.type === 'custom') {
+            customReminders.push({
+              time: reminder.custom_time || '',
+              name: reminder.name || ''
+            });
+          }
+        }
+      });
+    }
+    
     setEditingTask({ 
-      ...selectedTask,
-      start_date: selectedTask.start_date || '',
-      end_date: selectedTask.end_date || '',
-      recurring_end_date: selectedTask.recurring_end_date || ''
+      ...latestTask,
+      start_date: latestTask.start_date || '',
+      end_date: latestTask.end_date || '',
+      recurring_end_date: latestTask.recurring_end_date || '',
+      reminder_times: activeReminderTypes, // Use only active (non-dismissed) reminder types
+      reminder_names: reminderNames,
+      reminder_custom_name: latestTask.reminders?.find((r: any) => r.type === 'custom' && !r.dismissed)?.name || '',
+      custom_reminders: customReminders,
+      has_reminders: latestTask.reminders && latestTask.reminders.some((r: any) => !r.dismissed)
     });
     setEditMode('single'); // Default to single instance editing
     setShowTaskModal(false);
@@ -2102,11 +2160,41 @@ const MMCCalendar = () => {
         return;
       }
       
+      // Initialize reminder names from existing reminders (only non-dismissed ones)
+      const reminderNames: { [key: string]: string } = {};
+      const customReminders: Array<{time: string, name: string}> = [];
+      const activeReminderTypes: string[] = []; // Track active reminder types for checkboxes
+      
+      if (data.reminders) {
+        data.reminders.forEach((reminder: any) => {
+          // Only include non-dismissed reminders
+          if (!reminder.dismissed) {
+            if (reminder.type !== 'custom') {
+              // Add to active reminder types for checkboxes
+              activeReminderTypes.push(reminder.type);
+              if (reminder.name) {
+                reminderNames[reminder.type] = reminder.name;
+              }
+            } else if (reminder.type === 'custom') {
+              customReminders.push({
+                time: reminder.custom_time || '',
+                name: reminder.name || ''
+              });
+            }
+          }
+        });
+      }
+      
       setEditingTask({
         ...data,
         start_date: data.start_date || '',
         end_date: data.end_date || '',
-        recurring_end_date: data.recurring_end_date || ''
+        recurring_end_date: data.recurring_end_date || '',
+        reminder_times: activeReminderTypes, // Use only active (non-dismissed) reminder types
+        reminder_names: reminderNames,
+        reminder_custom_name: data.reminders?.find((r: any) => r.type === 'custom' && !r.dismissed)?.name || '',
+        custom_reminders: customReminders,
+        has_reminders: data.reminders && data.reminders.some((r: any) => !r.dismissed)
       });
       setEditMode('all'); // Set to edit all instances
       setShowTaskModal(false);
@@ -2261,16 +2349,29 @@ const MMCCalendar = () => {
       if (cleanedTask.recurring_end_date === '') cleanedTask.recurring_end_date = null;
       
       // Process reminders
-      const reminders: Array<{type: string, custom_time?: any}> = [];
+      const reminders: Array<{type: string, custom_time?: any, name?: string}> = [];
       if (cleanedTask.reminder_times && cleanedTask.reminder_times.length > 0) {
         cleanedTask.reminder_times.forEach((time: string) => {
-          reminders.push({ type: time });
+          reminders.push({ type: time, name: cleanedTask.reminder_names?.[time] || '' });
         });
       }
+      // Process custom reminders (both single and multiple)
       if (cleanedTask.reminder_custom_time) {
         reminders.push({ 
           type: 'custom', 
-          custom_time: cleanedTask.reminder_custom_time 
+          custom_time: cleanedTask.reminder_custom_time,
+          name: cleanedTask.reminder_custom_name || ''
+        });
+      }
+      if (cleanedTask.custom_reminders && cleanedTask.custom_reminders.length > 0) {
+        cleanedTask.custom_reminders.forEach((customReminder: any) => {
+          if (customReminder.time && customReminder.time.trim() !== '') {
+            reminders.push({
+              type: 'custom',
+              custom_time: customReminder.time,
+              name: customReminder.name || ''
+            });
+          }
         });
       }
       
@@ -2279,6 +2380,9 @@ const MMCCalendar = () => {
         color: getCategoryConfig(editingTask.category).color,
         reminders: reminders
       };
+      
+      // Remove has_reminders as it's only used for UI state, not database
+      delete updatedTask.has_reminders;
       
       const isRecurring = editingTask.is_recurring || editingTask.is_recurring_instance;
       
@@ -5739,9 +5843,22 @@ const MMCCalendar = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Reminders</label>
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Reminders</label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="has_reminders"
+                    checked={newTask.has_reminders || false}
+                    onChange={(e) => setNewTask((prev: any) => ({ ...prev, has_reminders: e.target.checked }))}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="has_reminders" className="text-sm text-gray-700">
+                    Set reminders for this task
+                  </label>
+                </div>
+                {newTask.has_reminders && (
+                  <div className="ml-6 space-y-3 border-l-2 border-gray-200 pl-4 mt-3">
+                  <div className="space-y-3">
                     {[
                       { value: '15min', label: '15 min before' },
                       { value: '30min', label: '30 min before' },
@@ -5751,7 +5868,7 @@ const MMCCalendar = () => {
                       { value: '2days', label: '2 days before' },
                       { value: '1week', label: '1 week before' }
                     ].map((reminder) => (
-                      <label key={reminder.value} className="flex items-center">
+                      <div key={reminder.value} className="flex items-center space-x-3">
                         <input
                           type="checkbox"
                           checked={newTask.reminder_times?.includes(reminder.value) || false}
@@ -5764,22 +5881,106 @@ const MMCCalendar = () => {
                           }}
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         />
-                        <span className="ml-2 text-sm text-gray-700">{reminder.label}</span>
-                      </label>
+                        <span className="text-sm text-gray-700 w-24">{reminder.label}</span>
+                        <input
+                          type="text"
+                          placeholder="Reminder name (optional)"
+                          value={newTask.reminder_names?.[reminder.value] || ''}
+                          onChange={(e) => {
+                            const currentNames = newTask.reminder_names || {};
+                            setNewTask((prev: any) => ({
+                              ...prev,
+                              reminder_names: {
+                                ...currentNames,
+                                [reminder.value]: e.target.value
+                              }
+                            }));
+                          }}
+                          className="flex-1 text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          disabled={!newTask.reminder_times?.includes(reminder.value)}
+                        />
+                      </div>
                     ))}
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Custom reminder time</label>
-                    <input
-                      type="datetime-local"
-                      value={newTask.reminder_custom_time}
-                      onChange={(e) => setNewTask((prev: any) => ({ ...prev, reminder_custom_time: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Custom reminder time</label>
+                      <div className="space-y-2">
+                        <input
+                          type="datetime-local"
+                          value={newTask.reminder_custom_time}
+                        onChange={(e) => setNewTask((prev: any) => ({ ...prev, reminder_custom_time: e.target.value }))}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Custom reminder name (optional)"
+                        value={newTask.reminder_custom_name || ''}
+                        onChange={(e) => setNewTask((prev: any) => ({ ...prev, reminder_custom_name: e.target.value }))}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
                     <p className="text-xs text-gray-500 mt-1">Set a specific date and time for the reminder</p>
                   </div>
+                  
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-xs font-medium text-gray-600">Additional custom reminders</label>
+                        <button
+                          type="button"
+                          onClick={() => setNewTask((prev: any) => ({
+                          ...prev,
+                          custom_reminders: [...(prev.custom_reminders || []), { time: '', name: '' }]
+                        }))}
+                        className="flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                      >
+                        <Plus className="w-3 h-3 mr-1" />
+                        Add Reminder
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {newTask.custom_reminders?.map((reminder: any, index: number) => (
+                        <div key={index} className="flex items-center space-x-2">
+                          <input
+                            type="datetime-local"
+                            value={reminder.time}
+                            onChange={(e) => {
+                              const updatedReminders = [...(newTask.custom_reminders || [])];
+                              updatedReminders[index] = { ...reminder, time: e.target.value };
+                              setNewTask((prev: any) => ({ ...prev, custom_reminders: updatedReminders }));
+                            }}
+                            className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Reminder name (optional)"
+                            value={reminder.name}
+                            onChange={(e) => {
+                              const updatedReminders = [...(newTask.custom_reminders || [])];
+                              updatedReminders[index] = { ...reminder, name: e.target.value };
+                              setNewTask((prev: any) => ({ ...prev, custom_reminders: updatedReminders }));
+                            }}
+                            className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updatedReminders = (newTask.custom_reminders || []).filter((_: any, i: number) => i !== index);
+                              setNewTask((prev: any) => ({ ...prev, custom_reminders: updatedReminders }));
+                            }}
+                            className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    {newTask.custom_reminders?.length === 0 && (
+                      <p className="text-xs text-gray-500 mt-1">Click "Add Reminder" to create additional custom reminders</p>
+                    )}
+                  </div>
                 </div>
+                )}
               </div>
               
               <div>
@@ -6070,6 +6271,43 @@ const MMCCalendar = () => {
                   )}
                 </div>
               </div>
+              
+              {selectedTask.reminders && selectedTask.reminders.filter((r: any) => !r.dismissed).length > 0 && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">REMINDERS</label>
+                  <div className="space-y-2">
+                    {selectedTask.reminders.filter((r: any) => !r.dismissed).map((reminder: any, index: number) => (
+                      <div key={index} className="flex items-center space-x-2 p-2 bg-gray-50 rounded-md">
+                        <Clock className="w-4 h-4 text-gray-400" />
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm text-gray-900">
+                              {reminder.type === '15min' ? '15 min before' :
+                               reminder.type === '30min' ? '30 min before' :
+                               reminder.type === '1hour' ? '1 hour before' :
+                               reminder.type === '2hours' ? '2 hours before' :
+                               reminder.type === '1day' ? '1 day before' :
+                               reminder.type === '2days' ? '2 days before' :
+                               reminder.type === '1week' ? '1 week before' :
+                               'Custom reminder'}
+                            </span>
+                            {reminder.name && (
+                              <span className="text-sm font-medium text-blue-600">
+                                - {reminder.name}
+                              </span>
+                            )}
+                          </div>
+                          {reminder.type === 'custom' && reminder.custom_time && (
+                            <div className="text-xs text-gray-500">
+                              {new Date(reminder.custom_time).toLocaleString()}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="flex space-x-3 mt-6">
               {(selectedTask.is_recurring || selectedTask.is_recurring_instance) ? (
@@ -6626,9 +6864,22 @@ const MMCCalendar = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Reminders</label>
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Reminders</label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="edit_has_reminders"
+                    checked={editingTask.has_reminders || false}
+                    onChange={(e) => setEditingTask((prev: any) => ({ ...prev, has_reminders: e.target.checked }))}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="edit_has_reminders" className="text-sm text-gray-700">
+                    Set reminders for this task
+                  </label>
+                </div>
+                {(editingTask.has_reminders || false) && (
+                  <div className="ml-6 space-y-3 border-l-2 border-gray-200 pl-4 mt-3">
+                  <div className="space-y-3">
                     {[
                       { value: '15min', label: '15 min before' },
                       { value: '30min', label: '30 min before' },
@@ -6638,7 +6889,7 @@ const MMCCalendar = () => {
                       { value: '2days', label: '2 days before' },
                       { value: '1week', label: '1 week before' }
                     ].map((reminder) => (
-                      <label key={reminder.value} className="flex items-center">
+                      <div key={reminder.value} className="flex items-center space-x-3">
                         <input
                           type="checkbox"
                           checked={editingTask.reminder_times?.includes(reminder.value) || false}
@@ -6651,22 +6902,106 @@ const MMCCalendar = () => {
                           }}
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         />
-                        <span className="ml-2 text-sm text-gray-700">{reminder.label}</span>
-                      </label>
+                        <span className="text-sm text-gray-700 w-24">{reminder.label}</span>
+                        <input
+                          type="text"
+                          placeholder="Reminder name (optional)"
+                          value={editingTask.reminder_names?.[reminder.value] || ''}
+                          onChange={(e) => {
+                            const currentNames = editingTask.reminder_names || {};
+                            setEditingTask((prev: any) => ({
+                              ...prev,
+                              reminder_names: {
+                                ...currentNames,
+                                [reminder.value]: e.target.value
+                              }
+                            }));
+                          }}
+                          className="flex-1 text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          disabled={!editingTask.reminder_times?.includes(reminder.value)}
+                        />
+                      </div>
                     ))}
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Custom reminder time</label>
-                    <input
-                      type="datetime-local"
-                      value={editingTask.reminder_custom_time || ''}
-                      onChange={(e) => setEditingTask((prev: any) => ({ ...prev, reminder_custom_time: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Custom reminder time</label>
+                    <div className="space-y-2">
+                      <input
+                        type="datetime-local"
+                        value={editingTask.reminder_custom_time || ''}
+                        onChange={(e) => setEditingTask((prev: any) => ({ ...prev, reminder_custom_time: e.target.value }))}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Custom reminder name (optional)"
+                        value={editingTask.reminder_custom_name || ''}
+                        onChange={(e) => setEditingTask((prev: any) => ({ ...prev, reminder_custom_name: e.target.value }))}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
                     <p className="text-xs text-gray-500 mt-1">Set a specific date and time for the reminder</p>
                   </div>
+                  
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-xs font-medium text-gray-600">Additional custom reminders</label>
+                      <button
+                        type="button"
+                        onClick={() => setEditingTask((prev: any) => ({
+                          ...prev,
+                          custom_reminders: [...(prev.custom_reminders || []), { time: '', name: '' }]
+                        }))}
+                        className="flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                      >
+                        <Plus className="w-3 h-3 mr-1" />
+                        Add Reminder
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {editingTask.custom_reminders?.map((reminder: any, index: number) => (
+                        <div key={index} className="flex items-center space-x-2">
+                          <input
+                            type="datetime-local"
+                            value={reminder.time}
+                            onChange={(e) => {
+                              const updatedReminders = [...(editingTask.custom_reminders || [])];
+                              updatedReminders[index] = { ...reminder, time: e.target.value };
+                              setEditingTask((prev: any) => ({ ...prev, custom_reminders: updatedReminders }));
+                            }}
+                            className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Reminder name (optional)"
+                            value={reminder.name}
+                            onChange={(e) => {
+                              const updatedReminders = [...(editingTask.custom_reminders || [])];
+                              updatedReminders[index] = { ...reminder, name: e.target.value };
+                              setEditingTask((prev: any) => ({ ...prev, custom_reminders: updatedReminders }));
+                            }}
+                            className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updatedReminders = (editingTask.custom_reminders || []).filter((_: any, i: number) => i !== index);
+                              setEditingTask((prev: any) => ({ ...prev, custom_reminders: updatedReminders }));
+                            }}
+                            className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    {editingTask.custom_reminders?.length === 0 && (
+                      <p className="text-xs text-gray-500 mt-1">Click "Add Reminder" to create additional custom reminders</p>
+                    )}
+                  </div>
                 </div>
+                )}
               </div>
               
               <div>
@@ -7087,7 +7422,7 @@ const MMCCalendar = () => {
                               <p className="text-xs text-gray-600 mb-2">
                                 Due: {reminder.taskDate.toLocaleDateString()}
                               </p>
-                              <div className="flex items-center space-x-3">
+                              <div className="flex items-center space-x-2">
                                 <span className="text-xs text-gray-600 font-medium bg-gray-100 px-2 py-1 rounded">
                                   {reminder.reminderType === '15min' ? '15 min before' :
                                    reminder.reminderType === '30min' ? '30 min before' :
@@ -7116,6 +7451,13 @@ const MMCCalendar = () => {
                               </button>
                             </div>
                           </div>
+                          {reminder.reminderName && (
+                            <div className="mt-2 w-full">
+                              <span className="block text-xs text-blue-700 font-medium bg-blue-50 border border-blue-200 px-2 py-1 rounded-lg text-center w-full">
+                                {reminder.reminderName}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -7137,7 +7479,7 @@ const MMCCalendar = () => {
                               <p className="text-xs text-gray-600 mb-2">
                                 Due: {reminder.taskDate.toLocaleDateString()}
                               </p>
-                              <div className="flex items-center space-x-3">
+                              <div className="flex items-center space-x-2">
                                 <span className="text-xs text-blue-600 font-medium bg-blue-100 px-2 py-1 rounded">
                                   {reminder.reminderType === '15min' ? '15 min before' :
                                    reminder.reminderType === '30min' ? '30 min before' :
@@ -7166,6 +7508,13 @@ const MMCCalendar = () => {
                               </button>
                             </div>
                           </div>
+                          {reminder.reminderName && (
+                            <div className="mt-2 w-full">
+                              <span className="block text-xs text-blue-700 font-medium bg-blue-50 border border-blue-200 px-2 py-1 rounded-lg text-center w-full">
+                                {reminder.reminderName}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
