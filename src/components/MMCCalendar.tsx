@@ -4312,7 +4312,7 @@ const MMCCalendar = () => {
                       ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 cursor-pointer' 
                       : 'text-gray-400 cursor-not-allowed'
                   }`}
-                  title={user !== 'guest' ? "Upcoming Reminders" : "Guest users cannot access reminders"}
+                  title={user !== 'guest' ? "Reminders" : "Guest users cannot access reminders"}
                   disabled={user === 'guest'}
                 >
                 <div className="w-6 h-6 relative">
@@ -7514,7 +7514,7 @@ const MMCCalendar = () => {
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Upcoming Reminders</h2>
+                  <h2 className="text-xl font-semibold text-gray-900">Reminders</h2>
                   <p className="text-sm text-gray-500 mt-1">Next 14 days</p>
                 </div>
                 <button
