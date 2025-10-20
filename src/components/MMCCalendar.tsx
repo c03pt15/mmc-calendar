@@ -1894,18 +1894,23 @@ const MMCCalendar = () => {
     return getRecentActivities().length;
   }, [getRecentActivities]);
 
-  // Dynamic filter counts based on available categories
+  // Dynamic filter counts based on available categories for current month
   const filterCounts = useMemo(() => {
     const counts: { [key: string]: number } = {};
+    const currentMonth = currentDate.getMonth();
+    const currentYear = currentDate.getFullYear();
+    
     categories.forEach(category => {
       counts[category.name] = allTasksWithRecurring.filter(t => 
         t.category === category.name && 
         t.status !== 'deleted' && 
+        t.month === currentMonth &&
+        t.year === currentYear &&
         (!selectedTeamMember || (t.assignees && t.assignees.includes(selectedTeamMember)) || t.assignee === selectedTeamMember)
       ).length;
     });
     return counts;
-  }, [allTasksWithRecurring, selectedTeamMember, categories]);
+  }, [allTasksWithRecurring, selectedTeamMember, categories, currentDate]);
 
   const allFilteredTasks = getAllFilteredTasks();
   
