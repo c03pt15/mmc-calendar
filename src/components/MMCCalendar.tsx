@@ -596,15 +596,15 @@ const MMCCalendar = () => {
     { name: 'Orange', class: 'bg-orange-100 text-orange-800 border-orange-200', hex: '#F59E0B' },
     { name: 'Red', class: 'bg-red-100 text-red-800 border-red-200', hex: '#EF4444' },
     { name: 'Yellow', class: 'bg-yellow-100 text-yellow-800 border-yellow-200', hex: '#EAB308' },
-    { name: 'Pink', class: 'bg-pink-100 text-pink-800 border-pink-200', hex: '#EC4899' },
+    { name: 'White', class: 'bg-white text-gray-800 border-gray-300', hex: '#FFFFFF' },
     { name: 'Indigo', class: 'bg-indigo-100 text-indigo-800 border-indigo-200', hex: '#6366F1' },
     { name: 'Gray', class: 'bg-gray-100 text-gray-800 border-gray-200', hex: '#6B7280' },
     { name: 'Teal', class: 'bg-teal-100 text-teal-800 border-teal-200', hex: '#14B8A6' },
     { name: 'Cyan', class: 'bg-cyan-100 text-cyan-800 border-cyan-200', hex: '#06B6D4' },
     { name: 'Lime', class: 'bg-lime-100 text-lime-800 border-lime-200', hex: '#84CC16' },
-    { name: 'Emerald', class: 'bg-emerald-100 text-emerald-800 border-emerald-200', hex: '#059669' },
-    { name: 'Violet', class: 'bg-violet-100 text-violet-800 border-violet-200', hex: '#7C3AED' },
-    { name: 'Rose', class: 'bg-rose-100 text-rose-800 border-rose-200', hex: '#F43F5E' },
+    { name: 'Tan', class: 'bg-stone-200 text-stone-800 border-stone-300', hex: '#A8A29E' },
+    { name: 'Fuchsia', class: 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200', hex: '#C026D3' },
+    { name: 'Brown', class: 'bg-amber-50 text-amber-900 border-amber-200', hex: '#FEF3C7' },
     { name: 'Sky', class: 'bg-sky-100 text-sky-800 border-sky-200', hex: '#0EA5E9' }
   ];
 
