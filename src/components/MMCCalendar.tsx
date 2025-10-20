@@ -2416,37 +2416,85 @@ const MMCCalendar = () => {
   useEffect(() => {
     const checkMobile = () => {
       const isMobileDevice = window.innerWidth < 768;
-      setIsMobile(isMobileDevice);
+      const wasMobile = isMobile;
       
-      if (isMobileDevice) {
-        // Mobile: always close sidebar unless user opened it
+      // Only update mobile state if it actually changed
+      if (isMobileDevice !== wasMobile) {
+        setIsMobile(isMobileDevice);
+        
+        if (isMobileDevice) {
+          // Switching to mobile: close sidebar
+          setSidebarOpen(false);
+          setSidebarUserOpened(false);
+          
+          // Show mobile notification if not already shown
+          if (!localStorage.getItem('mobileNotificationDismissed')) {
+            setShowMobileNotification(true);
+          }
+        } else {
+          // Switching to desktop: open sidebar
+          setSidebarOpen(true);
+          setSidebarUserOpened(false);
+        }
+      } else if (isMobileDevice) {
+        // Already on mobile: ensure sidebar stays closed unless user opened it
         if (!sidebarUserOpened) {
           setSidebarOpen(false);
         }
-        
-        // Show mobile notification if not already shown
-        if (!localStorage.getItem('mobileNotificationDismissed')) {
-          setShowMobileNotification(true);
-        }
-      } else {
-        // Desktop: open sidebar by default
-        setSidebarOpen(true);
-        setSidebarUserOpened(false);
       }
     };
     
     // Run immediately
     checkMobile();
     
-    // Run on resize
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, [sidebarUserOpened]);
+    // Run on resize with debounce to prevent rapid changes
+    let resizeTimeout: NodeJS.Timeout;
+    const handleResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(checkMobile, 100);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(resizeTimeout);
+    };
+  }, [isMobile, sidebarUserOpened]);
 
   // Bulletproof check: if mobile and sidebar is open but user didn't open it, close it
   if (isMobile && sidebarOpen && !sidebarUserOpened) {
     setSidebarOpen(false);
   }
+
+  // Prevent mobile state from changing during scroll
+  useEffect(() => {
+    if (isMobile) {
+      const handleScroll = () => {
+        const currentWidth = window.innerWidth;
+        const shouldBeMobile = currentWidth < 768;
+        
+        // Debug: log if something is trying to change our mobile state
+        if (shouldBeMobile !== isMobile) {
+          console.log('Scroll detected mobile state mismatch:', { 
+            currentWidth, 
+            shouldBeMobile, 
+            isMobile, 
+            sidebarOpen, 
+            sidebarUserOpened 
+          });
+        }
+        
+        // Ensure we stay in mobile mode during scroll
+        if (shouldBeMobile && !isMobile) {
+          console.log('Forcing mobile state back to true during scroll');
+          setIsMobile(true);
+        }
+      };
+      
+      window.addEventListener('scroll', handleScroll, { passive: true });
+      return () => window.removeEventListener('scroll', handleScroll);
+    }
+  }, [isMobile, sidebarOpen, sidebarUserOpened]);
 
   const handleSaveEditTask = async () => {
     try {
