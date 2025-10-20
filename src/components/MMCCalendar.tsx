@@ -2427,10 +2427,10 @@ const MMCCalendar = () => {
           setSidebarOpen(false);
           setSidebarUserOpened(false);
           
-          // Show mobile notification if not already shown
-          if (!localStorage.getItem('mobileNotificationDismissed')) {
-            setShowMobileNotification(true);
-          }
+          // Show mobile notification if not already shown - TEMPORARILY DISABLED FOR TESTING
+          // if (!localStorage.getItem('mobileNotificationDismissed')) {
+          //   setShowMobileNotification(true);
+          // }
         } else {
           // Switching to desktop: open sidebar
           setSidebarOpen(true);
@@ -3775,8 +3775,8 @@ const MMCCalendar = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      {/* Mobile Notification - Full Screen */}
-      {showMobileNotification && (
+      {/* Mobile Notification - Full Screen - TEMPORARILY DISABLED FOR TESTING */}
+      {false && showMobileNotification && (
         <div 
           className="fixed top-0 left-0 w-screen h-screen z-[9999] bg-blue-600 text-white flex flex-col items-center justify-center p-6"
           style={{ 
