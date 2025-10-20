@@ -466,6 +466,7 @@ const MMCCalendar = () => {
   const [resetMessage, setResetMessage] = useState('');
   const [isMobile, setIsMobile] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarUserOpened, setSidebarUserOpened] = useState(false);
   const [allTasks, setAllTasks] = useState<{ [key: string]: any[] }>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -2414,6 +2415,7 @@ const MMCCalendar = () => {
   // Detect mobile screen size
   useEffect(() => {
     let resizeTimeout: NodeJS.Timeout;
+    let lastWidth = window.innerWidth;
     
     const checkMobile = () => {
       // Clear any existing timeout
@@ -2421,14 +2423,21 @@ const MMCCalendar = () => {
       
       // Debounce the resize event to prevent rapid changes
       resizeTimeout = setTimeout(() => {
-        const isMobileDevice = window.innerWidth < 768;
-        setIsMobile(isMobileDevice);
+        const currentWidth = window.innerWidth;
+        const isMobileDevice = currentWidth < 768;
+        
+        // Only update if there's a significant width change (more than 50px)
+        // This prevents mobile detection from changing due to address bar hide/show
+        if (Math.abs(currentWidth - lastWidth) > 50) {
+          setIsMobile(isMobileDevice);
+          lastWidth = currentWidth;
+        }
         
         // Show mobile notification if on mobile and not already shown
         if (isMobileDevice && !localStorage.getItem('mobileNotificationDismissed')) {
           setShowMobileNotification(true);
         }
-      }, 150); // 150ms debounce
+      }, 300); // Increased debounce to 300ms
     };
     
     checkMobile();
@@ -2440,21 +2449,24 @@ const MMCCalendar = () => {
     };
   }, []);
 
-  // Prevent sidebar from opening on scroll on mobile
+  // Ensure sidebar stays closed on mobile when it should be
   useEffect(() => {
     if (!isMobile) return;
-
+    
+    // If we're on mobile and the sidebar is open, but the user didn't open it,
+    // close it automatically
     const handleScroll = () => {
-      // Ensure sidebar stays closed when scrolling on mobile
-      if (sidebarOpen) {
+      if (sidebarOpen && isMobile && !sidebarUserOpened) {
         setSidebarOpen(false);
       }
     };
-
+    
     window.addEventListener('scroll', handleScroll, { passive: true });
     
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [isMobile, sidebarOpen]);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [isMobile, sidebarOpen, sidebarUserOpened]);
 
 
 
@@ -3844,7 +3856,10 @@ const MMCCalendar = () => {
       {isMobile && sidebarOpen && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 z-40"
-          onClick={() => setSidebarOpen(false)}
+          onClick={() => {
+            setSidebarOpen(false);
+            setSidebarUserOpened(false);
+          }}
         />
       )}
       
@@ -3861,7 +3876,10 @@ const MMCCalendar = () => {
         {/* Close button for mobile */}
         {isMobile && (
           <button
-            onClick={() => setSidebarOpen(false)}
+            onClick={() => {
+              setSidebarOpen(false);
+              setSidebarUserOpened(false);
+            }}
             className="absolute top-4 right-4 z-[60] p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors bg-white shadow-md"
             title="Close sidebar"
           >
@@ -4237,7 +4255,10 @@ const MMCCalendar = () => {
               {/* Mobile Menu Button */}
               {isMobile && user !== 'guest' && (
                 <button
-                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  onClick={() => {
+                    setSidebarOpen(!sidebarOpen);
+                    setSidebarUserOpened(!sidebarOpen);
+                  }}
                   className="p-2 hover:bg-gray-100 rounded-lg md:hidden"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
