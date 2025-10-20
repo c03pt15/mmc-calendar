@@ -4531,13 +4531,15 @@ const MMCCalendar = () => {
 
               {/* Export Dropdown */}
               <div className="relative export-container">
-                <button
-                  onClick={() => setShowExportMenu(!showExportMenu)}
-                  className="p-2 rounded-lg hover:bg-gray-100"
-                  title="Export data"
-                >
-                  <Download className="w-5 h-5" />
-                </button>
+                {user !== 'guest' && (
+                  <button
+                    onClick={() => setShowExportMenu(!showExportMenu)}
+                    className="p-2 rounded-lg hover:bg-gray-100"
+                    title="Export data"
+                  >
+                    <Download className="w-5 h-5" />
+                  </button>
+                )}
                 {showExportMenu && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-50">
                     <div className="py-1">
