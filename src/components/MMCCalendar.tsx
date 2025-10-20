@@ -464,8 +464,20 @@ const MMCCalendar = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetMessage, setResetMessage] = useState('');
-  const [isMobile, setIsMobile] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => {
+    // Check if we're on mobile on initial load
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < 768;
+    }
+    return false;
+  });
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    // Check if we're on mobile on initial load
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 768; // Desktop: open by default, Mobile: closed by default
+    }
+    return false;
+  });
   const [sidebarUserOpened, setSidebarUserOpened] = useState(false);
   const [allTasks, setAllTasks] = useState<{ [key: string]: any[] }>({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -2456,14 +2468,7 @@ const MMCCalendar = () => {
     };
   }, []);
 
-  // Set initial sidebar state based on screen size
-  useEffect(() => {
-    const isMobileDevice = window.innerWidth < 768;
-    if (isMobileDevice) {
-      setSidebarOpen(false);
-      setSidebarUserOpened(false);
-    }
-  }, []);
+  // Note: Initial sidebar state is now set in useState initialization
 
   // Ensure sidebar stays closed on mobile when it should be
   useEffect(() => {
