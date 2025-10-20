@@ -487,6 +487,7 @@ const MMCCalendar = () => {
   const [editMode, setEditMode] = useState<'single' | 'all'>('single'); // For recurring task editing
   const [hoveredDay, setHoveredDay] = useState<{date: number, month: number, year: number} | null>(null);
   const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [showMobileNotification, setShowMobileNotification] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const [showCustomCategoryModal, setShowCustomCategoryModal] = useState(false);
   const [customCategory, setCustomCategory] = useState({
@@ -2375,7 +2376,13 @@ const MMCCalendar = () => {
   // Detect mobile screen size
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
+      const isMobileDevice = window.innerWidth < 768;
+      setIsMobile(isMobileDevice);
+      
+      // Show mobile notification if on mobile and not already shown
+      if (isMobileDevice && !localStorage.getItem('mobileNotificationDismissed')) {
+        setShowMobileNotification(true);
+      }
     };
     
     checkMobile();
@@ -3653,6 +3660,36 @@ const MMCCalendar = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
+      {/* Mobile Notification */}
+      {showMobileNotification && (
+        <div className="fixed top-4 left-4 right-4 z-[9999] bg-blue-600 text-white p-4 rounded-lg shadow-lg">
+          <div className="flex items-start justify-between">
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0">
+                <svg className="w-5 h-5 text-blue-200" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-medium">Desktop Recommended</h3>
+                <p className="text-sm text-blue-100 mt-1">
+                  This application is optimized for desktop use. For the best experience, please access it from a computer or tablet.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setShowMobileNotification(false);
+                localStorage.setItem('mobileNotificationDismissed', 'true');
+              }}
+              className="flex-shrink-0 ml-3 text-blue-200 hover:text-white transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Notification System */}
       <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[9999]">
         {notifications.map((notification) => (
@@ -3738,6 +3775,17 @@ const MMCCalendar = () => {
       } bg-white border-r border-gray-200 flex flex-col min-h-screen ${
         user === 'guest' ? 'pointer-events-none opacity-60' : ''
       }`}>
+        {/* Close button for mobile */}
+        {isMobile && (
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="absolute top-4 right-4 z-10 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Close sidebar"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
+        
         <div className="p-4 flex-1">
           <div className="mb-6">
           <div 
