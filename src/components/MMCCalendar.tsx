@@ -7138,10 +7138,10 @@ const MMCCalendar = () => {
           />
           
           {/* Drawer */}
-          <div className={`absolute right-0 top-0 h-full w-full md:w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
+          <div className={`absolute right-0 top-0 h-full w-full max-w-sm md:w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
             isDrawerClosing 
               ? 'translate-x-full animate-[slideOutRight_0.3s_ease-in-out_forwards]' 
-              : 'translate-x-full animate-[slideInRight_0.3s_ease-in-out_forwards]'
+              : 'translate-x-0 animate-[slideInRight_0.3s_ease-in-out_forwards]'
           }`}>
             <div className="flex flex-col h-full">
               {/* Header */}
@@ -7308,10 +7308,10 @@ const MMCCalendar = () => {
           />
           
           {/* Drawer */}
-          <div className={`absolute right-0 top-0 h-full w-full md:w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
+          <div className={`absolute right-0 top-0 h-full w-full max-w-sm md:w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
             isActivitiesDrawerClosing 
               ? 'translate-x-full animate-[slideOutRight_0.3s_ease-in-out_forwards]' 
-              : 'translate-x-full animate-[slideInRight_0.3s_ease-in-out_forwards]'
+              : 'translate-x-0 animate-[slideInRight_0.3s_ease-in-out_forwards]'
           }`}>
             <div className="flex flex-col h-full">
               {/* Header */}
@@ -7449,10 +7449,10 @@ const MMCCalendar = () => {
           />
           
           {/* Drawer */}
-          <div className={`absolute right-0 top-0 h-full w-full md:w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
+          <div className={`absolute right-0 top-0 h-full w-full max-w-sm md:w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
             isRemindersDrawerClosing 
               ? 'translate-x-full animate-[slideOutRight_0.3s_ease-in-out_forwards]' 
-              : 'translate-x-full animate-[slideInRight_0.3s_ease-in-out_forwards]'
+              : 'translate-x-0 animate-[slideInRight_0.3s_ease-in-out_forwards]'
           }`}>
             <div className="flex flex-col h-full">
               {/* Header */}
