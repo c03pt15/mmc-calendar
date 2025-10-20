@@ -3662,7 +3662,17 @@ const MMCCalendar = () => {
     <div className="flex min-h-screen bg-gray-50">
       {/* Mobile Notification - Full Screen */}
       {showMobileNotification && (
-        <div className="fixed inset-0 z-[9999] bg-blue-600 text-white flex flex-col items-center justify-center p-6">
+        <div 
+          className="fixed top-0 left-0 w-screen h-screen z-[9999] bg-blue-600 text-white flex flex-col items-center justify-center p-6"
+          style={{ 
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            zIndex: 9999
+          }}
+        >
           <div className="text-center max-w-md mx-auto">
             <div className="mb-6">
               <svg className="w-16 h-16 text-blue-200 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
