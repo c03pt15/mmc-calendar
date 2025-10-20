@@ -467,6 +467,7 @@ const MMCCalendar = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarUserOpened, setSidebarUserOpened] = useState(false);
+  const [mobileStateLocked, setMobileStateLocked] = useState(false);
   const [allTasks, setAllTasks] = useState<{ [key: string]: any[] }>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -2412,35 +2413,52 @@ const MMCCalendar = () => {
     };
   }, []);
 
-  // Simple mobile detection and sidebar management
+  // Aggressive mobile detection and sidebar management
   useEffect(() => {
     const checkMobile = () => {
       const isMobileDevice = window.innerWidth < 768;
       const wasMobile = isMobile;
       
+      console.log('Mobile check:', { 
+        isMobileDevice, 
+        wasMobile, 
+        mobileStateLocked, 
+        currentWidth: window.innerWidth,
+        sidebarOpen,
+        sidebarUserOpened 
+      });
+      
+      // If we're already mobile and locked, don't change it
+      if (mobileStateLocked && isMobile) {
+        console.log('Mobile state is locked, keeping mobile mode');
+        return;
+      }
+      
       // Only update mobile state if it actually changed
       if (isMobileDevice !== wasMobile) {
+        console.log('Mobile state changing from', wasMobile, 'to', isMobileDevice);
         setIsMobile(isMobileDevice);
         
         if (isMobileDevice) {
-          // Switching to mobile: close sidebar
+          // Switching to mobile: close sidebar and lock mobile state
+          console.log('Switching to mobile: closing sidebar and locking state');
           setSidebarOpen(false);
           setSidebarUserOpened(false);
-          
-          // Show mobile notification if not already shown - TEMPORARILY DISABLED FOR TESTING
-          // if (!localStorage.getItem('mobileNotificationDismissed')) {
-          //   setShowMobileNotification(true);
-          // }
+          setMobileStateLocked(true); // Lock mobile state
         } else {
           // Switching to desktop: open sidebar
+          console.log('Switching to desktop: opening sidebar');
           setSidebarOpen(true);
           setSidebarUserOpened(false);
+          setMobileStateLocked(false); // Unlock for desktop
         }
-      } else if (isMobileDevice) {
-        // Already on mobile: ensure sidebar stays closed unless user opened it
+      } else if (isMobileDevice && !mobileStateLocked) {
+        // Already on mobile but not locked: ensure sidebar stays closed unless user opened it
+        console.log('Already on mobile, ensuring sidebar closed');
         if (!sidebarUserOpened) {
           setSidebarOpen(false);
         }
+        setMobileStateLocked(true); // Lock mobile state
       }
     };
     
@@ -2459,42 +2477,20 @@ const MMCCalendar = () => {
       window.removeEventListener('resize', handleResize);
       clearTimeout(resizeTimeout);
     };
-  }, [isMobile, sidebarUserOpened]);
+  }, [isMobile, sidebarUserOpened, mobileStateLocked]);
 
   // Bulletproof check: if mobile and sidebar is open but user didn't open it, close it
   if (isMobile && sidebarOpen && !sidebarUserOpened) {
     setSidebarOpen(false);
   }
 
-  // Prevent mobile state from changing during scroll
+  // Additional safety: Force mobile state if locked
   useEffect(() => {
-    if (isMobile) {
-      const handleScroll = () => {
-        const currentWidth = window.innerWidth;
-        const shouldBeMobile = currentWidth < 768;
-        
-        // Debug: log if something is trying to change our mobile state
-        if (shouldBeMobile !== isMobile) {
-          console.log('Scroll detected mobile state mismatch:', { 
-            currentWidth, 
-            shouldBeMobile, 
-            isMobile, 
-            sidebarOpen, 
-            sidebarUserOpened 
-          });
-        }
-        
-        // Ensure we stay in mobile mode during scroll
-        if (shouldBeMobile && !isMobile) {
-          console.log('Forcing mobile state back to true during scroll');
-          setIsMobile(true);
-        }
-      };
-      
-      window.addEventListener('scroll', handleScroll, { passive: true });
-      return () => window.removeEventListener('scroll', handleScroll);
+    if (mobileStateLocked && !isMobile) {
+      console.log('Mobile state was unlocked but should be locked, forcing back to mobile');
+      setIsMobile(true);
     }
-  }, [isMobile, sidebarOpen, sidebarUserOpened]);
+  }, [mobileStateLocked, isMobile]);
 
   const handleSaveEditTask = async () => {
     try {
@@ -3881,7 +3877,7 @@ const MMCCalendar = () => {
       {/* Debug Panel - Remove this after fixing */}
       {isMobile && (
         <div className="fixed top-0 right-0 bg-red-500 text-white p-2 text-xs z-[9999]">
-          Mobile: {isMobile ? 'Yes' : 'No'} | Sidebar: {sidebarOpen ? 'Open' : 'Closed'} | User: {sidebarUserOpened ? 'Yes' : 'No'}
+          Mobile: {isMobile ? 'Yes' : 'No'} | Sidebar: {sidebarOpen ? 'Open' : 'Closed'} | User: {sidebarUserOpened ? 'Yes' : 'No'} | Locked: {mobileStateLocked ? 'Yes' : 'No'}
         </div>
       )}
 
