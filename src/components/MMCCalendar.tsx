@@ -7132,13 +7132,13 @@ const MMCCalendar = () => {
             className={`absolute inset-0 bg-black transition-all duration-300 ease-in-out ${
               isDrawerClosing 
                 ? 'bg-opacity-0 animate-[fadeOut_0.3s_ease-in-out_forwards]' 
-                : 'bg-opacity-0 animate-[fadeIn_0.3s_ease-in-out_forwards]'
+                : 'bg-opacity-50 animate-[fadeIn_0.3s_ease-in-out_forwards]'
             }`}
             onClick={user !== 'guest' ? closeDrawer : undefined}
           />
           
           {/* Drawer */}
-          <div className={`absolute right-0 top-0 h-full w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
+          <div className={`absolute right-0 top-0 h-full w-full md:w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
             isDrawerClosing 
               ? 'translate-x-full animate-[slideOutRight_0.3s_ease-in-out_forwards]' 
               : 'translate-x-full animate-[slideInRight_0.3s_ease-in-out_forwards]'
@@ -7302,13 +7302,13 @@ const MMCCalendar = () => {
             className={`absolute inset-0 bg-black transition-all duration-300 ease-in-out ${
               isActivitiesDrawerClosing 
                 ? 'bg-opacity-0 animate-[fadeOut_0.3s_ease-in-out_forwards]' 
-                : 'bg-opacity-0 animate-[fadeIn_0.3s_ease-in-out_forwards]'
+                : 'bg-opacity-50 animate-[fadeIn_0.3s_ease-in-out_forwards]'
             }`}
             onClick={closeActivitiesDrawer}
           />
           
           {/* Drawer */}
-          <div className={`absolute right-0 top-0 h-full w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
+          <div className={`absolute right-0 top-0 h-full w-full md:w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
             isActivitiesDrawerClosing 
               ? 'translate-x-full animate-[slideOutRight_0.3s_ease-in-out_forwards]' 
               : 'translate-x-full animate-[slideInRight_0.3s_ease-in-out_forwards]'
@@ -7443,13 +7443,13 @@ const MMCCalendar = () => {
             className={`absolute inset-0 bg-black transition-opacity duration-300 ${
               isRemindersDrawerClosing 
                 ? 'bg-opacity-0 animate-[fadeOut_0.3s_ease-in-out_forwards]' 
-                : 'bg-opacity-0 animate-[fadeIn_0.3s_ease-in-out_forwards]'
+                : 'bg-opacity-50 animate-[fadeIn_0.3s_ease-in-out_forwards]'
             }`}
             onClick={closeRemindersDrawer}
           />
           
           {/* Drawer */}
-          <div className={`absolute right-0 top-0 h-full w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
+          <div className={`absolute right-0 top-0 h-full w-full md:w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
             isRemindersDrawerClosing 
               ? 'translate-x-full animate-[slideOutRight_0.3s_ease-in-out_forwards]' 
               : 'translate-x-full animate-[slideInRight_0.3s_ease-in-out_forwards]'
