@@ -464,18 +464,8 @@ const MMCCalendar = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetMessage, setResetMessage] = useState('');
-  const [isMobile, setIsMobile] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return window.innerWidth < 768;
-    }
-    return false;
-  });
-  const [sidebarOpen, setSidebarOpen] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return window.innerWidth >= 768; // Desktop: open by default, Mobile: closed by default
-    }
-    return false;
-  });
+  const [isMobile, setIsMobile] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarUserOpened, setSidebarUserOpened] = useState(false);
   const [allTasks, setAllTasks] = useState<{ [key: string]: any[] }>({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -2422,71 +2412,41 @@ const MMCCalendar = () => {
     };
   }, []);
 
-  // Simple mobile detection - only runs on resize, not on every render
+  // Simple mobile detection and sidebar management
   useEffect(() => {
-    const handleResize = () => {
+    const checkMobile = () => {
       const isMobileDevice = window.innerWidth < 768;
-      const wasMobile = isMobile;
+      setIsMobile(isMobileDevice);
       
-      console.log('Resize detected:', { isMobileDevice, wasMobile, currentSidebarOpen: sidebarOpen });
-      
-      if (isMobileDevice !== wasMobile) {
-        console.log('Device type changed, updating state');
-        setIsMobile(isMobileDevice);
-        
-        if (isMobileDevice) {
-          // Switching to mobile: close sidebar
-          console.log('Switching to mobile: closing sidebar');
+      if (isMobileDevice) {
+        // Mobile: always close sidebar unless user opened it
+        if (!sidebarUserOpened) {
           setSidebarOpen(false);
-          setSidebarUserOpened(false);
-        } else {
-          // Switching to desktop: open sidebar
-          console.log('Switching to desktop: opening sidebar');
-          setSidebarOpen(true);
-          setSidebarUserOpened(false);
         }
+        
+        // Show mobile notification if not already shown
+        if (!localStorage.getItem('mobileNotificationDismissed')) {
+          setShowMobileNotification(true);
+        }
+      } else {
+        // Desktop: open sidebar by default
+        setSidebarOpen(true);
+        setSidebarUserOpened(false);
       }
     };
     
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [isMobile, sidebarOpen]);
+    // Run immediately
+    checkMobile();
+    
+    // Run on resize
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, [sidebarUserOpened]);
 
-  // Mobile sidebar management - simple and reliable
-  useEffect(() => {
-    if (isMobile) {
-      // On mobile, sidebar should only be open if user explicitly opened it
-      if (!sidebarUserOpened) {
-        setSidebarOpen(false);
-      }
-      
-      // Show mobile notification if on mobile and not already shown
-      if (!localStorage.getItem('mobileNotificationDismissed')) {
-        setShowMobileNotification(true);
-      }
-    }
-  }, [isMobile, sidebarUserOpened]);
-
-  // Additional safety check - only runs when sidebar state changes
-  useEffect(() => {
-    if (isMobile && sidebarOpen && !sidebarUserOpened) {
-      console.log('Mobile sidebar safety check: closing sidebar', { isMobile, sidebarOpen, sidebarUserOpened });
-      setSidebarOpen(false);
-    }
-  }, [isMobile, sidebarOpen, sidebarUserOpened]);
-
-  // Debug effect to track sidebar state changes
-  useEffect(() => {
-    console.log('Sidebar state changed:', { isMobile, sidebarOpen, sidebarUserOpened });
-  }, [isMobile, sidebarOpen, sidebarUserOpened]);
-
-  // Force sidebar closed on mobile - this runs on every render
+  // Bulletproof check: if mobile and sidebar is open but user didn't open it, close it
   if (isMobile && sidebarOpen && !sidebarUserOpened) {
-    console.log('FORCING sidebar closed on mobile');
     setSidebarOpen(false);
   }
-
-
 
   const handleSaveEditTask = async () => {
     try {
@@ -3870,6 +3830,13 @@ const MMCCalendar = () => {
         ))}
       </div>
 
+      {/* Debug Panel - Remove this after fixing */}
+      {isMobile && (
+        <div className="fixed top-0 right-0 bg-red-500 text-white p-2 text-xs z-[9999]">
+          Mobile: {isMobile ? 'Yes' : 'No'} | Sidebar: {sidebarOpen ? 'Open' : 'Closed'} | User: {sidebarUserOpened ? 'Yes' : 'No'}
+        </div>
+      )}
+
       {/* Mobile Overlay */}
       {isMobile && sidebarOpen && (
         <div 
@@ -4286,9 +4253,10 @@ const MMCCalendar = () => {
               {isMobile && user !== 'guest' && (
                 <button
                   onClick={() => {
-                    const newState = !sidebarOpen;
-                    setSidebarOpen(newState);
-                    setSidebarUserOpened(newState);
+                    if (isMobile) {
+                      setSidebarOpen(!sidebarOpen);
+                      setSidebarUserOpened(!sidebarOpen);
+                    }
                   }}
                   className="p-2 hover:bg-gray-100 rounded-lg md:hidden"
                 >
