@@ -2441,12 +2441,13 @@ const MMCCalendar = () => {
         // Only update if there's a significant width change (more than 50px)
         // This prevents mobile detection from changing due to address bar hide/show
         if (Math.abs(currentWidth - lastWidth) > 50) {
+          const wasMobile = isMobile;
           setIsMobile(isMobileDevice);
           lastWidth = currentWidth;
           
-          // Set sidebar state based on screen size
-          if (isMobileDevice) {
-            // On mobile, ensure sidebar is closed
+          // Only reset sidebar state if switching from desktop to mobile
+          if (!wasMobile && isMobileDevice) {
+            // Switching to mobile, ensure sidebar is closed
             setSidebarOpen(false);
             setSidebarUserOpened(false);
           }
@@ -2468,35 +2469,39 @@ const MMCCalendar = () => {
     };
   }, []);
 
-  // Note: Initial sidebar state is now set in useState initialization
+  // Ensure sidebar is closed on mobile
+  useEffect(() => {
+    if (isMobile && sidebarOpen && !sidebarUserOpened) {
+      setSidebarOpen(false);
+    }
+  }, [isMobile, sidebarOpen, sidebarUserOpened]);
 
   // Ensure sidebar stays closed on mobile when it should be
   useEffect(() => {
     if (!isMobile) return;
     
-    // If we're on mobile and the sidebar is open, but the user didn't open it,
-    // close it automatically
+    // Simple scroll handler - close sidebar if it's open and user didn't open it
     const handleScroll = () => {
-      if (sidebarOpen && isMobile && !sidebarUserOpened) {
+      if (sidebarOpen && !sidebarUserOpened) {
         setSidebarOpen(false);
-        setSidebarUserOpened(false);
       }
     };
     
-    // Also check on touch events to prevent accidental opening
-    const handleTouchStart = () => {
-      // Reset user opened state on touch to prevent accidental opening
-      if (sidebarOpen && isMobile) {
-        setSidebarUserOpened(false);
+    // Periodic check to ensure sidebar is closed if it shouldn't be open
+    const checkSidebarState = () => {
+      if (sidebarOpen && !sidebarUserOpened) {
+        setSidebarOpen(false);
       }
     };
     
     window.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    
+    // Check every 2 seconds to ensure sidebar stays closed
+    const interval = setInterval(checkSidebarState, 2000);
     
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('touchstart', handleTouchStart);
+      clearInterval(interval);
     };
   }, [isMobile, sidebarOpen, sidebarUserOpened]);
 
