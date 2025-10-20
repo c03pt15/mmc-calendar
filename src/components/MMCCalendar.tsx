@@ -2428,15 +2428,20 @@ const MMCCalendar = () => {
       const isMobileDevice = window.innerWidth < 768;
       const wasMobile = isMobile;
       
+      console.log('Resize detected:', { isMobileDevice, wasMobile, currentSidebarOpen: sidebarOpen });
+      
       if (isMobileDevice !== wasMobile) {
+        console.log('Device type changed, updating state');
         setIsMobile(isMobileDevice);
         
         if (isMobileDevice) {
           // Switching to mobile: close sidebar
+          console.log('Switching to mobile: closing sidebar');
           setSidebarOpen(false);
           setSidebarUserOpened(false);
         } else {
           // Switching to desktop: open sidebar
+          console.log('Switching to desktop: opening sidebar');
           setSidebarOpen(true);
           setSidebarUserOpened(false);
         }
@@ -2445,7 +2450,7 @@ const MMCCalendar = () => {
     
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [isMobile]);
+  }, [isMobile, sidebarOpen]);
 
   // Mobile sidebar management - simple and reliable
   useEffect(() => {
@@ -2462,8 +2467,22 @@ const MMCCalendar = () => {
     }
   }, [isMobile, sidebarUserOpened]);
 
-  // Bulletproof mobile sidebar check - runs on every render
+  // Additional safety check - only runs when sidebar state changes
+  useEffect(() => {
+    if (isMobile && sidebarOpen && !sidebarUserOpened) {
+      console.log('Mobile sidebar safety check: closing sidebar', { isMobile, sidebarOpen, sidebarUserOpened });
+      setSidebarOpen(false);
+    }
+  }, [isMobile, sidebarOpen, sidebarUserOpened]);
+
+  // Debug effect to track sidebar state changes
+  useEffect(() => {
+    console.log('Sidebar state changed:', { isMobile, sidebarOpen, sidebarUserOpened });
+  }, [isMobile, sidebarOpen, sidebarUserOpened]);
+
+  // Force sidebar closed on mobile - this runs on every render
   if (isMobile && sidebarOpen && !sidebarUserOpened) {
+    console.log('FORCING sidebar closed on mobile');
     setSidebarOpen(false);
   }
 
@@ -4267,8 +4286,9 @@ const MMCCalendar = () => {
               {isMobile && user !== 'guest' && (
                 <button
                   onClick={() => {
-                    setSidebarOpen(!sidebarOpen);
-                    setSidebarUserOpened(!sidebarOpen);
+                    const newState = !sidebarOpen;
+                    setSidebarOpen(newState);
+                    setSidebarUserOpened(newState);
                   }}
                   className="p-2 hover:bg-gray-100 rounded-lg md:hidden"
                 >
