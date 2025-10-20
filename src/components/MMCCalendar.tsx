@@ -464,20 +464,8 @@ const MMCCalendar = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetMessage, setResetMessage] = useState('');
-  const [isMobile, setIsMobile] = useState(() => {
-    // Check if we're on mobile on initial load
-    if (typeof window !== 'undefined') {
-      return window.innerWidth < 768;
-    }
-    return false;
-  });
-  const [sidebarOpen, setSidebarOpen] = useState(() => {
-    // Check if we're on mobile on initial load
-    if (typeof window !== 'undefined') {
-      return window.innerWidth >= 768; // Desktop: open by default, Mobile: closed by default
-    }
-    return false;
-  });
+  const [isMobile, setIsMobile] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarUserOpened, setSidebarUserOpened] = useState(false);
   const [allTasks, setAllTasks] = useState<{ [key: string]: any[] }>({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -2424,71 +2412,53 @@ const MMCCalendar = () => {
     };
   }, []);
 
-  // Detect mobile screen size
+  // Detect mobile screen size and set initial sidebar state
   useEffect(() => {
-    let resizeTimeout: NodeJS.Timeout;
-    let lastWidth = window.innerWidth;
-    
     const checkMobile = () => {
-      // Clear any existing timeout
-      clearTimeout(resizeTimeout);
+      const isMobileDevice = window.innerWidth < 768;
+      setIsMobile(isMobileDevice);
       
-      // Debounce the resize event to prevent rapid changes
-      resizeTimeout = setTimeout(() => {
-        const currentWidth = window.innerWidth;
-        const isMobileDevice = currentWidth < 768;
-        
-        // Only update if there's a significant width change (more than 50px)
-        // This prevents mobile detection from changing due to address bar hide/show
-        if (Math.abs(currentWidth - lastWidth) > 50) {
-          const wasMobile = isMobile;
-          setIsMobile(isMobileDevice);
-          lastWidth = currentWidth;
-          
-          // Only reset sidebar state if switching from desktop to mobile
-          if (!wasMobile && isMobileDevice) {
-            // Switching to mobile, ensure sidebar is closed
-            setSidebarOpen(false);
-            setSidebarUserOpened(false);
-          }
-        }
-        
-        // Show mobile notification if on mobile and not already shown
-        if (isMobileDevice && !localStorage.getItem('mobileNotificationDismissed')) {
-          setShowMobileNotification(true);
-        }
-      }, 300); // Increased debounce to 300ms
+      // Set sidebar state based on screen size
+      if (isMobileDevice) {
+        // Mobile: sidebar closed by default
+        setSidebarOpen(false);
+        setSidebarUserOpened(false);
+      } else {
+        // Desktop: sidebar open by default
+        setSidebarOpen(true);
+        setSidebarUserOpened(false);
+      }
+      
+      // Show mobile notification if on mobile and not already shown
+      if (isMobileDevice && !localStorage.getItem('mobileNotificationDismissed')) {
+        setShowMobileNotification(true);
+      }
     };
     
+    // Run immediately
     checkMobile();
-    window.addEventListener('resize', checkMobile);
+    
+    // Also run on resize with debounce
+    let resizeTimeout: NodeJS.Timeout;
+    const handleResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(checkMobile, 100);
+    };
+    
+    window.addEventListener('resize', handleResize);
     
     return () => {
-      window.removeEventListener('resize', checkMobile);
+      window.removeEventListener('resize', handleResize);
       clearTimeout(resizeTimeout);
     };
   }, []);
 
-  // Ensure sidebar is closed on mobile
-  useEffect(() => {
-    if (isMobile && sidebarOpen && !sidebarUserOpened) {
-      setSidebarOpen(false);
-    }
-  }, [isMobile, sidebarOpen, sidebarUserOpened]);
-
-  // Ensure sidebar stays closed on mobile when it should be
+  // Mobile sidebar management
   useEffect(() => {
     if (!isMobile) return;
     
-    // Simple scroll handler - close sidebar if it's open and user didn't open it
+    // Close sidebar on scroll if user didn't open it
     const handleScroll = () => {
-      if (sidebarOpen && !sidebarUserOpened) {
-        setSidebarOpen(false);
-      }
-    };
-    
-    // Periodic check to ensure sidebar is closed if it shouldn't be open
-    const checkSidebarState = () => {
       if (sidebarOpen && !sidebarUserOpened) {
         setSidebarOpen(false);
       }
@@ -2496,13 +2466,17 @@ const MMCCalendar = () => {
     
     window.addEventListener('scroll', handleScroll, { passive: true });
     
-    // Check every 2 seconds to ensure sidebar stays closed
-    const interval = setInterval(checkSidebarState, 2000);
-    
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      clearInterval(interval);
     };
+  }, [isMobile, sidebarOpen, sidebarUserOpened]);
+
+  // Debug effect to ensure sidebar state is correct
+  useEffect(() => {
+    if (isMobile && sidebarOpen && !sidebarUserOpened) {
+      console.log('Mobile sidebar should be closed, fixing...');
+      setSidebarOpen(false);
+    }
   }, [isMobile, sidebarOpen, sidebarUserOpened]);
 
 
@@ -3909,7 +3883,19 @@ const MMCCalendar = () => {
           : 'w-64'
       } bg-white border-r border-gray-200 flex flex-col min-h-screen ${
         user === 'guest' ? 'hidden' : ''
-      }`}>
+      }`} style={{
+        // Ensure mobile sidebar is properly positioned
+        ...(isMobile && {
+          position: 'fixed',
+          left: 0,
+          top: 0,
+          height: '100%',
+          width: '320px',
+          zIndex: 50,
+          transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
+          transition: 'transform 300ms ease-in-out'
+        })
+      }}>
         {/* Close button for mobile */}
         {isMobile && (
           <button
