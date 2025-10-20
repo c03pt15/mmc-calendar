@@ -4158,7 +4158,7 @@ const MMCCalendar = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               {/* Mobile Menu Button */}
-              {isMobile && (
+              {isMobile && user !== 'guest' && (
                 <button
                   onClick={() => setSidebarOpen(!sidebarOpen)}
                   className="p-2 hover:bg-gray-100 rounded-lg md:hidden"
