@@ -464,8 +464,18 @@ const MMCCalendar = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetMessage, setResetMessage] = useState('');
-  const [isMobile, setIsMobile] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < 768;
+    }
+    return false;
+  });
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 768; // Desktop: open by default, Mobile: closed by default
+    }
+    return false;
+  });
   const [sidebarUserOpened, setSidebarUserOpened] = useState(false);
   const [allTasks, setAllTasks] = useState<{ [key: string]: any[] }>({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -2412,18 +2422,17 @@ const MMCCalendar = () => {
     };
   }, []);
 
-  // Detect mobile screen size and set initial sidebar state
+  // Simple mobile detection - only runs on resize, not on every render
   useEffect(() => {
-    const checkMobile = () => {
+    const handleResize = () => {
       const isMobileDevice = window.innerWidth < 768;
       const wasMobile = isMobile;
       
-      setIsMobile(isMobileDevice);
-      
-      // Only change sidebar state when switching between mobile/desktop
       if (isMobileDevice !== wasMobile) {
+        setIsMobile(isMobileDevice);
+        
         if (isMobileDevice) {
-          // Switching to mobile: always close sidebar
+          // Switching to mobile: close sidebar
           setSidebarOpen(false);
           setSidebarUserOpened(false);
         } else {
@@ -2431,69 +2440,32 @@ const MMCCalendar = () => {
           setSidebarOpen(true);
           setSidebarUserOpened(false);
         }
-      } else if (isMobileDevice) {
-        // Already on mobile: ensure sidebar stays closed unless user opened it
-        if (!sidebarUserOpened) {
-          setSidebarOpen(false);
-        }
       }
-      
-      // Show mobile notification if on mobile and not already shown
-      if (isMobileDevice && !localStorage.getItem('mobileNotificationDismissed')) {
-        setShowMobileNotification(true);
-      }
-    };
-    
-    // Run immediately
-    checkMobile();
-    
-    // Also run on resize with debounce
-    let resizeTimeout: NodeJS.Timeout;
-    const handleResize = () => {
-      clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(checkMobile, 100);
     };
     
     window.addEventListener('resize', handleResize);
-    
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      clearTimeout(resizeTimeout);
-    };
-  }, [isMobile, sidebarUserOpened]);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isMobile]);
 
-  // Mobile sidebar management
+  // Mobile sidebar management - simple and reliable
   useEffect(() => {
-    if (!isMobile) return;
-    
-    // Close sidebar on scroll if user didn't open it
-    const handleScroll = () => {
-      if (sidebarOpen && !sidebarUserOpened) {
+    if (isMobile) {
+      // On mobile, sidebar should only be open if user explicitly opened it
+      if (!sidebarUserOpened) {
         setSidebarOpen(false);
       }
-    };
-    
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, [isMobile, sidebarOpen, sidebarUserOpened]);
-
-  // Aggressive check to ensure sidebar never opens on mobile unless user opened it
-  useEffect(() => {
-    if (isMobile && sidebarOpen && !sidebarUserOpened) {
-      console.log('Mobile sidebar should be closed, fixing...');
-      setSidebarOpen(false);
+      
+      // Show mobile notification if on mobile and not already shown
+      if (!localStorage.getItem('mobileNotificationDismissed')) {
+        setShowMobileNotification(true);
+      }
     }
-  }, [isMobile, sidebarOpen, sidebarUserOpened]);
+  }, [isMobile, sidebarUserOpened]);
 
-  // Additional safety check on every render for mobile
-  useEffect(() => {
-    if (isMobile && !sidebarUserOpened) {
-      setSidebarOpen(false);
-    }
-  });
+  // Bulletproof mobile sidebar check - runs on every render
+  if (isMobile && sidebarOpen && !sidebarUserOpened) {
+    setSidebarOpen(false);
+  }
 
 
 
@@ -3913,7 +3885,7 @@ const MMCCalendar = () => {
         })
       }}>
         {/* Close button for mobile */}
-        {isMobile && (
+        {isMobile && sidebarOpen && (
           <button
             onClick={() => {
               setSidebarOpen(false);
