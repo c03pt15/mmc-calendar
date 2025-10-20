@@ -2416,17 +2416,26 @@ const MMCCalendar = () => {
   useEffect(() => {
     const checkMobile = () => {
       const isMobileDevice = window.innerWidth < 768;
+      const wasMobile = isMobile;
+      
       setIsMobile(isMobileDevice);
       
-      // Set sidebar state based on screen size
-      if (isMobileDevice) {
-        // Mobile: sidebar closed by default
-        setSidebarOpen(false);
-        setSidebarUserOpened(false);
-      } else {
-        // Desktop: sidebar open by default
-        setSidebarOpen(true);
-        setSidebarUserOpened(false);
+      // Only change sidebar state when switching between mobile/desktop
+      if (isMobileDevice !== wasMobile) {
+        if (isMobileDevice) {
+          // Switching to mobile: always close sidebar
+          setSidebarOpen(false);
+          setSidebarUserOpened(false);
+        } else {
+          // Switching to desktop: open sidebar
+          setSidebarOpen(true);
+          setSidebarUserOpened(false);
+        }
+      } else if (isMobileDevice) {
+        // Already on mobile: ensure sidebar stays closed unless user opened it
+        if (!sidebarUserOpened) {
+          setSidebarOpen(false);
+        }
       }
       
       // Show mobile notification if on mobile and not already shown
@@ -2451,7 +2460,7 @@ const MMCCalendar = () => {
       window.removeEventListener('resize', handleResize);
       clearTimeout(resizeTimeout);
     };
-  }, []);
+  }, [isMobile, sidebarUserOpened]);
 
   // Mobile sidebar management
   useEffect(() => {
@@ -2471,13 +2480,20 @@ const MMCCalendar = () => {
     };
   }, [isMobile, sidebarOpen, sidebarUserOpened]);
 
-  // Debug effect to ensure sidebar state is correct
+  // Aggressive check to ensure sidebar never opens on mobile unless user opened it
   useEffect(() => {
     if (isMobile && sidebarOpen && !sidebarUserOpened) {
       console.log('Mobile sidebar should be closed, fixing...');
       setSidebarOpen(false);
     }
   }, [isMobile, sidebarOpen, sidebarUserOpened]);
+
+  // Additional safety check on every render for mobile
+  useEffect(() => {
+    if (isMobile && !sidebarUserOpened) {
+      setSidebarOpen(false);
+    }
+  });
 
 
 
