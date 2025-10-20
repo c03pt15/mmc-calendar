@@ -3745,6 +3745,19 @@ const MMCCalendar = () => {
     }, 300); // Match animation duration
   };
 
+  // Function to scroll to right side on mobile when drawer opens
+  const scrollToRightOnMobile = () => {
+    if (isMobile) {
+      // Scroll to the right side of the screen to show the drawer
+      setTimeout(() => {
+        window.scrollTo({
+          left: window.innerWidth,
+          behavior: 'smooth'
+        });
+      }, 100); // Small delay to ensure drawer is rendered
+    }
+  };
+
   const navigateMonth = (direction: number) => {
     setCurrentDate(prev => {
       const newDate = new Date(prev);
@@ -4349,6 +4362,7 @@ const MMCCalendar = () => {
                             setShowPersonalTasks(true);
                             setShowDrawer(true);
                             setShowUserMenu(false);
+                            scrollToRightOnMobile();
                           }}
                           title={`${getUserNotificationCount()} urgent/overdue task${getUserNotificationCount() !== 1 ? 's' : ''} - Click to view`}
                         >
@@ -4378,6 +4392,7 @@ const MMCCalendar = () => {
                             setShowPersonalTasks(true);
                             setShowDrawer(true);
                             setShowUserMenu(false);
+                            scrollToRightOnMobile();
                           }}
                           className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center space-x-2"
                         >
@@ -4390,6 +4405,7 @@ const MMCCalendar = () => {
                           onClick={() => {
                             setShowRemindersDrawer(true);
                             setShowUserMenu(false);
+                            scrollToRightOnMobile();
                           }}
                           className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center space-x-2"
                         >
@@ -4431,7 +4447,10 @@ const MMCCalendar = () => {
                   {/* Reminders Button */}
                   <div className="relative">
                 <button
-                  onClick={user !== 'guest' ? () => setShowRemindersDrawer(!showRemindersDrawer) : undefined}
+                  onClick={user !== 'guest' ? () => {
+                    setShowRemindersDrawer(!showRemindersDrawer);
+                    if (!showRemindersDrawer) scrollToRightOnMobile();
+                  } : undefined}
                   className={`relative p-2 rounded-lg transition-colors ${
                     user !== 'guest' 
                       ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 cursor-pointer' 
@@ -4464,6 +4483,7 @@ const MMCCalendar = () => {
                 onClick={user !== 'guest' ? () => {
                   setShowPersonalTasks(false);
                   setShowDrawer(!showDrawer);
+                  if (!showDrawer) scrollToRightOnMobile();
                 } : undefined}
                 className={`relative p-2 rounded-lg transition-colors ${
                   user !== 'guest' 
@@ -4497,7 +4517,10 @@ const MMCCalendar = () => {
               {/* Tasks Overview Button */}
               <div className="relative">
                 <button
-                  onClick={user !== 'guest' ? () => setShowActivitiesDrawer(!showActivitiesDrawer) : undefined}
+                  onClick={user !== 'guest' ? () => {
+                    setShowActivitiesDrawer(!showActivitiesDrawer);
+                    if (!showActivitiesDrawer) scrollToRightOnMobile();
+                  } : undefined}
                   className={`relative p-2 rounded-lg transition-colors ${
                     user !== 'guest' 
                       ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 cursor-pointer' 
