@@ -4313,12 +4313,20 @@ const MMCCalendar = () => {
                 </button>
               )}
               <div className="flex items-center space-x-4">
-                <button
-                  onClick={() => navigateMonth(-1)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => navigateMonth(-1)}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => navigateMonth(1)}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
                 <div className="relative">
                   <button
                     onClick={() => setShowMonthYearPicker(!showMonthYearPicker)}
@@ -4328,12 +4336,6 @@ const MMCCalendar = () => {
                   </button>
                   {showMonthYearPicker && <MonthYearPicker />}
                 </div>
-                <button
-                  onClick={() => navigateMonth(1)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
               </div>
               <button 
                 className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-md hover:bg-blue-200"
@@ -4963,29 +4965,51 @@ const MMCCalendar = () => {
             /* Day View */
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 h-full flex flex-col day-view-container">
               {/* Day View Header */}
-              <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <div className="flex items-center p-4 border-b border-gray-200">
                 <div className="flex items-center space-x-4">
-                  <button
-                    onClick={() => {
-                      const prevDay = new Date(selectedDay);
-                      prevDay.setDate(prevDay.getDate() - 1);
-                      setSelectedDay(prevDay);
-                      
-                      // Update top bar month if navigating to different month
-                      const prevMonth = prevDay.getMonth();
-                      const prevYear = prevDay.getFullYear();
-                      const currentMonth = currentDate.getMonth();
-                      const currentYear = currentDate.getFullYear();
-                      
-                      if (prevMonth !== currentMonth || prevYear !== currentYear) {
-                        setCurrentDate(new Date(prevYear, prevMonth, 1));
-                      }
-                    }}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                  </button>
-                  <div className="relative">
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => {
+                        const prevDay = new Date(selectedDay);
+                        prevDay.setDate(prevDay.getDate() - 1);
+                        setSelectedDay(prevDay);
+                        
+                        // Update top bar month if navigating to different month
+                        const prevMonth = prevDay.getMonth();
+                        const prevYear = prevDay.getFullYear();
+                        const currentMonth = currentDate.getMonth();
+                        const currentYear = currentDate.getFullYear();
+                        
+                        if (prevMonth !== currentMonth || prevYear !== currentYear) {
+                          setCurrentDate(new Date(prevYear, prevMonth, 1));
+                        }
+                      }}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        const nextDay = new Date(selectedDay);
+                        nextDay.setDate(nextDay.getDate() + 1);
+                        setSelectedDay(nextDay);
+                        
+                        // Update top bar month if navigating to different month
+                        const nextMonth = nextDay.getMonth();
+                        const nextYear = nextDay.getFullYear();
+                        const currentMonth = currentDate.getMonth();
+                        const currentYear = currentDate.getFullYear();
+                        
+                        if (nextMonth !== currentMonth || nextYear !== currentYear) {
+                          setCurrentDate(new Date(nextYear, nextMonth, 1));
+                        }
+                      }}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <div className="relative flex items-center space-x-3">
                     <button
                       onClick={() => setShowDayPicker(!showDayPicker)}
                       className="text-xl font-semibold text-gray-900 hover:text-blue-600 transition-colors cursor-pointer"
@@ -4997,35 +5021,15 @@ const MMCCalendar = () => {
                         day: 'numeric' 
                       })}
                     </button>
+                    <button
+                      onClick={handleTodayClick}
+                      className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-md hover:bg-blue-200"
+                    >
+                      Today
+                    </button>
                     {showDayPicker && <DayPicker />}
                   </div>
-                  <button
-                    onClick={() => {
-                      const nextDay = new Date(selectedDay);
-                      nextDay.setDate(nextDay.getDate() + 1);
-                      setSelectedDay(nextDay);
-                      
-                      // Update top bar month if navigating to different month
-                      const nextMonth = nextDay.getMonth();
-                      const nextYear = nextDay.getFullYear();
-                      const currentMonth = currentDate.getMonth();
-                      const currentYear = currentDate.getFullYear();
-                      
-                      if (nextMonth !== currentMonth || nextYear !== currentYear) {
-                        setCurrentDate(new Date(nextYear, nextMonth, 1));
-                      }
-                    }}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
                 </div>
-                <button
-                  onClick={handleTodayClick}
-                  className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-md hover:bg-blue-200"
-                >
-                  Today
-                </button>
               </div>
 
               {/* All-Day Tasks Section */}
