@@ -3662,18 +3662,18 @@ const MMCCalendar = () => {
     <div className="flex min-h-screen bg-gray-50">
       {/* Mobile Notification */}
       {showMobileNotification && (
-        <div className="fixed top-4 left-4 right-4 z-[9999] bg-blue-600 text-white p-4 rounded-lg shadow-lg">
+        <div className="fixed top-2 left-2 right-2 z-[9999] bg-blue-600 text-white p-3 rounded-lg shadow-lg max-w-sm mx-auto">
           <div className="flex items-start justify-between">
-            <div className="flex items-start space-x-3">
+            <div className="flex items-start space-x-2 flex-1 min-w-0">
               <div className="flex-shrink-0">
-                <svg className="w-5 h-5 text-blue-200" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-4 h-4 text-blue-200 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
               </div>
-              <div className="flex-1">
-                <h3 className="text-sm font-medium">Desktop Recommended</h3>
-                <p className="text-sm text-blue-100 mt-1">
-                  This application is optimized for desktop use. For the best experience, please access it from a computer or tablet.
+              <div className="flex-1 min-w-0">
+                <h3 className="text-xs font-medium">Desktop Recommended</h3>
+                <p className="text-xs text-blue-100 mt-1 leading-tight">
+                  This app works better on desktop. For the best experience, please use a computer or tablet.
                 </p>
               </div>
             </div>
@@ -3682,9 +3682,9 @@ const MMCCalendar = () => {
                 setShowMobileNotification(false);
                 localStorage.setItem('mobileNotificationDismissed', 'true');
               }}
-              className="flex-shrink-0 ml-3 text-blue-200 hover:text-white transition-colors"
+              className="flex-shrink-0 ml-2 text-blue-200 hover:text-white transition-colors p-1"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3 h-3" />
             </button>
           </div>
         </div>
