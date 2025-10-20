@@ -2413,21 +2413,48 @@ const MMCCalendar = () => {
 
   // Detect mobile screen size
   useEffect(() => {
+    let resizeTimeout: NodeJS.Timeout;
+    
     const checkMobile = () => {
-      const isMobileDevice = window.innerWidth < 768;
-      setIsMobile(isMobileDevice);
+      // Clear any existing timeout
+      clearTimeout(resizeTimeout);
       
-      // Show mobile notification if on mobile and not already shown
-      if (isMobileDevice && !localStorage.getItem('mobileNotificationDismissed')) {
-        setShowMobileNotification(true);
-      }
+      // Debounce the resize event to prevent rapid changes
+      resizeTimeout = setTimeout(() => {
+        const isMobileDevice = window.innerWidth < 768;
+        setIsMobile(isMobileDevice);
+        
+        // Show mobile notification if on mobile and not already shown
+        if (isMobileDevice && !localStorage.getItem('mobileNotificationDismissed')) {
+          setShowMobileNotification(true);
+        }
+      }, 150); // 150ms debounce
     };
     
     checkMobile();
     window.addEventListener('resize', checkMobile);
     
-    return () => window.removeEventListener('resize', checkMobile);
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      clearTimeout(resizeTimeout);
+    };
   }, []);
+
+  // Prevent sidebar from opening on scroll on mobile
+  useEffect(() => {
+    if (!isMobile) return;
+
+    const handleScroll = () => {
+      // Ensure sidebar stays closed when scrolling on mobile
+      if (sidebarOpen) {
+        setSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isMobile, sidebarOpen]);
 
 
 
@@ -3835,7 +3862,7 @@ const MMCCalendar = () => {
         {isMobile && (
           <button
             onClick={() => setSidebarOpen(false)}
-            className="absolute top-4 right-4 z-10 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            className="absolute top-4 right-4 z-[60] p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors bg-white shadow-md"
             title="Close sidebar"
           >
             <X className="w-5 h-5" />
