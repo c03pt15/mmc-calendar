@@ -2431,6 +2431,13 @@ const MMCCalendar = () => {
         if (Math.abs(currentWidth - lastWidth) > 50) {
           setIsMobile(isMobileDevice);
           lastWidth = currentWidth;
+          
+          // Set sidebar state based on screen size
+          if (isMobileDevice) {
+            // On mobile, ensure sidebar is closed
+            setSidebarOpen(false);
+            setSidebarUserOpened(false);
+          }
         }
         
         // Show mobile notification if on mobile and not already shown
@@ -2449,6 +2456,15 @@ const MMCCalendar = () => {
     };
   }, []);
 
+  // Set initial sidebar state based on screen size
+  useEffect(() => {
+    const isMobileDevice = window.innerWidth < 768;
+    if (isMobileDevice) {
+      setSidebarOpen(false);
+      setSidebarUserOpened(false);
+    }
+  }, []);
+
   // Ensure sidebar stays closed on mobile when it should be
   useEffect(() => {
     if (!isMobile) return;
@@ -2458,13 +2474,24 @@ const MMCCalendar = () => {
     const handleScroll = () => {
       if (sidebarOpen && isMobile && !sidebarUserOpened) {
         setSidebarOpen(false);
+        setSidebarUserOpened(false);
+      }
+    };
+    
+    // Also check on touch events to prevent accidental opening
+    const handleTouchStart = () => {
+      // Reset user opened state on touch to prevent accidental opening
+      if (sidebarOpen && isMobile) {
+        setSidebarUserOpened(false);
       }
     };
     
     window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
     
     return () => {
       window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('touchstart', handleTouchStart);
     };
   }, [isMobile, sidebarOpen, sidebarUserOpened]);
 
@@ -3880,7 +3907,7 @@ const MMCCalendar = () => {
               setSidebarOpen(false);
               setSidebarUserOpened(false);
             }}
-            className="absolute top-4 right-4 z-[60] p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors bg-white shadow-md"
+            className="absolute top-4 right-4 z-[60] p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors bg-white"
             title="Close sidebar"
           >
             <X className="w-5 h-5" />
