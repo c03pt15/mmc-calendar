@@ -4078,6 +4078,11 @@ const MMCCalendar = () => {
                           category.color_class.includes('teal') ? 'bg-teal-500' :
                           category.color_class.includes('cyan') ? 'bg-cyan-500' :
                           category.color_class.includes('lime') ? 'bg-lime-500' :
+                          category.color_class.includes('white') ? 'bg-white border border-gray-300' :
+                          category.color_class.includes('amber') ? 'bg-amber-500' :
+                          category.color_class.includes('fuchsia') ? 'bg-fuchsia-500' :
+                          category.color_class.includes('stone') ? 'bg-stone-500' :
+                          category.color_class.includes('sky') ? 'bg-sky-500' :
                           'bg-gray-500'
                     }`}
                     style={{
@@ -4088,7 +4093,11 @@ const MMCCalendar = () => {
                   ></div>
                   <span className="text-sm text-gray-700">{category.display_name}</span>
                 </div>
-                <span className={`text-xs px-2 py-1 rounded ${category.color_class}`}>
+                <span className={`text-xs px-2 py-1 rounded min-w-[24px] text-center ${
+                  category.color_class.includes('white') 
+                    ? 'bg-white text-gray-800 border border-gray-300' 
+                    : category.color_class
+                }`}>
                   {filterCounts[category.name] || 0}
                 </span>
               </label>
@@ -4191,6 +4200,11 @@ const MMCCalendar = () => {
                                     category.color_class.includes('teal') ? 'bg-teal-500' :
                                     category.color_class.includes('cyan') ? 'bg-cyan-500' :
                                     category.color_class.includes('lime') ? 'bg-lime-500' :
+                                    category.color_class.includes('white') ? 'bg-white border border-gray-300' :
+                                    category.color_class.includes('amber') ? 'bg-amber-500' :
+                                    category.color_class.includes('fuchsia') ? 'bg-fuchsia-500' :
+                                    category.color_class.includes('stone') ? 'bg-stone-500' :
+                                    category.color_class.includes('sky') ? 'bg-sky-500' :
                                     'bg-gray-500'
                               }`}
                               style={{
