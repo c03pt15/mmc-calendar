@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Plus, X, User, Calendar, Clock, UserCheck, Search, Download, Repeat } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, User, Calendar, Clock, UserCheck, Search, Download, Repeat, Eye, FilePlus } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 // Pure function for generating recurring instances - outside component to avoid circular dependencies
@@ -485,6 +485,8 @@ const MMCCalendar = () => {
   const [preSelectedDate, setPreSelectedDate] = useState<{date: number, month: number, year: number} | null>(null);
   const [deletedInstances, setDeletedInstances] = useState<Set<string>>(new Set());
   const [editMode, setEditMode] = useState<'single' | 'all'>('single'); // For recurring task editing
+  const [hoveredDay, setHoveredDay] = useState<{date: number, month: number, year: number} | null>(null);
+  const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
   const [categories, setCategories] = useState<any[]>([]);
   const [showCustomCategoryModal, setShowCustomCategoryModal] = useState(false);
   const [customCategory, setCustomCategory] = useState({
@@ -1411,6 +1413,15 @@ const MMCCalendar = () => {
     };
   }, [dismissedReminders]);
 
+  // Cleanup hover timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+      }
+    };
+  }, [hoverTimeout]);
+
 
   const getTasksForDate = useCallback((date: number) => {
     let tasks = allTasksWithRecurring.filter(task => 
@@ -1909,6 +1920,43 @@ const MMCCalendar = () => {
     
     // Use the robust scroll function
     scrollDayViewToTop();
+  };
+
+  const handleDayHover = (day: number) => {
+    // Clear any existing timeout
+    if (hoverTimeout) {
+      clearTimeout(hoverTimeout);
+    }
+    
+    // Set a new timeout to show the popup after 1000ms
+    const timeout = setTimeout(() => {
+      setHoveredDay({
+        date: day,
+        month: currentDate.getMonth(),
+        year: currentDate.getFullYear()
+      });
+    }, 1000);
+    
+    setHoverTimeout(timeout);
+  };
+
+  const handleDayLeave = () => {
+    // Clear the timeout if user leaves before 1000ms
+    if (hoverTimeout) {
+      clearTimeout(hoverTimeout);
+      setHoverTimeout(null);
+    }
+    
+    // Hide the popup
+    setHoveredDay(null);
+  };
+
+  const handleDayViewClick = (day: number) => {
+    const clickedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+    setSelectedDay(clickedDate);
+    setActiveView('Day');
+    scrollDayViewToTop();
+    setHoveredDay(null); // Hide popup after clicking
   };
 
   const handleNewTaskFromDay = (day: number, event: React.MouseEvent) => {
@@ -4492,6 +4540,8 @@ const MMCCalendar = () => {
                         : ''
                     }`}
                     onClick={day && user !== 'guest' ? () => handleDayClick(day) : undefined}
+                    onMouseEnter={day && user !== 'guest' ? () => handleDayHover(day) : undefined}
+                    onMouseLeave={day && user !== 'guest' ? () => handleDayLeave() : undefined}
                     onDragOver={day && user !== 'guest' ? (e) => handleCalendarDragOver(e, day) : undefined}
                     onDragLeave={day && user !== 'guest' ? handleCalendarDragLeave : undefined}
                     onDrop={day && user !== 'guest' ? (e) => handleCalendarDrop(e, day) : undefined}
@@ -4660,18 +4710,34 @@ const MMCCalendar = () => {
                             );
                           })}
                         </div>
-                        {/* Add Task Button */}
-                        {user && user !== 'guest' && (
-                          <button
-                            onClick={(e) => handleNewTaskFromDay(day, e)}
-                            className="absolute top-1 right-1 w-7 h-7 bg-white hover:bg-blue-50 border border-gray-300 hover:border-blue-400 text-gray-600 hover:text-blue-600 rounded-lg flex items-center justify-center text-sm font-medium transition-all duration-200 opacity-0 group-hover:opacity-100 shadow-sm hover:shadow-md"
-                            title="Add new task"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
-                          </button>
+                        {/* Hover Popup with Day View and Create Task Options */}
+                        {hoveredDay && hoveredDay.date === day && hoveredDay.month === currentDate.getMonth() && hoveredDay.year === currentDate.getFullYear() && user !== 'guest' && (
+                          <div className="absolute inset-0 bg-white bg-opacity-95 border-2 border-blue-300 rounded-lg shadow-lg z-20 flex flex-col">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDayViewClick(day);
+                              }}
+                              className="flex-1 flex flex-col items-center justify-center p-2 hover:bg-blue-50 transition-colors rounded-t-lg border-b border-gray-200"
+                              title="View day details"
+                            >
+                              <Eye className="w-6 h-6 text-blue-600 mb-1" />
+                              <span className="text-xs font-medium text-gray-700">View Day</span>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleNewTaskFromDay(day, e);
+                              }}
+                              className="flex-1 flex flex-col items-center justify-center p-2 hover:bg-green-50 transition-colors rounded-b-lg"
+                              title="Create new task"
+                            >
+                              <FilePlus className="w-6 h-6 text-green-600 mb-1" />
+                              <span className="text-xs font-medium text-gray-700">New Task</span>
+                            </button>
+                          </div>
                         )}
+                        
                         
                         {/* Today indicator */}
                         {day === today && isCurrentMonth && (
