@@ -3745,16 +3745,22 @@ const MMCCalendar = () => {
     }, 300); // Match animation duration
   };
 
-  // Function to scroll to right side on mobile when drawer opens
-  const scrollToRightOnMobile = () => {
+  // Function to ensure drawer is visible on mobile when it opens
+  const ensureDrawerVisibleOnMobile = () => {
     if (isMobile) {
-      // Scroll to the right side of the screen to show the drawer
+      // On mobile, scroll to top and add a small delay to ensure drawer is visible
       setTimeout(() => {
         window.scrollTo({
-          left: window.innerWidth,
+          top: 0,
           behavior: 'smooth'
         });
-      }, 100); // Small delay to ensure drawer is rendered
+        
+        // Add a visual indicator that drawer opened
+        const drawer = document.querySelector('[data-drawer="true"]');
+        if (drawer) {
+          drawer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 150); // Slightly longer delay to ensure drawer is rendered
     }
   };
 
@@ -4362,7 +4368,7 @@ const MMCCalendar = () => {
                             setShowPersonalTasks(true);
                             setShowDrawer(true);
                             setShowUserMenu(false);
-                            scrollToRightOnMobile();
+                            ensureDrawerVisibleOnMobile();
                           }}
                           title={`${getUserNotificationCount()} urgent/overdue task${getUserNotificationCount() !== 1 ? 's' : ''} - Click to view`}
                         >
@@ -4392,7 +4398,7 @@ const MMCCalendar = () => {
                             setShowPersonalTasks(true);
                             setShowDrawer(true);
                             setShowUserMenu(false);
-                            scrollToRightOnMobile();
+                            ensureDrawerVisibleOnMobile();
                           }}
                           className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center space-x-2"
                         >
@@ -4405,7 +4411,7 @@ const MMCCalendar = () => {
                           onClick={() => {
                             setShowRemindersDrawer(true);
                             setShowUserMenu(false);
-                            scrollToRightOnMobile();
+                            ensureDrawerVisibleOnMobile();
                           }}
                           className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center space-x-2"
                         >
@@ -4449,7 +4455,7 @@ const MMCCalendar = () => {
                 <button
                   onClick={user !== 'guest' ? () => {
                     setShowRemindersDrawer(!showRemindersDrawer);
-                    if (!showRemindersDrawer) scrollToRightOnMobile();
+                    if (!showRemindersDrawer) ensureDrawerVisibleOnMobile();
                   } : undefined}
                   className={`relative p-2 rounded-lg transition-colors ${
                     user !== 'guest' 
@@ -4483,7 +4489,7 @@ const MMCCalendar = () => {
                 onClick={user !== 'guest' ? () => {
                   setShowPersonalTasks(false);
                   setShowDrawer(!showDrawer);
-                  if (!showDrawer) scrollToRightOnMobile();
+                  if (!showDrawer) ensureDrawerVisibleOnMobile();
                 } : undefined}
                 className={`relative p-2 rounded-lg transition-colors ${
                   user !== 'guest' 
@@ -4519,7 +4525,7 @@ const MMCCalendar = () => {
                 <button
                   onClick={user !== 'guest' ? () => {
                     setShowActivitiesDrawer(!showActivitiesDrawer);
-                    if (!showActivitiesDrawer) scrollToRightOnMobile();
+                    if (!showActivitiesDrawer) ensureDrawerVisibleOnMobile();
                   } : undefined}
                   className={`relative p-2 rounded-lg transition-colors ${
                     user !== 'guest' 
@@ -7342,11 +7348,13 @@ const MMCCalendar = () => {
           />
           
           {/* Drawer */}
-          <div className={`absolute right-0 top-0 h-full w-full max-w-sm md:w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
-            isDrawerClosing 
-              ? 'translate-x-full animate-[slideOutRight_0.3s_ease-in-out_forwards]' 
-              : 'translate-x-0 animate-[slideInRight_0.3s_ease-in-out_forwards]'
-          }`}>
+          <div 
+            data-drawer="true"
+            className={`absolute right-0 top-0 h-full w-full max-w-sm md:w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
+              isDrawerClosing 
+                ? 'translate-x-full animate-[slideOutRight_0.3s_ease-in-out_forwards]' 
+                : 'translate-x-0 animate-[slideInRight_0.3s_ease-in-out_forwards]'
+            }`}>
             <div className="flex flex-col h-full">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
@@ -7512,11 +7520,13 @@ const MMCCalendar = () => {
           />
           
           {/* Drawer */}
-          <div className={`absolute right-0 top-0 h-full w-full max-w-sm md:w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
-            isActivitiesDrawerClosing 
-              ? 'translate-x-full animate-[slideOutRight_0.3s_ease-in-out_forwards]' 
-              : 'translate-x-0 animate-[slideInRight_0.3s_ease-in-out_forwards]'
-          }`}>
+          <div 
+            data-drawer="true"
+            className={`absolute right-0 top-0 h-full w-full max-w-sm md:w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
+              isActivitiesDrawerClosing 
+                ? 'translate-x-full animate-[slideOutRight_0.3s_ease-in-out_forwards]' 
+                : 'translate-x-0 animate-[slideInRight_0.3s_ease-in-out_forwards]'
+            }`}>
             <div className="flex flex-col h-full">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
@@ -7653,11 +7663,13 @@ const MMCCalendar = () => {
           />
           
           {/* Drawer */}
-          <div className={`absolute right-0 top-0 h-full w-full max-w-sm md:w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
-            isRemindersDrawerClosing 
-              ? 'translate-x-full animate-[slideOutRight_0.3s_ease-in-out_forwards]' 
-              : 'translate-x-0 animate-[slideInRight_0.3s_ease-in-out_forwards]'
-          }`}>
+          <div 
+            data-drawer="true"
+            className={`absolute right-0 top-0 h-full w-full max-w-sm md:w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
+              isRemindersDrawerClosing 
+                ? 'translate-x-full animate-[slideOutRight_0.3s_ease-in-out_forwards]' 
+                : 'translate-x-0 animate-[slideInRight_0.3s_ease-in-out_forwards]'
+            }`}>
             <div className="flex flex-col h-full">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
