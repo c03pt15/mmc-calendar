@@ -3779,7 +3779,7 @@ const MMCCalendar = () => {
             }`
           : 'w-64'
       } bg-white border-r border-gray-200 flex flex-col min-h-screen ${
-        user === 'guest' ? 'pointer-events-none opacity-60' : ''
+        user === 'guest' ? 'hidden' : ''
       }`}>
         {/* Close button for mobile */}
         {isMobile && (
