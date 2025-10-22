@@ -2421,7 +2421,7 @@ const MMCCalendar = () => {
   // Aggressive mobile detection and sidebar management
   useEffect(() => {
     const checkMobile = () => {
-      const isMobileDevice = window.innerWidth < 768;
+      const isMobileDevice = window.innerWidth < 1600;
       const wasMobile = isMobile;
       
       // If we're already mobile and locked, don't change it
@@ -4312,7 +4312,7 @@ const MMCCalendar = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-2 md:px-6 py-2 md:py-4">
+        <div className="bg-white border-b border-gray-200 px-2 2xl:px-6 py-2 2xl:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               {/* Mobile Menu Button */}
@@ -4324,7 +4324,7 @@ const MMCCalendar = () => {
                       setSidebarUserOpened(!sidebarOpen);
                     }
                   }}
-                  className="p-2 hover:bg-gray-100 rounded-lg md:hidden"
+                  className="p-2 hover:bg-gray-100 rounded-lg 2xl:hidden"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -4365,7 +4365,7 @@ const MMCCalendar = () => {
             </div>
 
 
-            <div className="flex items-center space-x-2 md:space-x-4">
+            <div className="flex items-center space-x-2 2xl:space-x-4">
               {/* User Menu - Moved to first position */}
               {user && user !== 'guest' && (
                 <div className="flex items-center space-x-4">
@@ -4375,7 +4375,7 @@ const MMCCalendar = () => {
                     onMouseLeave={() => setShowUserMenu(false)}
                   >
                     <button className="flex items-center space-x-1 px-2 py-1 rounded-md hover:bg-gray-100 transition-colors">
-                      <span className="text-sm md:text-base text-gray-600 hidden sm:inline">
+                      <span className="text-sm 2xl:text-base text-gray-600 hidden sm:inline">
                         Hi, {user.user_metadata?.first_name || user.email?.split('@')[0]}
                       </span>
                       <span className="text-sm text-gray-600 sm:hidden">
@@ -4577,7 +4577,7 @@ const MMCCalendar = () => {
               
               
               {/* Search Box - Hidden on mobile, shown on desktop */}
-              <div className="relative search-container hidden md:block">
+              <div className="relative search-container hidden 2xl:block">
                 <button
                   onClick={user !== 'guest' ? handleSearchIconClick : undefined}
                   disabled={user === 'guest'}
@@ -4645,7 +4645,7 @@ const MMCCalendar = () => {
 
               <div className="flex bg-gray-100 rounded-lg p-1">
                 <button
-                  className={`px-2 md:px-3 py-1 text-xs md:text-sm rounded-md ${
+                  className={`px-2 2xl:px-3 py-1 text-xs 2xl:text-sm rounded-md ${
                     activeView === 'Calendar' 
                       ? 'bg-white text-gray-900 shadow-sm' 
                       : 'text-gray-600 hover:text-gray-900'
@@ -4656,7 +4656,7 @@ const MMCCalendar = () => {
                   <span className="sm:hidden">Cal</span>
                 </button>
                 <button
-                  className={`px-2 md:px-3 py-1 text-xs md:text-sm rounded-md ${
+                  className={`px-2 2xl:px-3 py-1 text-xs 2xl:text-sm rounded-md ${
                     activeView === 'Day' 
                       ? 'bg-white text-gray-900 shadow-sm' 
                       : 'text-gray-600 hover:text-gray-900'
@@ -4667,7 +4667,7 @@ const MMCCalendar = () => {
                   <span className="sm:hidden">Day</span>
                 </button>
                 <button
-                  className={`px-2 md:px-3 py-1 text-xs md:text-sm rounded-md ${
+                  className={`px-2 2xl:px-3 py-1 text-xs 2xl:text-sm rounded-md ${
                     activeView === 'Kanban' 
                       ? 'bg-white text-gray-900 shadow-sm' 
                       : 'text-gray-600 hover:text-gray-900'
@@ -4681,7 +4681,7 @@ const MMCCalendar = () => {
               
               {user && user !== 'guest' && (
                 <button 
-                  className="flex items-center space-x-1 md:space-x-2 bg-blue-600 text-white px-2 md:px-4 py-2 rounded-lg hover:bg-blue-700"
+                  className="flex items-center space-x-1 2xl:space-x-2 bg-blue-600 text-white px-2 2xl:px-4 py-2 rounded-lg hover:bg-blue-700"
                   onClick={handleNewEntry}
                 >
                   <Plus className="w-4 h-4" />
@@ -4690,10 +4690,10 @@ const MMCCalendar = () => {
                 </button>
               )}
               
-              <div className="flex items-center space-x-1 md:space-x-2">
+              <div className="flex items-center space-x-1 2xl:space-x-2">
                 {user === 'guest' && (
                   <button 
-                    className="flex items-center space-x-1 md:space-x-2 bg-gray-100 text-gray-700 px-2 md:px-4 py-2 rounded-lg hover:bg-gray-200"
+                    className="flex items-center space-x-1 2xl:space-x-2 bg-gray-100 text-gray-700 px-2 2xl:px-4 py-2 rounded-lg hover:bg-gray-200"
                     onClick={handleSignOut}
                   >
                     <User className="w-4 h-4" />
@@ -4735,7 +4735,7 @@ const MMCCalendar = () => {
           </div>
         </div>
         {/* Main View */}
-        <div className="flex-1 p-2 md:p-6">
+        <div className="flex-1 p-2 2xl:p-6">
           {loading ? (
             <div className="flex items-center justify-center h-full text-gray-500">Loading...</div>
           ) : activeView === 'Calendar' ? (
@@ -4743,7 +4743,7 @@ const MMCCalendar = () => {
               {/* Calendar Header */}
               <div className="grid grid-cols-7 border-b border-gray-200">
                 {daysOfWeek.map(day => (
-                  <div key={day} className="p-2 md:p-4 text-center text-xs md:text-sm font-medium text-gray-500 border-r border-gray-200 last:border-r-0">
+                  <div key={day} className="p-2 2xl:p-4 text-center text-xs 2xl:text-sm font-medium text-gray-500 border-r border-gray-200 last:border-r-0">
                     <span className="hidden sm:inline">{day}</span>
                     <span className="sm:hidden">{day.charAt(0)}</span>
                   </div>
@@ -4755,7 +4755,7 @@ const MMCCalendar = () => {
                   <div
                     key={index}
                     id={day === today && isCurrentMonth ? 'today-calendar-day' : undefined}
-                    className={`border-r border-b border-gray-200 last:border-r-0 p-1 md:p-2 min-h-[80px] md:min-h-[120px] relative cursor-pointer hover:bg-gray-50 transition-all duration-500 group ${
+                    className={`border-r border-b border-gray-200 last:border-r-0 p-1 2xl:p-2 min-h-[80px] 2xl:min-h-[120px] relative cursor-pointer hover:bg-gray-50 transition-all duration-500 group ${
                       dragOverDate === day ? 'bg-blue-50 border-blue-300' : ''
                     } ${
                       day === today && isCurrentMonth ? 'bg-blue-100' : ''
@@ -4828,7 +4828,7 @@ const MMCCalendar = () => {
                                 } : undefined}
                                 title={`${task.title}${isStart ? ' (Start)' : isEnd ? ' (End)' : ''}`}
                               >
-                                <div className="flex items-center justify-between w-full p-1 md:p-2 min-w-0">
+                                <div className="flex items-center justify-between w-full p-1 2xl:p-2 min-w-0">
                                   <div className="flex items-center space-x-1 min-w-0 flex-1">
                                     <div className="text-xs font-medium truncate min-w-0 flex-1">
                                       {task.title}
