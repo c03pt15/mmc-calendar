@@ -4758,7 +4758,7 @@ const MMCCalendar = () => {
                     className={`border-r border-b border-gray-200 last:border-r-0 p-1 2xl:p-2 min-h-[80px] 2xl:min-h-[120px] relative cursor-pointer hover:bg-gray-50 transition-all duration-500 group ${
                       dragOverDate === day ? 'bg-blue-50 border-blue-300' : ''
                     } ${
-                      day === today && isCurrentMonth ? 'bg-blue-100' : ''
+                      day === today && isCurrentMonth ? 'bg-blue-50' : ''
                     } ${
                       highlightedToday && day === today && isCurrentMonth
                         ? todayHighlightPhase === 'appearing'
