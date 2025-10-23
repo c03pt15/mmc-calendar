@@ -2421,7 +2421,7 @@ const MMCCalendar = () => {
   // Aggressive mobile detection and sidebar management
   useEffect(() => {
     const checkMobile = () => {
-      const isMobileDevice = window.innerWidth < 1600;
+      const isMobileDevice = window.innerWidth < 1366;
       const wasMobile = isMobile;
       
       // If we're already mobile and locked, don't change it
