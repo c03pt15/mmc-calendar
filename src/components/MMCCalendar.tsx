@@ -384,7 +384,11 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
 };
 
 const MMCCalendar = () => {
-  const [user, setUser] = useState<any>(null);
+  // Check URL parameters for guest mode on initial load
+  const [user, setUser] = useState<any>(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('mode') === 'guest' ? 'guest' : null;
+  });
   const [showLogin, setShowLogin] = useState(false);
   const [currentDate, setCurrentDate] = useState(() => {
     const now = new Date();
@@ -682,6 +686,14 @@ const MMCCalendar = () => {
   useEffect(() => {
     // Check if user is already logged in
     const checkUser = async () => {
+      // Check URL parameter first
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('mode') === 'guest') {
+        setUser('guest');
+        setLoading(false);
+        return;
+      }
+      
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
       if (user) {
@@ -700,6 +712,12 @@ const MMCCalendar = () => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        // Don't override guest mode from URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('mode') === 'guest') {
+          return;
+        }
+        
         setUser(session?.user ?? null);
         if (session?.user) {
           // Auto-assign team member based on user's name
