@@ -5,26 +5,26 @@ import { supabase } from '../supabaseClient';
 // Pure function for generating recurring instances - outside component to avoid circular dependencies
 const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYear: number, deletedInstances: Set<string>) => {
   const instances: any[] = [];
-  
-  
+
+
   tasks.forEach(task => {
     try {
       // Basic safety check for task structure
       if (!task || typeof task !== 'object') {
         return;
       }
-      
+
       // Skip deleted tasks
       if (task.is_deleted_instance || task.status === 'deleted') {
         return;
       }
-      
+
       // Skip modified instances - they should not generate their own recurring instances
       // Modified instances are only used to override specific instances of their parent task
       if (task.is_modified_instance) {
         return;
       }
-      
+
       if (!task.is_recurring || !task.recurring_pattern) {
         // For non-recurring tasks, only add them if they're in the target month
         if (task.month === targetMonth && task.year === targetYear) {
@@ -33,347 +33,347 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
         return;
       }
 
-    const startDate = new Date(task.year, task.month, task.date);
-    const endDate = task.recurring_end_date ? new Date(task.recurring_end_date + 'T23:59:59') : new Date(startDate.getFullYear() + 1, startDate.getMonth(), startDate.getDate());
-    const targetMonthStart = new Date(targetYear, targetMonth, 1);
-    const targetMonthEnd = new Date(targetYear, targetMonth + 1, 0);
+      const startDate = new Date(task.year, task.month, task.date);
+      const endDate = task.recurring_end_date ? new Date(task.recurring_end_date + 'T23:59:59') : new Date(startDate.getFullYear() + 1, startDate.getMonth(), startDate.getDate());
+      const targetMonthStart = new Date(targetYear, targetMonth, 1);
+      const targetMonthEnd = new Date(targetYear, targetMonth + 1, 0);
 
-    // Only generate if the recurring period overlaps with target month
-    if (startDate <= targetMonthEnd && endDate >= targetMonthStart) {
-      let currentDate = new Date(startDate);
-      let instanceCount = 0;
-      const maxInstances = task.recurring_end_date ? 365 : 1000; // Allow up to 1 year of daily instances
+      // Only generate if the recurring period overlaps with target month
+      if (startDate <= targetMonthEnd && endDate >= targetMonthStart) {
+        let currentDate = new Date(startDate);
+        let instanceCount = 0;
+        const maxInstances = task.recurring_end_date ? 365 : 1000; // Allow up to 1 year of daily instances
 
-      while (currentDate <= endDate && instanceCount < maxInstances) {
-        // Check if this instance falls within the target month
-        if (currentDate.getMonth() === targetMonth && currentDate.getFullYear() === targetYear) {
-          const instanceKey = `${task.id}_${currentDate.getFullYear()}_${currentDate.getMonth()}_${currentDate.getDate()}`;
-          
-          // Skip this instance if it's been deleted (check both deletedInstances set and database records)
-          if (deletedInstances.has(instanceKey)) {
-            // Calculate next occurrence before skipping
-            let nextDate: Date;
-            const interval = (task.recurring_interval && typeof task.recurring_interval === 'number') ? task.recurring_interval : 1;
-            const unit = (task.recurring_unit && typeof task.recurring_unit === 'string') ? task.recurring_unit : 'week';
-            
-            switch (task.recurring_pattern) {
-              case 'daily':
-                nextDate = new Date(currentDate);
-                nextDate.setDate(currentDate.getDate() + interval);
-                break;
-              case 'weekly':
-                nextDate = new Date(currentDate);
-                nextDate.setDate(currentDate.getDate() + (7 * interval));
-                break;
-              case 'monthly':
-                nextDate = new Date(currentDate);
-                nextDate.setMonth(currentDate.getMonth() + interval);
-                break;
-              case 'yearly':
-                nextDate = new Date(currentDate);
-                nextDate.setFullYear(currentDate.getFullYear() + interval);
-                break;
-              case 'weekdays':
-                nextDate = new Date(currentDate);
-                nextDate.setDate(currentDate.getDate() + 1);
-                break;
-              case 'custom_days':
-                if (task.recurring_days && task.recurring_days.length > 0) {
+        while (currentDate <= endDate && instanceCount < maxInstances) {
+          // Check if this instance falls within the target month
+          if (currentDate.getMonth() === targetMonth && currentDate.getFullYear() === targetYear) {
+            const instanceKey = `${task.id}_${currentDate.getFullYear()}_${currentDate.getMonth()}_${currentDate.getDate()}`;
+
+            // Skip this instance if it's been deleted (check both deletedInstances set and database records)
+            if (deletedInstances.has(instanceKey)) {
+              // Calculate next occurrence before skipping
+              let nextDate: Date;
+              const interval = (task.recurring_interval && typeof task.recurring_interval === 'number') ? task.recurring_interval : 1;
+              const unit = (task.recurring_unit && typeof task.recurring_unit === 'string') ? task.recurring_unit : 'week';
+
+              switch (task.recurring_pattern) {
+                case 'daily':
+                  nextDate = new Date(currentDate);
+                  nextDate.setDate(currentDate.getDate() + interval);
+                  break;
+                case 'weekly':
+                  nextDate = new Date(currentDate);
+                  nextDate.setDate(currentDate.getDate() + (7 * interval));
+                  break;
+                case 'monthly':
+                  nextDate = new Date(currentDate);
+                  nextDate.setMonth(currentDate.getMonth() + interval);
+                  break;
+                case 'yearly':
+                  nextDate = new Date(currentDate);
+                  nextDate.setFullYear(currentDate.getFullYear() + interval);
+                  break;
+                case 'weekdays':
                   nextDate = new Date(currentDate);
                   nextDate.setDate(currentDate.getDate() + 1);
-                } else {
+                  break;
+                case 'custom_days':
+                  if (task.recurring_days && task.recurring_days.length > 0) {
+                    nextDate = new Date(currentDate);
+                    nextDate.setDate(currentDate.getDate() + 1);
+                  } else {
+                    nextDate = new Date(currentDate);
+                    nextDate.setDate(currentDate.getDate() + 1);
+                  }
+                  break;
+                case '1st_day_of_month':
+                  nextDate = new Date(currentDate);
+                  nextDate.setMonth(currentDate.getMonth() + interval);
+                  const firstDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+                  const firstDayOfWeek = firstDay.getDay();
+                  const targetDay1st = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+                  const daysToAdd1st = (targetDay1st - firstDayOfWeek + 7) % 7;
+                  nextDate = new Date(firstDay);
+                  nextDate.setDate(firstDay.getDate() + daysToAdd1st);
+                  break;
+                case '2nd_day_of_month':
+                  nextDate = new Date(currentDate);
+                  nextDate.setMonth(currentDate.getMonth() + interval);
+                  const secondDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+                  const secondDayOfWeek = secondDay.getDay();
+                  const targetDay2nd = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+                  const daysToAdd2nd = (targetDay2nd - secondDayOfWeek + 7) % 7;
+                  nextDate = new Date(secondDay);
+                  nextDate.setDate(secondDay.getDate() + daysToAdd2nd + 7); // Add 7 days for 2nd occurrence
+                  break;
+                case '3rd_day_of_month':
+                  nextDate = new Date(currentDate);
+                  nextDate.setMonth(currentDate.getMonth() + interval);
+                  const thirdDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+                  const thirdDayOfWeek = thirdDay.getDay();
+                  const targetDay3rd = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+                  const daysToAdd3rd = (targetDay3rd - thirdDayOfWeek + 7) % 7;
+                  nextDate = new Date(thirdDay);
+                  nextDate.setDate(thirdDay.getDate() + daysToAdd3rd + 14); // Add 14 days for 3rd occurrence
+                  break;
+                case '4th_day_of_month':
+                  nextDate = new Date(currentDate);
+                  nextDate.setMonth(currentDate.getMonth() + interval);
+                  const fourthDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+                  const fourthDayOfWeek = fourthDay.getDay();
+                  const targetDay4th = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+                  const daysToAdd4th = (targetDay4th - fourthDayOfWeek + 7) % 7;
+                  nextDate = new Date(fourthDay);
+                  nextDate.setDate(fourthDay.getDate() + daysToAdd4th + 21); // Add 21 days for 4th occurrence
+                  break;
+                case 'last_day_of_month':
+                  nextDate = new Date(currentDate);
+                  nextDate.setMonth(currentDate.getMonth() + interval);
+                  const lastDay = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0);
+                  const lastDayOfWeek = lastDay.getDay();
+                  const targetDayLast = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+                  const daysToSubtract = (lastDayOfWeek - targetDayLast + 7) % 7;
+                  nextDate = new Date(lastDay);
+                  nextDate.setDate(lastDay.getDate() - daysToSubtract);
+                  break;
+                default:
                   nextDate = new Date(currentDate);
                   nextDate.setDate(currentDate.getDate() + 1);
-                }
-                break;
-              case '1st_day_of_month':
-                nextDate = new Date(currentDate);
-                nextDate.setMonth(currentDate.getMonth() + interval);
-                const firstDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-                const firstDayOfWeek = firstDay.getDay();
-                const targetDay1st = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-                const daysToAdd1st = (targetDay1st - firstDayOfWeek + 7) % 7;
-                nextDate = new Date(firstDay);
-                nextDate.setDate(firstDay.getDate() + daysToAdd1st);
-                break;
-              case '2nd_day_of_month':
-                nextDate = new Date(currentDate);
-                nextDate.setMonth(currentDate.getMonth() + interval);
-                const secondDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-                const secondDayOfWeek = secondDay.getDay();
-                const targetDay2nd = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-                const daysToAdd2nd = (targetDay2nd - secondDayOfWeek + 7) % 7;
-                nextDate = new Date(secondDay);
-                nextDate.setDate(secondDay.getDate() + daysToAdd2nd + 7); // Add 7 days for 2nd occurrence
-                break;
-              case '3rd_day_of_month':
-                nextDate = new Date(currentDate);
-                nextDate.setMonth(currentDate.getMonth() + interval);
-                const thirdDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-                const thirdDayOfWeek = thirdDay.getDay();
-                const targetDay3rd = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-                const daysToAdd3rd = (targetDay3rd - thirdDayOfWeek + 7) % 7;
-                nextDate = new Date(thirdDay);
-                nextDate.setDate(thirdDay.getDate() + daysToAdd3rd + 14); // Add 14 days for 3rd occurrence
-                break;
-              case '4th_day_of_month':
-                nextDate = new Date(currentDate);
-                nextDate.setMonth(currentDate.getMonth() + interval);
-                const fourthDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-                const fourthDayOfWeek = fourthDay.getDay();
-                const targetDay4th = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-                const daysToAdd4th = (targetDay4th - fourthDayOfWeek + 7) % 7;
-                nextDate = new Date(fourthDay);
-                nextDate.setDate(fourthDay.getDate() + daysToAdd4th + 21); // Add 21 days for 4th occurrence
-                break;
-              case 'last_day_of_month':
-                nextDate = new Date(currentDate);
-                nextDate.setMonth(currentDate.getMonth() + interval);
-                const lastDay = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0);
-                const lastDayOfWeek = lastDay.getDay();
-                const targetDayLast = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-                const daysToSubtract = (lastDayOfWeek - targetDayLast + 7) % 7;
-                nextDate = new Date(lastDay);
-                nextDate.setDate(lastDay.getDate() - daysToSubtract);
-                break;
-              default:
-                nextDate = new Date(currentDate);
-                nextDate.setDate(currentDate.getDate() + 1);
+              }
+
+              currentDate = nextDate;
+              instanceCount++;
+              continue;
             }
-            
-            currentDate = nextDate;
-            instanceCount++;
-            continue;
-          }
-          
-          // Check if there's a deleted instance record for this specific instance
-          const hasDeletedInstance = tasks.some(t => 
-            t.is_deleted_instance && 
-            t.parent_task_id === task.id && 
-            t.instance_key === instanceKey
-          );
-          
-          if (hasDeletedInstance) {
-            // Calculate next occurrence before skipping
-            let nextDate: Date;
-            const interval = (task.recurring_interval && typeof task.recurring_interval === 'number') ? task.recurring_interval : 1;
-            const unit = (task.recurring_unit && typeof task.recurring_unit === 'string') ? task.recurring_unit : 'week';
-            
-            switch (task.recurring_pattern) {
-              case 'daily':
-                nextDate = new Date(currentDate);
-                nextDate.setDate(currentDate.getDate() + interval);
-                break;
-              case 'weekly':
-                nextDate = new Date(currentDate);
-                nextDate.setDate(currentDate.getDate() + (7 * interval));
-                break;
-              case 'monthly':
-                nextDate = new Date(currentDate);
-                nextDate.setMonth(currentDate.getMonth() + interval);
-                break;
-              case 'yearly':
-                nextDate = new Date(currentDate);
-                nextDate.setFullYear(currentDate.getFullYear() + interval);
-                break;
-              case 'weekdays':
-                nextDate = new Date(currentDate);
-                nextDate.setDate(currentDate.getDate() + 1);
-                break;
-              case 'custom_days':
-                if (task.recurring_days && task.recurring_days.length > 0) {
+
+            // Check if there's a deleted instance record for this specific instance
+            const hasDeletedInstance = tasks.some(t =>
+              t.is_deleted_instance &&
+              t.parent_task_id === task.id &&
+              t.instance_key === instanceKey
+            );
+
+            if (hasDeletedInstance) {
+              // Calculate next occurrence before skipping
+              let nextDate: Date;
+              const interval = (task.recurring_interval && typeof task.recurring_interval === 'number') ? task.recurring_interval : 1;
+              const unit = (task.recurring_unit && typeof task.recurring_unit === 'string') ? task.recurring_unit : 'week';
+
+              switch (task.recurring_pattern) {
+                case 'daily':
+                  nextDate = new Date(currentDate);
+                  nextDate.setDate(currentDate.getDate() + interval);
+                  break;
+                case 'weekly':
+                  nextDate = new Date(currentDate);
+                  nextDate.setDate(currentDate.getDate() + (7 * interval));
+                  break;
+                case 'monthly':
+                  nextDate = new Date(currentDate);
+                  nextDate.setMonth(currentDate.getMonth() + interval);
+                  break;
+                case 'yearly':
+                  nextDate = new Date(currentDate);
+                  nextDate.setFullYear(currentDate.getFullYear() + interval);
+                  break;
+                case 'weekdays':
                   nextDate = new Date(currentDate);
                   nextDate.setDate(currentDate.getDate() + 1);
-                } else {
+                  break;
+                case 'custom_days':
+                  if (task.recurring_days && task.recurring_days.length > 0) {
+                    nextDate = new Date(currentDate);
+                    nextDate.setDate(currentDate.getDate() + 1);
+                  } else {
+                    nextDate = new Date(currentDate);
+                    nextDate.setDate(currentDate.getDate() + 1);
+                  }
+                  break;
+                case '1st_day_of_month':
+                  nextDate = new Date(currentDate);
+                  nextDate.setMonth(currentDate.getMonth() + interval);
+                  const firstDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+                  const firstDayOfWeek = firstDay.getDay();
+                  const targetDay1st = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+                  const daysToAdd1st = (targetDay1st - firstDayOfWeek + 7) % 7;
+                  nextDate = new Date(firstDay);
+                  nextDate.setDate(firstDay.getDate() + daysToAdd1st);
+                  break;
+                case '2nd_day_of_month':
+                  nextDate = new Date(currentDate);
+                  nextDate.setMonth(currentDate.getMonth() + interval);
+                  const secondDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+                  const secondDayOfWeek = secondDay.getDay();
+                  const targetDay2nd = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+                  const daysToAdd2nd = (targetDay2nd - secondDayOfWeek + 7) % 7;
+                  nextDate = new Date(secondDay);
+                  nextDate.setDate(secondDay.getDate() + daysToAdd2nd + 7); // Add 7 days for 2nd occurrence
+                  break;
+                case '3rd_day_of_month':
+                  nextDate = new Date(currentDate);
+                  nextDate.setMonth(currentDate.getMonth() + interval);
+                  const thirdDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+                  const thirdDayOfWeek = thirdDay.getDay();
+                  const targetDay3rd = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+                  const daysToAdd3rd = (targetDay3rd - thirdDayOfWeek + 7) % 7;
+                  nextDate = new Date(thirdDay);
+                  nextDate.setDate(thirdDay.getDate() + daysToAdd3rd + 14); // Add 14 days for 3rd occurrence
+                  break;
+                case '4th_day_of_month':
+                  nextDate = new Date(currentDate);
+                  nextDate.setMonth(currentDate.getMonth() + interval);
+                  const fourthDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+                  const fourthDayOfWeek = fourthDay.getDay();
+                  const targetDay4th = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+                  const daysToAdd4th = (targetDay4th - fourthDayOfWeek + 7) % 7;
+                  nextDate = new Date(fourthDay);
+                  nextDate.setDate(fourthDay.getDate() + daysToAdd4th + 21); // Add 21 days for 4th occurrence
+                  break;
+                case 'last_day_of_month':
+                  nextDate = new Date(currentDate);
+                  nextDate.setMonth(currentDate.getMonth() + interval);
+                  const lastDay = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0);
+                  const lastDayOfWeek = lastDay.getDay();
+                  const targetDayLast = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+                  const daysToSubtract = (lastDayOfWeek - targetDayLast + 7) % 7;
+                  nextDate = new Date(lastDay);
+                  nextDate.setDate(lastDay.getDate() - daysToSubtract);
+                  break;
+                default:
                   nextDate = new Date(currentDate);
                   nextDate.setDate(currentDate.getDate() + 1);
-                }
-                break;
-              case '1st_day_of_month':
-                nextDate = new Date(currentDate);
-                nextDate.setMonth(currentDate.getMonth() + interval);
-                const firstDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-                const firstDayOfWeek = firstDay.getDay();
-                const targetDay1st = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-                const daysToAdd1st = (targetDay1st - firstDayOfWeek + 7) % 7;
-                nextDate = new Date(firstDay);
-                nextDate.setDate(firstDay.getDate() + daysToAdd1st);
-                break;
-              case '2nd_day_of_month':
-                nextDate = new Date(currentDate);
-                nextDate.setMonth(currentDate.getMonth() + interval);
-                const secondDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-                const secondDayOfWeek = secondDay.getDay();
-                const targetDay2nd = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-                const daysToAdd2nd = (targetDay2nd - secondDayOfWeek + 7) % 7;
-                nextDate = new Date(secondDay);
-                nextDate.setDate(secondDay.getDate() + daysToAdd2nd + 7); // Add 7 days for 2nd occurrence
-                break;
-              case '3rd_day_of_month':
-                nextDate = new Date(currentDate);
-                nextDate.setMonth(currentDate.getMonth() + interval);
-                const thirdDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-                const thirdDayOfWeek = thirdDay.getDay();
-                const targetDay3rd = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-                const daysToAdd3rd = (targetDay3rd - thirdDayOfWeek + 7) % 7;
-                nextDate = new Date(thirdDay);
-                nextDate.setDate(thirdDay.getDate() + daysToAdd3rd + 14); // Add 14 days for 3rd occurrence
-                break;
-              case '4th_day_of_month':
-                nextDate = new Date(currentDate);
-                nextDate.setMonth(currentDate.getMonth() + interval);
-                const fourthDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-                const fourthDayOfWeek = fourthDay.getDay();
-                const targetDay4th = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-                const daysToAdd4th = (targetDay4th - fourthDayOfWeek + 7) % 7;
-                nextDate = new Date(fourthDay);
-                nextDate.setDate(fourthDay.getDate() + daysToAdd4th + 21); // Add 21 days for 4th occurrence
-                break;
-              case 'last_day_of_month':
-                nextDate = new Date(currentDate);
-                nextDate.setMonth(currentDate.getMonth() + interval);
-                const lastDay = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0);
-                const lastDayOfWeek = lastDay.getDay();
-                const targetDayLast = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-                const daysToSubtract = (lastDayOfWeek - targetDayLast + 7) % 7;
-                nextDate = new Date(lastDay);
-                nextDate.setDate(lastDay.getDate() - daysToSubtract);
-                break;
-              default:
-                nextDate = new Date(currentDate);
-                nextDate.setDate(currentDate.getDate() + 1);
+              }
+
+              currentDate = nextDate;
+              instanceCount++;
+              continue;
             }
-            
-            currentDate = nextDate;
-            instanceCount++;
-            continue;
-          }
-          
-          // Check if there's a modified instance record for this specific instance
-          const modifiedInstance = tasks.find(t => 
-            t.is_modified_instance && 
-            t.parent_task_id === task.id && 
-            t.instance_key === instanceKey
-          );
-          
-          
-          
-          if (modifiedInstance) {
-            // If there's a modified instance, use it instead of generating from original task
-            const newInstance = {
-              ...modifiedInstance,
-              date: currentDate.getDate(),
-              month: currentDate.getMonth(),
-              year: currentDate.getFullYear(),
-              parent_task_id: modifiedInstance.parent_task_id || task.id,
-              is_recurring: true,
-              is_recurring_instance: true,
-              instance_key: instanceKey
-            };
-            instances.push(newInstance);
-          } else {
-            // Only generate from original task if no modified instance exists
-            const newInstance = {
-              ...task,
-              id: task.id,
-              date: currentDate.getDate(),
-              month: currentDate.getMonth(),
-              year: currentDate.getFullYear(),
-              parent_task_id: task.id,
-              is_recurring: true,
-              is_recurring_instance: true,
-              instance_key: instanceKey
-            };
-            instances.push(newInstance);
-          }
-        }
 
-        // Calculate next occurrence based on pattern
-        let nextDate: Date;
-        const interval = (task.recurring_interval && typeof task.recurring_interval === 'number') ? task.recurring_interval : 1;
-        const unit = (task.recurring_unit && typeof task.recurring_unit === 'string') ? task.recurring_unit : 'week';
-        
-        switch (unit) {
-          case 'day':
-            nextDate = new Date(currentDate);
-            nextDate.setDate(currentDate.getDate() + interval);
-            break;
-          case 'week':
-            nextDate = new Date(currentDate);
-            nextDate.setDate(currentDate.getDate() + (7 * interval));
-            break;
-          case 'month':
-            nextDate = new Date(currentDate);
-            nextDate.setMonth(currentDate.getMonth() + interval);
-            break;
-          case 'year':
-            nextDate = new Date(currentDate);
-            nextDate.setFullYear(currentDate.getFullYear() + interval);
-            break;
-          case 'first_day_of_month':
-            nextDate = new Date(currentDate);
-            nextDate.setMonth(currentDate.getMonth() + interval);
-            // Find first occurrence of selected day in next month
-            const firstDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-            const firstDayOfWeek = firstDay.getDay();
-            const targetDay = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-            const daysToAdd = (targetDay - firstDayOfWeek + 7) % 7;
-            nextDate = new Date(firstDay);
-            nextDate.setDate(firstDay.getDate() + daysToAdd);
-            break;
-          case '2nd_day_of_month':
-            nextDate = new Date(currentDate);
-            nextDate.setMonth(currentDate.getMonth() + interval);
-            // Find 2nd occurrence of selected day in next month
-            const secondDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-            const secondDayOfWeek = secondDay.getDay();
-            const targetDay2nd = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-            const daysToAdd2nd = (targetDay2nd - secondDayOfWeek + 7) % 7;
-            nextDate = new Date(secondDay);
-            nextDate.setDate(secondDay.getDate() + daysToAdd2nd + 7); // Add 7 days for 2nd occurrence
-            break;
-          case '3rd_day_of_month':
-            nextDate = new Date(currentDate);
-            nextDate.setMonth(currentDate.getMonth() + interval);
-            // Find 3rd occurrence of selected day in next month
-            const thirdDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-            const thirdDayOfWeek = thirdDay.getDay();
-            const targetDay3rd = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-            const daysToAdd3rd = (targetDay3rd - thirdDayOfWeek + 7) % 7;
-            nextDate = new Date(thirdDay);
-            nextDate.setDate(thirdDay.getDate() + daysToAdd3rd + 14); // Add 14 days for 3rd occurrence
-            break;
-          case '4th_day_of_month':
-            nextDate = new Date(currentDate);
-            nextDate.setMonth(currentDate.getMonth() + interval);
-            // Find 4th occurrence of selected day in next month
-            const fourthDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-            const fourthDayOfWeek = fourthDay.getDay();
-            const targetDay4th = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-            const daysToAdd4th = (targetDay4th - fourthDayOfWeek + 7) % 7;
-            nextDate = new Date(fourthDay);
-            nextDate.setDate(fourthDay.getDate() + daysToAdd4th + 21); // Add 21 days for 4th occurrence
-            break;
-          case 'last_day_of_month':
-            nextDate = new Date(currentDate);
-            nextDate.setMonth(currentDate.getMonth() + interval);
-            // Find last occurrence of selected day in next month
-            const lastDay = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0);
-            const lastDayOfWeek = lastDay.getDay();
-            const targetDayLast = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-            const daysToSubtract = (lastDayOfWeek - targetDayLast + 7) % 7;
-            nextDate = new Date(lastDay);
-            nextDate.setDate(lastDay.getDate() - daysToSubtract);
-            break;
-          default:
-            nextDate = new Date(currentDate);
-            nextDate.setDate(currentDate.getDate() + 1);
-        }
+            // Check if there's a modified instance record for this specific instance
+            const modifiedInstance = tasks.find(t =>
+              t.is_modified_instance &&
+              t.parent_task_id === task.id &&
+              t.instance_key === instanceKey
+            );
 
-        currentDate = nextDate;
-        instanceCount++;
+
+
+            if (modifiedInstance) {
+              // If there's a modified instance, use it instead of generating from original task
+              const newInstance = {
+                ...modifiedInstance,
+                date: currentDate.getDate(),
+                month: currentDate.getMonth(),
+                year: currentDate.getFullYear(),
+                parent_task_id: modifiedInstance.parent_task_id || task.id,
+                is_recurring: true,
+                is_recurring_instance: true,
+                instance_key: instanceKey
+              };
+              instances.push(newInstance);
+            } else {
+              // Only generate from original task if no modified instance exists
+              const newInstance = {
+                ...task,
+                id: task.id,
+                date: currentDate.getDate(),
+                month: currentDate.getMonth(),
+                year: currentDate.getFullYear(),
+                parent_task_id: task.id,
+                is_recurring: true,
+                is_recurring_instance: true,
+                instance_key: instanceKey
+              };
+              instances.push(newInstance);
+            }
+          }
+
+          // Calculate next occurrence based on pattern
+          let nextDate: Date;
+          const interval = (task.recurring_interval && typeof task.recurring_interval === 'number') ? task.recurring_interval : 1;
+          const unit = (task.recurring_unit && typeof task.recurring_unit === 'string') ? task.recurring_unit : 'week';
+
+          switch (unit) {
+            case 'day':
+              nextDate = new Date(currentDate);
+              nextDate.setDate(currentDate.getDate() + interval);
+              break;
+            case 'week':
+              nextDate = new Date(currentDate);
+              nextDate.setDate(currentDate.getDate() + (7 * interval));
+              break;
+            case 'month':
+              nextDate = new Date(currentDate);
+              nextDate.setMonth(currentDate.getMonth() + interval);
+              break;
+            case 'year':
+              nextDate = new Date(currentDate);
+              nextDate.setFullYear(currentDate.getFullYear() + interval);
+              break;
+            case 'first_day_of_month':
+              nextDate = new Date(currentDate);
+              nextDate.setMonth(currentDate.getMonth() + interval);
+              // Find first occurrence of selected day in next month
+              const firstDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+              const firstDayOfWeek = firstDay.getDay();
+              const targetDay = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+              const daysToAdd = (targetDay - firstDayOfWeek + 7) % 7;
+              nextDate = new Date(firstDay);
+              nextDate.setDate(firstDay.getDate() + daysToAdd);
+              break;
+            case '2nd_day_of_month':
+              nextDate = new Date(currentDate);
+              nextDate.setMonth(currentDate.getMonth() + interval);
+              // Find 2nd occurrence of selected day in next month
+              const secondDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+              const secondDayOfWeek = secondDay.getDay();
+              const targetDay2nd = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+              const daysToAdd2nd = (targetDay2nd - secondDayOfWeek + 7) % 7;
+              nextDate = new Date(secondDay);
+              nextDate.setDate(secondDay.getDate() + daysToAdd2nd + 7); // Add 7 days for 2nd occurrence
+              break;
+            case '3rd_day_of_month':
+              nextDate = new Date(currentDate);
+              nextDate.setMonth(currentDate.getMonth() + interval);
+              // Find 3rd occurrence of selected day in next month
+              const thirdDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+              const thirdDayOfWeek = thirdDay.getDay();
+              const targetDay3rd = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+              const daysToAdd3rd = (targetDay3rd - thirdDayOfWeek + 7) % 7;
+              nextDate = new Date(thirdDay);
+              nextDate.setDate(thirdDay.getDate() + daysToAdd3rd + 14); // Add 14 days for 3rd occurrence
+              break;
+            case '4th_day_of_month':
+              nextDate = new Date(currentDate);
+              nextDate.setMonth(currentDate.getMonth() + interval);
+              // Find 4th occurrence of selected day in next month
+              const fourthDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+              const fourthDayOfWeek = fourthDay.getDay();
+              const targetDay4th = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+              const daysToAdd4th = (targetDay4th - fourthDayOfWeek + 7) % 7;
+              nextDate = new Date(fourthDay);
+              nextDate.setDate(fourthDay.getDate() + daysToAdd4th + 21); // Add 21 days for 4th occurrence
+              break;
+            case 'last_day_of_month':
+              nextDate = new Date(currentDate);
+              nextDate.setMonth(currentDate.getMonth() + interval);
+              // Find last occurrence of selected day in next month
+              const lastDay = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0);
+              const lastDayOfWeek = lastDay.getDay();
+              const targetDayLast = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+              const daysToSubtract = (lastDayOfWeek - targetDayLast + 7) % 7;
+              nextDate = new Date(lastDay);
+              nextDate.setDate(lastDay.getDate() - daysToSubtract);
+              break;
+            default:
+              nextDate = new Date(currentDate);
+              nextDate.setDate(currentDate.getDate() + 1);
+          }
+
+          currentDate = nextDate;
+          instanceCount++;
+        }
       }
-    }
     } catch (error) {
       console.error('Error processing task in generateRecurringInstances:', error, task);
       // Continue with next task instead of crashing
@@ -395,7 +395,7 @@ const MMCCalendar = () => {
     // Ensure we start with the current year
     return new Date(now.getFullYear(), now.getMonth(), now.getDate());
   });
-  
+
   const [activeView, setActiveView] = useState('Calendar');
   const [selectedDay, setSelectedDay] = useState<Date>(() => new Date());
   const [showEarlyHours, setShowEarlyHours] = useState(false);
@@ -437,7 +437,7 @@ const MMCCalendar = () => {
       const selectedYear = selectedDay.getFullYear();
       const currentMonth = currentDate.getMonth();
       const currentYear = currentDate.getFullYear();
-      
+
       // If the top bar month is different from the selected day's month, update selected day
       if (selectedMonth !== currentMonth || selectedYear !== currentYear) {
         const firstOfMonth = new Date(currentYear, currentMonth, 1);
@@ -488,10 +488,10 @@ const MMCCalendar = () => {
   const [isRemindersDrawerClosing, setIsRemindersDrawerClosing] = useState(false);
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [activitiesLoaded, setActivitiesLoaded] = useState(false);
-  const [preSelectedDate, setPreSelectedDate] = useState<{date: number, month: number, year: number} | null>(null);
+  const [preSelectedDate, setPreSelectedDate] = useState<{ date: number, month: number, year: number } | null>(null);
   const [deletedInstances, setDeletedInstances] = useState<Set<string>>(new Set());
   const [editMode, setEditMode] = useState<'single' | 'all'>('single'); // For recurring task editing
-  const [hoveredDay, setHoveredDay] = useState<{date: number, month: number, year: number} | null>(null);
+  const [hoveredDay, setHoveredDay] = useState<{ date: number, month: number, year: number } | null>(null);
   const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
   const [showMobileNotification, setShowMobileNotification] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
@@ -524,7 +524,7 @@ const MMCCalendar = () => {
   const [highlightPhase, setHighlightPhase] = useState<'appearing' | 'glowing' | 'disappearing' | null>(null);
   const [highlightedToday, setHighlightedToday] = useState<boolean>(false);
   const [todayHighlightPhase, setTodayHighlightPhase] = useState<'appearing' | 'glowing' | 'disappearing' | null>(null);
-  
+
   // Custom notification system
   const [notifications, setNotifications] = useState<Array<{
     id: string;
@@ -537,7 +537,7 @@ const MMCCalendar = () => {
   const showNotification = (type: 'success' | 'error' | 'warning' | 'info', message: string, duration: number = 5000) => {
     const id = Math.random().toString(36).substr(2, 9);
     setNotifications(prev => [...prev, { id, type, message, duration }]);
-    
+
     // Auto-remove notification after duration
     setTimeout(() => {
       setNotifications(prev => prev.filter(notification => notification.id !== id));
@@ -627,8 +627,8 @@ const MMCCalendar = () => {
     low: { color: 'bg-green-100 text-green-800 border-green-200', icon: '🟢', label: 'Low' }
   };
 
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
-                     'July', 'August', 'September', 'October', 'November', 'December'];
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   const currentMonthKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
@@ -643,7 +643,7 @@ const MMCCalendar = () => {
         .select('*')
         .order('created_at', { ascending: false })
         .limit(500);
-      
+
       if (error) {
         console.error('Error loading activities:', error);
         // If activities table doesn't exist, just set empty array and mark as loaded
@@ -651,7 +651,7 @@ const MMCCalendar = () => {
         setActivitiesLoaded(true);
         return;
       }
-      
+
       if (data) {
         const formattedActivities = data.map(activity => ({
           id: activity.id || Date.now() + Math.random(),
@@ -666,8 +666,8 @@ const MMCCalendar = () => {
           oldStatus: activity.old_status || null,
           newStatus: activity.new_status || null
         }));
-        
-        
+
+
         setRecentActivities(formattedActivities);
         setActivitiesLoaded(true);
       } else {
@@ -693,7 +693,7 @@ const MMCCalendar = () => {
         setLoading(false);
         return;
       }
-      
+
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
       if (user) {
@@ -717,7 +717,7 @@ const MMCCalendar = () => {
         if (urlParams.get('mode') === 'guest') {
           return;
         }
-        
+
         setUser(session?.user ?? null);
         if (session?.user) {
           // Auto-assign team member based on user's name
@@ -741,17 +741,17 @@ const MMCCalendar = () => {
       setLoggedInUserTeamMemberId(null);
       return;
     }
-    
+
     const firstName = user.user_metadata?.first_name || '';
     const lastName = user.user_metadata?.last_name || '';
     const fullName = `${firstName} ${lastName}`.trim();
-    
+
     // Find matching team member
     const matchingMember = teamMembers.find(member => {
       const memberFullName = `${member.name}`.trim();
       return memberFullName.toLowerCase() === fullName.toLowerCase();
     });
-    
+
     if (matchingMember) {
       setLoggedInUserTeamMemberId(matchingMember.id);
       // Don't automatically set selectedTeamMember - let them see all tasks by default
@@ -769,7 +769,7 @@ const MMCCalendar = () => {
           .select('*')
           .order('is_custom', { ascending: true })
           .order('display_name', { ascending: true });
-        
+
         if (error) {
           console.error('Error loading categories:', error);
           // If categories table doesn't exist, use default categories
@@ -784,7 +784,7 @@ const MMCCalendar = () => {
           setCategories(defaultCategories);
           return;
         }
-        
+
         if (data) {
           setCategories(data);
         } else {
@@ -813,7 +813,7 @@ const MMCCalendar = () => {
         setCategories(defaultCategories);
       }
     };
-    
+
     loadCategories();
   }, []);
 
@@ -842,15 +842,15 @@ const MMCCalendar = () => {
           .select('*')
           .eq('year', currentDate.getFullYear())
           .eq('month', currentDate.getMonth());
-        
+
         if (error) {
           console.error('Error fetching tasks:', error);
           showNotification('error', `Error loading tasks: ${error.message}`);
           return;
         }
-        
+
         setAllTasks((prev) => ({ ...prev, [currentMonthKey]: data || [] }));
-        
+
         // Load activities after tasks are loaded
         if (!activitiesLoaded) {
           await loadActivities();
@@ -871,12 +871,12 @@ const MMCCalendar = () => {
       const { data, error } = await supabase
         .from('tasks')
         .select('*');
-      
+
       if (error) {
         console.error('Error refreshing tasks:', error);
         return;
       }
-      
+
       // Group tasks by month-year
       const groupedTasks: { [key: string]: any[] } = {};
       (data || []).forEach(task => {
@@ -887,7 +887,7 @@ const MMCCalendar = () => {
         groupedTasks[key].push(task);
       });
       setAllTasks(groupedTasks);
-      
+
       // Rebuild deleted instances from database records
       const deletedInstanceKeys = new Set<string>();
       (data || []).forEach(task => {
@@ -931,13 +931,13 @@ const MMCCalendar = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
-    
+
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      
+
       if (error) {
         setAuthError(error.message);
       } else {
@@ -1086,15 +1086,15 @@ const MMCCalendar = () => {
         const startDate = new Date(task.start_date + 'T00:00:00');
         const endDate = new Date(task.end_date + 'T23:59:59');
         const checkDate = new Date(year, month, date);
-        
-        
+
+
         return checkDate >= startDate && checkDate <= endDate;
       } catch (error) {
         console.error('Error parsing multi-day task dates:', error, task);
         return false;
       }
     }
-    
+
     // For regular tasks, check the date, month, and year fields
     return task.date === date && task.month === month && task.year === year;
   };
@@ -1102,9 +1102,9 @@ const MMCCalendar = () => {
   // Get all tasks from all months for recurring generation
   // Filter out modified instances and deleted instances since they'll be handled through the recurring generation process
   const allTasksFlat = useMemo(() => {
-    return Object.values(allTasks).flat().filter(task => 
-      !task.is_modified_instance && 
-      !task.is_deleted_instance && 
+    return Object.values(allTasks).flat().filter(task =>
+      !task.is_modified_instance &&
+      !task.is_deleted_instance &&
       task.status !== 'deleted'
     );
   }, [allTasks]);
@@ -1114,34 +1114,34 @@ const MMCCalendar = () => {
     try {
       // Include all tasks (including modified instances) for the recurring generation process
       const allTasksIncludingModified = Object.values(allTasks).flat();
-      
+
       // Generate recurring instances for current month and surrounding months (3 months range)
       const currentMonth = currentDate.getMonth();
       const currentYear = currentDate.getFullYear();
       const recurringInstances: any[] = [];
-      
+
       // Generate instances for current month and 2 months before/after for better coverage
       for (let monthOffset = -2; monthOffset <= 2; monthOffset++) {
         const targetMonth = (currentMonth + monthOffset + 12) % 12;
         const targetYear = currentYear + Math.floor((currentMonth + monthOffset) / 12);
-        
+
         const monthInstances = generateRecurringInstances(allTasksIncludingModified, targetMonth, targetYear, deletedInstances);
         recurringInstances.push(...monthInstances);
       }
-      
+
       // Add multiday tasks from all months to ensure they appear across month boundaries
-      const multidayTasksFromAllMonths = allTasksIncludingModified.filter(task => 
+      const multidayTasksFromAllMonths = allTasksIncludingModified.filter(task =>
         task.is_multiday && task.start_date && task.end_date
       );
-      
+
       // Combine recurring instances with multiday tasks from all months
       const allTasksWithMultiday = [...recurringInstances, ...multidayTasksFromAllMonths];
-      
+
       // Remove duplicates based on task ID and date
-      const uniqueTasks = allTasksWithMultiday.filter((task, index, self) => 
+      const uniqueTasks = allTasksWithMultiday.filter((task, index, self) =>
         index === self.findIndex(t => t.id === task.id && t.year === task.year && t.month === task.month && t.date === task.date)
       );
-      
+
       return uniqueTasks;
     } catch (error) {
       console.error('Error generating recurring instances:', error);
@@ -1160,9 +1160,9 @@ const MMCCalendar = () => {
       // If no time is set, default to 9:00 AM
       taskDate.setHours(9, 0, 0, 0);
     }
-    
+
     const reminderDate = new Date(taskDate);
-    
+
     switch (reminderType) {
       case '15min':
         reminderDate.setMinutes(reminderDate.getMinutes() - 15);
@@ -1192,16 +1192,16 @@ const MMCCalendar = () => {
       default:
         return null;
     }
-    
+
     return reminderDate;
   };
 
   const getUpcomingReminders = () => {
     const now = new Date();
     const nextTwoWeeks = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
-    const upcomingReminders: Array<{id: string, taskId: string, type: string, reminderType: string, reminderTime: Date, taskTitle: string, taskDate: Date, dismissed?: boolean, snoozedUntil?: Date}> = [];
-    const pastReminders: Array<{id: string, taskId: string, type: string, reminderType: string, reminderTime: Date, taskTitle: string, taskDate: Date, dismissed?: boolean, snoozedUntil?: Date}> = [];
-    
+    const upcomingReminders: Array<{ id: string, taskId: string, type: string, reminderType: string, reminderTime: Date, taskTitle: string, taskDate: Date, dismissed?: boolean, snoozedUntil?: Date }> = [];
+    const pastReminders: Array<{ id: string, taskId: string, type: string, reminderType: string, reminderTime: Date, taskTitle: string, taskDate: Date, dismissed?: boolean, snoozedUntil?: Date }> = [];
+
     allTasksWithRecurring.forEach(task => {
       if (task.reminders && task.reminders.length > 0) {
         task.reminders.forEach((reminder: any) => {
@@ -1218,7 +1218,7 @@ const MMCCalendar = () => {
             // Handle predefined reminder types
             reminderTime = getReminderTime(task, reminder.type);
           }
-          
+
           if (reminderTime) {
             const reminderData = {
               id: `${task.id}-${reminder.type}`,
@@ -1232,7 +1232,7 @@ const MMCCalendar = () => {
               dismissed: reminder.dismissed || false,
               snoozedUntil: undefined
             };
-            
+
             if (reminderTime >= now && reminderTime <= nextTwoWeeks) {
               upcomingReminders.push(reminderData);
             } else if (reminderTime < now) {
@@ -1242,7 +1242,7 @@ const MMCCalendar = () => {
         });
       }
     });
-    
+
     return {
       upcoming: upcomingReminders.sort((a, b) => a.reminderTime.getTime() - b.reminderTime.getTime()),
       past: pastReminders.sort((a, b) => b.reminderTime.getTime() - a.reminderTime.getTime()) // Most recent first
@@ -1255,12 +1255,12 @@ const MMCCalendar = () => {
 
     // Try to find the task in allTasksWithRecurring first
     let taskToUpdate = allTasksWithRecurring.find(task => task.id === taskId);
-    
+
     // If not found, try to find by parent_task_id (for recurring instances)
     if (!taskToUpdate) {
       taskToUpdate = allTasksWithRecurring.find(task => task.parent_task_id === taskId);
     }
-    
+
     // If still not found, try to find in the original allTasks data
     if (!taskToUpdate) {
       const allTasksFlat = Object.values(allTasks).flat();
@@ -1327,15 +1327,15 @@ const MMCCalendar = () => {
 
   const handleHourSlotClick = (hour: number) => {
     if (user === 'guest') return;
-    
+
     const timeString = `${hour.toString().padStart(2, '0')}:00`;
-    
+
     setPreSelectedDate({
       date: selectedDay.getDate(),
       month: selectedDay.getMonth(),
       year: selectedDay.getFullYear()
     });
-    
+
     setNewTask({
       id: Date.now(),
       title: '',
@@ -1368,7 +1368,7 @@ const MMCCalendar = () => {
       custom_reminders: [],
       has_reminders: false
     });
-    
+
     setShowNewEntryModal(true);
   };
 
@@ -1405,25 +1405,25 @@ const MMCCalendar = () => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
-    
+
     // Update upcoming reminders
     const reminders = getUpcomingReminders();
     setUpcomingReminders(reminders.upcoming);
     setDismissedReminders(reminders.past);
-    
+
     // Check for due reminders every minute
     const interval = setInterval(() => {
       const now = new Date();
       const currentReminders = getUpcomingReminders();
-      
+
       // Check for due reminders in both upcoming and past sections
       const allReminders = [...currentReminders.upcoming, ...currentReminders.past];
-      const dueReminders = allReminders.filter(reminder => 
-        reminder.reminderTime <= now && 
-        !reminder.dismissed && 
+      const dueReminders = allReminders.filter(reminder =>
+        reminder.reminderTime <= now &&
+        !reminder.dismissed &&
         (!reminder.snoozedUntil || reminder.snoozedUntil <= now)
       );
-      
+
       // Only show notifications for reminders we haven't already notified about
       dueReminders.forEach(reminder => {
         const alreadyNotified = reminderNotifications.some(notif => notif.id === reminder.id);
@@ -1432,12 +1432,12 @@ const MMCCalendar = () => {
           setReminderNotifications(prev => [...prev, reminder]);
         }
       });
-      
+
       // Update upcoming reminders
       setUpcomingReminders(currentReminders.upcoming);
       setDismissedReminders(currentReminders.past);
     }, 60000);
-    
+
     return () => clearInterval(interval);
   }, [allTasksWithRecurring]);
 
@@ -1456,7 +1456,7 @@ const MMCCalendar = () => {
     } else {
       document.title = originalTitle;
     }
-    
+
     // Cleanup function to restore original title when component unmounts
     return () => {
       document.title = originalTitle;
@@ -1476,23 +1476,23 @@ const MMCCalendar = () => {
   const getTasksForDate = useCallback((date: number) => {
     const currentMonth = currentDate.getMonth();
     const currentYear = currentDate.getFullYear();
-    
-    
-    let tasks = allTasksWithRecurring.filter(task => 
-      isTaskOnDate(task, date, currentMonth, currentYear) && 
+
+
+    let tasks = allTasksWithRecurring.filter(task =>
+      isTaskOnDate(task, date, currentMonth, currentYear) &&
       selectedFilters[task.category] &&
       task.status !== 'deleted' // Exclude deleted tasks
     );
-    if (selectedTeamMember) tasks = tasks.filter(task => 
-      (task.assignees && task.assignees.includes(selectedTeamMember)) || 
+    if (selectedTeamMember) tasks = tasks.filter(task =>
+      (task.assignees && task.assignees.includes(selectedTeamMember)) ||
       task.assignee === selectedTeamMember // Backward compatibility
     );
-    
+
     // Group tasks by type for proper ordering
     const multiDayTasks: any[] = [];
     const allDayTasks: any[] = [];
     const tasksByTime: { [key: string]: any[] } = {};
-    
+
     tasks.forEach(task => {
       if (task.is_multiday) {
         multiDayTasks.push(task);
@@ -1506,13 +1506,13 @@ const MMCCalendar = () => {
         tasksByTime[timeKey].push(task);
       }
     });
-    
+
     // Sort multi-day tasks by title
     multiDayTasks.sort((a, b) => a.title.localeCompare(b.title));
-    
+
     // Sort all-day tasks by title
     allDayTasks.sort((a, b) => a.title.localeCompare(b.title));
-    
+
     // Sort timed tasks by time, then by title for conflicts
     const sortedTimedTasks: any[] = [];
     Object.keys(tasksByTime).sort((a, b) => {
@@ -1524,18 +1524,18 @@ const MMCCalendar = () => {
       timeTasks.sort((a, b) => a.title.localeCompare(b.title));
       sortedTimedTasks.push(...timeTasks);
     });
-    
+
     // Return multi-day tasks first, then all-day tasks, then timed tasks
     return [...multiDayTasks, ...allDayTasks, ...sortedTimedTasks];
   }, [allTasksWithRecurring, selectedFilters, selectedTeamMember, currentDate]);
 
   const getAllFilteredTasks = useCallback(() => {
-    let tasks = allTasksWithRecurring.filter(task => 
+    let tasks = allTasksWithRecurring.filter(task =>
       selectedFilters[task.category] &&
       task.status !== 'deleted' // Exclude deleted tasks
     );
-    if (selectedTeamMember) tasks = tasks.filter(task => 
-      (task.assignees && task.assignees.includes(selectedTeamMember)) || 
+    if (selectedTeamMember) tasks = tasks.filter(task =>
+      (task.assignees && task.assignees.includes(selectedTeamMember)) ||
       task.assignee === selectedTeamMember // Backward compatibility
     );
     return tasks;
@@ -1548,23 +1548,23 @@ const MMCCalendar = () => {
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
     const currentDay = today.getDate();
-    
+
     const todayDate = new Date(currentYear, currentMonth, currentDay);
-    
+
     const overdueTasks = allTasksWithRecurring.filter(task => {
       if (task.status === 'completed' || task.status === 'deleted') return false;
-      
+
       const taskDate = new Date(task.year, task.month, task.date);
       const isOverdue = taskDate < todayDate;
-      
-      
+
+
       return isOverdue;
     }).sort((a, b) => {
       const dateA = new Date(a.year, a.month, a.date);
       const dateB = new Date(b.year, b.month, b.date);
       return dateA.getTime() - dateB.getTime();
     });
-    
+
     return overdueTasks;
   }, [allTasksWithRecurring]);
 
@@ -1574,28 +1574,28 @@ const MMCCalendar = () => {
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
     const currentDay = today.getDate();
-    
+
     const todayDate = new Date(currentYear, currentMonth, currentDay);
     const viewedYear = currentDate.getFullYear();
     const viewedMonth = currentDate.getMonth();
-    
+
     const highPriorityTasks = allTasksWithRecurring.filter(task => {
       if (task.priority !== 'high' || task.status === 'completed' || task.status === 'deleted') return false;
-      
+
       const taskDate = new Date(task.year, task.month, task.date);
       const isOverdue = taskDate < todayDate;
-      
+
       // Show high priority tasks from viewed month that are not overdue
       const isViewedMonth = task.year === viewedYear && task.month === viewedMonth;
-      
-      
+
+
       return !isOverdue && isViewedMonth;
     }).sort((a, b) => {
       const dateA = new Date(a.year, a.month, a.date);
       const dateB = new Date(b.year, b.month, b.date);
       return dateA.getTime() - dateB.getTime();
     });
-    
+
     return highPriorityTasks;
   }, [allTasksWithRecurring]);
 
@@ -1612,9 +1612,9 @@ const MMCCalendar = () => {
       oldStatus: activity.oldStatus || null,
       newStatus: activity.newStatus || null
     };
-    
+
     setRecentActivities(prev => [newActivity, ...prev].slice(0, 20));
-    
+
     try {
       // Also try to save to database (but don't wait for it)
       const { data, error } = await supabase
@@ -1630,7 +1630,7 @@ const MMCCalendar = () => {
           new_status: activity.newStatus || null
         }])
         .select();
-      
+
       if (error) {
         console.error('Error saving activity to database:', error);
         // Activity is already in local state, so we're good
@@ -1650,10 +1650,10 @@ const MMCCalendar = () => {
       }
 
       // Check if category name already exists
-      const existingCategory = categories.find(cat => 
+      const existingCategory = categories.find(cat =>
         cat.name.toLowerCase() === customCategory.name.toLowerCase()
       );
-      
+
       if (existingCategory) {
         showNotification('warning', 'A category with this name already exists');
         return;
@@ -1686,14 +1686,14 @@ const MMCCalendar = () => {
       if (data && data[0]) {
         // Add to local state
         setCategories(prev => [...prev, data[0]]);
-        
+
         // Auto-select the newly created category in the new task modal
         setNewTask((prev: any) => ({
           ...prev,
           category: data[0].name,
           type: data[0].type
         }));
-        
+
         // Close modal and reset form
         setShowCustomCategoryModal(false);
         setCustomCategory({
@@ -1701,7 +1701,7 @@ const MMCCalendar = () => {
           color_class: 'bg-blue-100 text-blue-800 border-blue-200',
           type: 'Custom'
         });
-        
+
         showNotification('success', 'Custom category created successfully!');
       }
     } catch (err) {
@@ -1725,7 +1725,7 @@ const MMCCalendar = () => {
         display_name: customCategory.display_name
       };
     }
-    
+
     // Fallback to legacy category config
     const legacyConfig = categoryConfig[categoryKey] || { color: 'bg-gray-100 text-gray-800 border-gray-200', type: 'Custom' };
     return {
@@ -1744,10 +1744,10 @@ const MMCCalendar = () => {
   const isAdmin = useMemo(() => {
     // Check by team member ID (Ghislain Girard has ID 2)
     if (loggedInUserTeamMemberId === 2) return true;
-    
+
     // Check by email address for ghgirard@atlasinstitute.ca
     if (user && user.email === 'ghgirard@atlasinstitute.ca') return true;
-    
+
     return false;
   }, [loggedInUserTeamMemberId, user]);
 
@@ -1784,7 +1784,7 @@ const MMCCalendar = () => {
       }
 
       if (data && data[0]) {
-        setCategories(prev => 
+        setCategories(prev =>
           prev.map(cat => cat.id === editingCategory.id ? data[0] : cat)
         );
         setShowEditCategoryModal(false);
@@ -1854,8 +1854,8 @@ const MMCCalendar = () => {
       setShowDeleteCategoryModal(false);
       setCategoryToDelete(null);
       setReassignToCategory('');
-      
-        showNotification('success', `Category deleted successfully! ${tasksUsingCategory?.length || 0} tasks were reassigned.`);
+
+      showNotification('success', `Category deleted successfully! ${tasksUsingCategory?.length || 0} tasks were reassigned.`);
     } catch (err) {
       console.error('Unexpected error:', err);
       showNotification('error', `Unexpected error: ${err}`);
@@ -1883,7 +1883,7 @@ const MMCCalendar = () => {
       // For now, just show a placeholder message
       // In a real implementation, you would update the teamMembers array or database
       showNotification('info', 'User management functionality coming soon! This would update user details in the database.');
-      
+
       setShowEditUserModal(false);
       setEditingUser(null);
     } catch (err) {
@@ -1899,11 +1899,11 @@ const MMCCalendar = () => {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     sevenDaysAgo.setHours(0, 0, 0, 0);
-    
+
     const filteredActivities = recentActivities
       .filter(activity => activity.timestamp >= sevenDaysAgo)
       .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-    
+
     return filteredActivities;
   }, [recentActivities]);
 
@@ -1917,11 +1917,11 @@ const MMCCalendar = () => {
     const counts: { [key: string]: number } = {};
     const currentMonth = currentDate.getMonth();
     const currentYear = currentDate.getFullYear();
-    
+
     categories.forEach(category => {
-      counts[category.name] = allTasksWithRecurring.filter(t => 
-        t.category === category.name && 
-        t.status !== 'deleted' && 
+      counts[category.name] = allTasksWithRecurring.filter(t =>
+        t.category === category.name &&
+        t.status !== 'deleted' &&
         t.month === currentMonth &&
         t.year === currentYear &&
         (!selectedTeamMember || (t.assignees && t.assignees.includes(selectedTeamMember)) || t.assignee === selectedTeamMember)
@@ -1931,12 +1931,12 @@ const MMCCalendar = () => {
   }, [allTasksWithRecurring, selectedTeamMember, categories, currentDate]);
 
   const allFilteredTasks = getAllFilteredTasks();
-  
+
   // Filter tasks to only include those for the current month
-  const currentMonthFilteredTasks = allFilteredTasks.filter(task => 
+  const currentMonthFilteredTasks = allFilteredTasks.filter(task =>
     task.month === currentDate.getMonth() && task.year === currentDate.getFullYear()
   );
-  
+
   const upcomingCount = currentMonthFilteredTasks.filter(t => t.status === 'planned').length;
   const inProgressCount = currentMonthFilteredTasks.filter(t => t.status === 'in-progress').length;
   const reviewCount = currentMonthFilteredTasks.filter(t => t.status === 'review').length;
@@ -1981,7 +1981,7 @@ const MMCCalendar = () => {
     const clickedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
     setSelectedDay(clickedDate);
     setActiveView('Day');
-    
+
     // Use the robust scroll function
     scrollDayViewToTop();
   };
@@ -1991,7 +1991,7 @@ const MMCCalendar = () => {
     if (hoverTimeout) {
       clearTimeout(hoverTimeout);
     }
-    
+
     // Set a new timeout to show the popup after 1000ms
     const timeout = setTimeout(() => {
       setHoveredDay({
@@ -2000,7 +2000,7 @@ const MMCCalendar = () => {
         year: currentDate.getFullYear()
       });
     }, 1000);
-    
+
     setHoverTimeout(timeout);
   };
 
@@ -2010,7 +2010,7 @@ const MMCCalendar = () => {
       clearTimeout(hoverTimeout);
       setHoverTimeout(null);
     }
-    
+
     // Hide the popup
     setHoveredDay(null);
   };
@@ -2025,7 +2025,7 @@ const MMCCalendar = () => {
 
   const handleNewTaskFromDay = (day: number, event: React.MouseEvent) => {
     event.stopPropagation(); // Prevent day click from firing
-    
+
     setPreSelectedDate({
       date: day,
       month: currentDate.getMonth(),
@@ -2059,7 +2059,7 @@ const MMCCalendar = () => {
     // Always try to find the complete task data from allTasks
     const allTasksFlat = Object.values(allTasks).flat();
     const completeTask = allTasksFlat.find(t => t.id === task.id);
-    
+
     if (completeTask) {
       // Use the complete task data, but preserve any instance-specific data
       const result = {
@@ -2086,7 +2086,7 @@ const MMCCalendar = () => {
       };
       return result;
     }
-    
+
     // Fallback to the original task with defaults
     return {
       ...task,
@@ -2114,7 +2114,7 @@ const MMCCalendar = () => {
   const handleSaveNewTask = async () => {
     try {
       setLoading(true);
-      
+
       // Validate required fields
       if (!newTask.category) {
         showNotification('warning', 'Please select a category');
@@ -2132,15 +2132,15 @@ const MMCCalendar = () => {
         showNotification('warning', 'Please select a recurring period');
         return;
       }
-      
+
       // Clean up date fields - convert empty strings to null for database
       const cleanedTask = { ...newTask };
       if (cleanedTask.start_date === '') cleanedTask.start_date = null;
       if (cleanedTask.end_date === '') cleanedTask.end_date = null;
       if (cleanedTask.recurring_end_date === '') cleanedTask.recurring_end_date = null;
-      
+
       // Process reminders
-      const reminders: Array<{type: string, custom_time?: any, name?: string}> = [];
+      const reminders: Array<{ type: string, custom_time?: any, name?: string }> = [];
       if (cleanedTask.reminder_times && cleanedTask.reminder_times.length > 0) {
         cleanedTask.reminder_times.forEach((time: string) => {
           reminders.push({ type: time, name: cleanedTask.reminder_names?.[time] || '' });
@@ -2148,8 +2148,8 @@ const MMCCalendar = () => {
       }
       // Process custom reminders (both single and multiple)
       if (cleanedTask.reminder_custom_time) {
-        reminders.push({ 
-          type: 'custom', 
+        reminders.push({
+          type: 'custom',
           custom_time: cleanedTask.reminder_custom_time,
           name: cleanedTask.reminder_custom_name || ''
         });
@@ -2165,26 +2165,26 @@ const MMCCalendar = () => {
           }
         });
       }
-      
+
       const task = {
         ...cleanedTask,
         color: getCategoryConfig(newTask.category).color,
         created_by: newTask.created_by,
         reminders: reminders
       };
-      
+
       // Remove has_reminders as it's only used for UI state, not database
       delete task.has_reminders;
-      
-      
+
+
       const { data, error } = await supabase.from('tasks').insert([task]).select();
-      
+
       if (error) {
         console.error('Error saving task:', error);
         showNotification('error', `Error saving task: ${error.message}`);
         return;
       }
-      
+
       // Add activity for new task creation using the returned task data (which includes the ID)
       if (data && data[0]) {
         addActivity({
@@ -2195,7 +2195,7 @@ const MMCCalendar = () => {
           userId: data[0].created_by
         });
       }
-      
+
       setShowNewEntryModal(false);
       await refreshTasks();
       // Refresh activities to show the new activity
@@ -2211,12 +2211,12 @@ const MMCCalendar = () => {
   const handleEditTask = () => {
     // Get the latest task data from allTasksWithRecurring to ensure we have the most up-to-date information
     const latestTask = allTasksWithRecurring.find(task => task.id === selectedTask.id) || selectedTask;
-    
+
     // Initialize reminder names from existing reminders (only non-dismissed ones)
     const reminderNames: { [key: string]: string } = {};
-    const customReminders: Array<{time: string, name: string}> = [];
+    const customReminders: Array<{ time: string, name: string }> = [];
     const activeReminderTypes: string[] = []; // Track active reminder types for checkboxes
-    
+
     if (latestTask.reminders) {
       latestTask.reminders.forEach((reminder: any) => {
         // Only include non-dismissed reminders
@@ -2236,8 +2236,8 @@ const MMCCalendar = () => {
         }
       });
     }
-    
-    setEditingTask({ 
+
+    setEditingTask({
       ...latestTask,
       start_date: latestTask.start_date || '',
       end_date: latestTask.end_date || '',
@@ -2256,27 +2256,27 @@ const MMCCalendar = () => {
   const handleEditRecurringTask = async () => {
     try {
       setLoading(true);
-      
+
       // Get the original recurring task (not the instance)
       const taskIdToEdit = selectedTask.is_recurring_instance ? selectedTask.parent_task_id : selectedTask.id;
-      
+
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
         .eq('id', taskIdToEdit)
         .single();
-      
+
       if (error) {
         console.error('Error fetching recurring task:', error);
         showNotification('error', `Error loading recurring task: ${error.message}`);
         return;
       }
-      
+
       // Initialize reminder names from existing reminders (only non-dismissed ones)
       const reminderNames: { [key: string]: string } = {};
-      const customReminders: Array<{time: string, name: string}> = [];
+      const customReminders: Array<{ time: string, name: string }> = [];
       const activeReminderTypes: string[] = []; // Track active reminder types for checkboxes
-      
+
       if (data.reminders) {
         data.reminders.forEach((reminder: any) => {
           // Only include non-dismissed reminders
@@ -2296,7 +2296,7 @@ const MMCCalendar = () => {
           }
         });
       }
-      
+
       setEditingTask({
         ...data,
         start_date: data.start_date || '',
@@ -2353,13 +2353,13 @@ const MMCCalendar = () => {
     }
 
     const allTasksFlat = Object.values(allTasks).flat();
-    const results = allTasksFlat.filter(task => 
+    const results = allTasksFlat.filter(task =>
       task.title.toLowerCase().includes(query.toLowerCase()) ||
       task.description.toLowerCase().includes(query.toLowerCase()) ||
       task.type.toLowerCase().includes(query.toLowerCase()) ||
       getAssigneesDisplay(task).toLowerCase().includes(query.toLowerCase())
     );
-    
+
     setSearchResults(results);
     setShowSearchResults(true);
   };
@@ -2441,22 +2441,22 @@ const MMCCalendar = () => {
     const checkMobile = () => {
       const isMobileDevice = window.innerWidth < 1366;
       const wasMobile = isMobile;
-      
+
       // If we're already mobile and locked, don't change it
       if (mobileStateLocked && isMobile) {
         return;
       }
-      
+
       // Only update mobile state if it actually changed
       if (isMobileDevice !== wasMobile) {
         setIsMobile(isMobileDevice);
-        
+
         if (isMobileDevice) {
           // Switching to mobile: close sidebar and lock mobile state
           setSidebarOpen(false);
           setSidebarUserOpened(false);
           setMobileStateLocked(true); // Lock mobile state
-          
+
           // Show mobile notification if not already shown
           if (!localStorage.getItem('mobileNotificationDismissed')) {
             setShowMobileNotification(true);
@@ -2475,17 +2475,17 @@ const MMCCalendar = () => {
         setMobileStateLocked(true); // Lock mobile state
       }
     };
-    
+
     // Run immediately
     checkMobile();
-    
+
     // Run on resize with debounce to prevent rapid changes
     let resizeTimeout: NodeJS.Timeout;
     const handleResize = () => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(checkMobile, 100);
     };
-    
+
     window.addEventListener('resize', handleResize);
     return () => {
       window.removeEventListener('resize', handleResize);
@@ -2508,15 +2508,15 @@ const MMCCalendar = () => {
   const handleSaveEditTask = async () => {
     try {
       setLoading(true);
-      
+
       // Clean up date fields - convert empty strings to null for database
       const cleanedTask = { ...editingTask };
       if (cleanedTask.start_date === '') cleanedTask.start_date = null;
       if (cleanedTask.end_date === '') cleanedTask.end_date = null;
       if (cleanedTask.recurring_end_date === '') cleanedTask.recurring_end_date = null;
-      
+
       // Process reminders
-      const reminders: Array<{type: string, custom_time?: any, name?: string}> = [];
+      const reminders: Array<{ type: string, custom_time?: any, name?: string }> = [];
       if (cleanedTask.reminder_times && cleanedTask.reminder_times.length > 0) {
         cleanedTask.reminder_times.forEach((time: string) => {
           reminders.push({ type: time, name: cleanedTask.reminder_names?.[time] || '' });
@@ -2524,8 +2524,8 @@ const MMCCalendar = () => {
       }
       // Process custom reminders (both single and multiple)
       if (cleanedTask.reminder_custom_time) {
-        reminders.push({ 
-          type: 'custom', 
+        reminders.push({
+          type: 'custom',
           custom_time: cleanedTask.reminder_custom_time,
           name: cleanedTask.reminder_custom_name || ''
         });
@@ -2541,24 +2541,24 @@ const MMCCalendar = () => {
           }
         });
       }
-      
-      const updatedTask = { 
-        ...cleanedTask, 
+
+      const updatedTask = {
+        ...cleanedTask,
         color: getCategoryConfig(editingTask.category).color,
         reminders: reminders
       };
-      
+
       // Remove has_reminders as it's only used for UI state, not database
       delete updatedTask.has_reminders;
-      
+
       const isRecurring = editingTask.is_recurring || editingTask.is_recurring_instance;
-      
+
       if (isRecurring && editMode === 'single') {
         // For single instance editing of recurring tasks, create a modified instance record
         const parentTaskId = editingTask.parent_task_id || editingTask.id;
         const instanceKey = editingTask.instance_key || `${parentTaskId}_${editingTask.year}_${editingTask.month}_${editingTask.date}`;
-        
-        
+
+
         // Create a "modified" task record to override this specific instance
         const modifiedInstance = {
           ...updatedTask,
@@ -2569,15 +2569,15 @@ const MMCCalendar = () => {
           is_recurring_instance: true,
           is_modified_instance: true // Flag to identify this as a modified instance
         };
-        
+
         // Clean up date fields for modified instance as well
         if (modifiedInstance.start_date === '') modifiedInstance.start_date = null;
         if (modifiedInstance.end_date === '') modifiedInstance.end_date = null;
         if (modifiedInstance.recurring_end_date === '') modifiedInstance.recurring_end_date = null;
-        
+
         // Remove id from the object to avoid null constraint violation
         delete modifiedInstance.id;
-        
+
         // First, check if there's already a modified instance for this date
         const { data: existingModified } = await supabase
           .from('tasks')
@@ -2586,14 +2586,14 @@ const MMCCalendar = () => {
           .eq('instance_key', instanceKey)
           .eq('is_modified_instance', true)
           .single();
-        
+
         if (existingModified) {
           // Update existing modified instance
           const { error } = await supabase
             .from('tasks')
             .update(modifiedInstance)
             .eq('id', existingModified.id);
-          
+
           if (error) {
             console.error('Error updating modified instance:', error);
             showNotification('error', `Error updating task: ${error.message}`);
@@ -2604,7 +2604,7 @@ const MMCCalendar = () => {
           const { error } = await supabase
             .from('tasks')
             .insert([modifiedInstance]);
-          
+
           if (error) {
             console.error('Error creating modified instance:', error);
             showNotification('error', `Error updating task: ${error.message}`);
@@ -2614,17 +2614,17 @@ const MMCCalendar = () => {
       } else {
         // For regular tasks or editing all recurring instances
         const taskIdToUpdate = editingTask.is_recurring_instance ? editingTask.parent_task_id : editingTask.id;
-        
+
         const { data, error } = await supabase.from('tasks').update(updatedTask).eq('id', taskIdToUpdate);
-        
+
         if (error) {
           console.error('Error updating task:', error);
           showNotification('error', `Error updating task: ${error.message}`);
           return;
         }
       }
-      
-      
+
+
       // Add activity for task update
       addActivity({
         type: 'task_updated',
@@ -2633,7 +2633,7 @@ const MMCCalendar = () => {
         user: teamMembers.find(m => m.id === updatedTask.created_by)?.name || 'Unknown',
         userId: updatedTask.created_by
       });
-      
+
       setShowEditModal(false);
       setEditingTask(null);
       await refreshTasks();
@@ -2649,23 +2649,23 @@ const MMCCalendar = () => {
 
   const handleDeleteTask = async (deleteAll = false) => {
     const isRecurring = selectedTask.is_recurring || selectedTask.is_recurring_instance;
-    
+
     if (isRecurring) {
-      const message = deleteAll 
+      const message = deleteAll
         ? 'Are you sure you want to delete ALL occurrences of this recurring task?'
         : 'Are you sure you want to delete this single occurrence?';
-      
+
       if (window.confirm(message)) {
         try {
           setLoading(true);
-          
+
           let data;
           if (deleteAll) {
             // Delete the original recurring task (deletes all instances)
             const taskIdToDelete = selectedTask.is_recurring_instance ? selectedTask.parent_task_id : selectedTask.id;
             const result = await supabase.from('tasks').delete().eq('id', taskIdToDelete);
             data = result.data;
-            
+
             if (result.error) {
               console.error('Error deleting recurring task:', result.error);
               showNotification('error', `Error deleting recurring task: ${result.error.message}`);
@@ -2676,7 +2676,7 @@ const MMCCalendar = () => {
             // Since we can't easily delete individual instances from recurring patterns,
             // we'll create a special task record to mark this instance as deleted
             const instanceKey = selectedTask.instance_key || `${selectedTask.parent_task_id || selectedTask.id}_${selectedTask.year}_${selectedTask.month}_${selectedTask.date}`;
-            
+
             // Create a "deleted" task record to mark this instance as deleted
             const deletedInstance = {
               title: `[DELETED] ${selectedTask.title}`,
@@ -2697,20 +2697,20 @@ const MMCCalendar = () => {
               is_recurring_instance: true,
               is_deleted_instance: true // Flag to identify this as a deleted instance
             };
-            
+
             const result = await supabase.from('tasks').insert([deletedInstance]);
             data = result.data;
-            
+
             if (result.error) {
               console.error('Error marking instance as deleted:', result.error);
               showNotification('error', `Error deleting task instance: ${result.error.message}`);
               return;
             }
-            
+
             // Update local deletedInstances state
             setDeletedInstances(prev => new Set([...prev, instanceKey]));
           }
-          
+
           setShowTaskModal(false);
           setSelectedTask(null);
           await refreshTasks();
@@ -2727,13 +2727,13 @@ const MMCCalendar = () => {
         try {
           setLoading(true);
           const result = await supabase.from('tasks').delete().eq('id', selectedTask.id);
-          
+
           if (result.error) {
             console.error('Error deleting task:', result.error);
             showNotification('error', `Error deleting task: ${result.error.message}`);
             return;
           }
-          
+
           setShowTaskModal(false);
           setSelectedTask(null);
           await refreshTasks();
@@ -2762,7 +2762,7 @@ const MMCCalendar = () => {
     e.preventDefault();
     if (draggedTask && draggedTask.status !== newStatus) {
       await supabase.from('tasks').update({ status: newStatus }).eq('id', draggedTask.id);
-      
+
       // Add activity for status change
       addActivity({
         type: 'status_changed',
@@ -2773,7 +2773,7 @@ const MMCCalendar = () => {
         oldStatus: draggedTask.status,
         newStatus: newStatus
       });
-      
+
       await refreshTasks();
       // Refresh activities to show the new activity
       loadActivities();
@@ -2802,16 +2802,16 @@ const MMCCalendar = () => {
     if (draggedTask && draggedTask.date !== newDate) {
       const newMonth = currentDate.getMonth();
       const newYear = currentDate.getFullYear();
-      
+
       // Check if the new date is valid for the current month
       const daysInMonth = new Date(newYear, newMonth + 1, 0).getDate();
       if (newDate <= daysInMonth) {
         await supabase
           .from('tasks')
-          .update({ 
-            date: newDate, 
-            month: newMonth, 
-            year: newYear 
+          .update({
+            date: newDate,
+            month: newMonth,
+            year: newYear
           })
           .eq('id', draggedTask.id);
         await refreshTasks();
@@ -2842,7 +2842,7 @@ const MMCCalendar = () => {
 
   const getAssigneesAvatars = (task: any) => {
     const assigneeIds = task.assignees && task.assignees.length > 0 ? task.assignees : (task.assignee ? [task.assignee] : []);
-    
+
     if (assigneeIds.length === teamMembers.length) {
       return teamMembers.slice(0, 3).map(member => member.avatar);
     } else {
@@ -2852,71 +2852,71 @@ const MMCCalendar = () => {
 
   const getUserNotificationCount = () => {
     if (!loggedInUserTeamMemberId) return 0;
-    
+
     // Use actual current date for overdue calculation
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
     const currentDay = today.getDate();
-    
-    const userTasks = allTasksWithRecurring.filter(task => 
-      task.status !== 'deleted' && 
+
+    const userTasks = allTasksWithRecurring.filter(task =>
+      task.status !== 'deleted' &&
       task.status !== 'completed' &&
-      ((task.assignees && task.assignees.includes(loggedInUserTeamMemberId)) || 
-       task.assignee === loggedInUserTeamMemberId)
+      ((task.assignees && task.assignees.includes(loggedInUserTeamMemberId)) ||
+        task.assignee === loggedInUserTeamMemberId)
     );
-    
+
     const overdueTasks = userTasks.filter(task => {
       const taskDate = new Date(task.year, task.month, task.date);
       const todayDate = new Date(currentYear, currentMonth, currentDay);
       return taskDate < todayDate;
     });
-    
+
     const highPriorityTasks = userTasks.filter(task => {
       if (task.priority !== 'high') return false;
-      
+
       const taskDate = new Date(task.year, task.month, task.date);
       const todayDate = new Date(currentYear, currentMonth, currentDay);
       const isOverdue = taskDate < todayDate;
-      
+
       // Only show high priority tasks from viewed month
       const viewedYear = currentDate.getFullYear();
       const viewedMonth = currentDate.getMonth();
       const isViewedMonth = task.year === viewedYear && task.month === viewedMonth;
-      
+
       return !isOverdue && isViewedMonth;
     });
-    
+
     // Combine overdue and high priority tasks, removing duplicates
     const uniqueTasks = new Set([
       ...overdueTasks.map(task => task.id),
       ...highPriorityTasks.map(task => task.id)
     ]);
-    
-    
+
+
     return uniqueTasks.size;
   };
 
   const getPersonalOverdueTasks = useCallback(() => {
     if (!loggedInUserTeamMemberId) return [];
-    
+
     // Use actual current date for overdue calculation
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
     const currentDay = today.getDate();
-    
+
     return allTasksWithRecurring.filter(task => {
       if (task.status === 'completed' || task.status === 'deleted') return false;
-      
+
       // Check if task is assigned to current user
-      const isAssignedToUser = (task.assignees && task.assignees.includes(loggedInUserTeamMemberId)) || 
-                               task.assignee === loggedInUserTeamMemberId;
+      const isAssignedToUser = (task.assignees && task.assignees.includes(loggedInUserTeamMemberId)) ||
+        task.assignee === loggedInUserTeamMemberId;
       if (!isAssignedToUser) return false;
-      
+
       const taskDate = new Date(task.year, task.month, task.date);
       const todayDate = new Date(currentYear, currentMonth, currentDay);
-      
+
       return taskDate < todayDate;
     }).sort((a, b) => {
       const dateA = new Date(a.year, a.month, a.date);
@@ -2927,32 +2927,32 @@ const MMCCalendar = () => {
 
   const getPersonalHighPriorityTasks = useCallback(() => {
     if (!loggedInUserTeamMemberId) return [];
-    
+
     // Use actual current date for overdue calculation, but show tasks from viewed month
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
     const currentDay = today.getDate();
-    
+
     const todayDate = new Date(currentYear, currentMonth, currentDay);
     const viewedYear = currentDate.getFullYear();
     const viewedMonth = currentDate.getMonth();
-    
+
     return allTasksWithRecurring.filter(task => {
       if (task.priority !== 'high' || task.status === 'completed' || task.status === 'deleted') return false;
-      
+
       // Check if task is assigned to current user
-      const isAssignedToUser = (task.assignees && task.assignees.includes(loggedInUserTeamMemberId)) || 
-                               task.assignee === loggedInUserTeamMemberId;
+      const isAssignedToUser = (task.assignees && task.assignees.includes(loggedInUserTeamMemberId)) ||
+        task.assignee === loggedInUserTeamMemberId;
       if (!isAssignedToUser) return false;
-      
+
       const taskDate = new Date(task.year, task.month, task.date);
       const isOverdue = taskDate < todayDate;
-      
+
       // Only show high priority tasks from viewed month
       const isViewedMonth = task.year === viewedYear && task.month === viewedMonth;
-      
-      
+
+
       return !isOverdue && isViewedMonth;
     }).sort((a, b) => {
       const dateA = new Date(a.year, a.month, a.date);
@@ -2964,24 +2964,24 @@ const MMCCalendar = () => {
   const getGeneralNotificationCount = () => {
     const overdueTasks = getOverdueTasks();
     const highPriorityTasks = getHighPriorityTasks();
-    
+
     // Combine overdue and high priority tasks, removing duplicates
     const uniqueTasks = new Set([
       ...overdueTasks.map(task => task.id),
       ...highPriorityTasks.map(task => task.id)
     ]);
-    
+
     const today = new Date();
     const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    
-    
+
+
     return uniqueTasks.size;
   };
 
   const days = getDaysInMonth(currentDate);
   const today = new Date().getDate();
-  const isCurrentMonth = currentDate.getMonth() === new Date().getMonth() && 
-                         currentDate.getFullYear() === new Date().getFullYear();
+  const isCurrentMonth = currentDate.getMonth() === new Date().getMonth() &&
+    currentDate.getFullYear() === new Date().getFullYear();
 
   // Loading screen
   if (loading) {
@@ -2989,9 +2989,9 @@ const MMCCalendar = () => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-            <img 
-              src={`${(import.meta as any).env?.BASE_URL || '/'}atlas-logo.png`} 
-              alt="Atlas Logo" 
+            <img
+              src={`${(import.meta as any).env?.BASE_URL || '/'}atlas-logo.png`}
+              alt="Atlas Logo"
               className="w-full h-full object-contain"
             />
           </div>
@@ -3009,16 +3009,16 @@ const MMCCalendar = () => {
         <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
           <div className="text-center mb-8">
             <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-              <img 
-                src={`${(import.meta as any).env?.BASE_URL || '/'}atlas-logo.png`} 
-                alt="Atlas Logo" 
+              <img
+                src={`${(import.meta as any).env?.BASE_URL || '/'}atlas-logo.png`}
+                alt="Atlas Logo"
                 className="w-full h-full object-contain"
               />
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">MMC Calendar</h1>
             <p className="text-gray-600">Access the calendar</p>
           </div>
-          
+
           <div className="space-y-4">
             <button
               onClick={() => setShowLogin(true)}
@@ -3034,7 +3034,7 @@ const MMCCalendar = () => {
                 </div>
               </div>
             </button>
-            
+
             <button
               onClick={() => setUser('guest')}
               className="w-full p-4 border-2 border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 transition-colors text-left"
@@ -3088,9 +3088,8 @@ const MMCCalendar = () => {
             </div>
 
             {resetMessage && (
-              <div className={`text-sm text-center ${
-                resetMessage.includes('Error') ? 'text-red-600' : 'text-green-600'
-              }`}>
+              <div className={`text-sm text-center ${resetMessage.includes('Error') ? 'text-red-600' : 'text-green-600'
+                }`}>
                 {resetMessage}
               </div>
             )}
@@ -3124,18 +3123,18 @@ const MMCCalendar = () => {
         <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
           <div className="text-center mb-8">
             <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-              <img 
-                src={`${(import.meta as any).env?.BASE_URL || '/'}atlas-logo.png`} 
-                alt="Atlas Logo" 
+              <img
+                src={`${(import.meta as any).env?.BASE_URL || '/'}atlas-logo.png`}
+                alt="Atlas Logo"
                 className="w-full h-full object-contain"
               />
             </div>
-                  <h1 className="text-2xl font-bold text-gray-900 mb-2">{isSignUp ? 'Sign Up' : 'Sign In'}</h1>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">{isSignUp ? 'Sign Up' : 'Sign In'}</h1>
             <p className="text-gray-600">
               {isSignUp ? 'We are not accepting new users at this time' : 'Access your MMC Calendar account'}
             </p>
           </div>
-          
+
           <form onSubmit={isSignUp ? (e) => { e.preventDefault(); } : handleSignIn} className="space-y-4">
             {isSignUp && (
               <>
@@ -3149,9 +3148,8 @@ const MMCCalendar = () => {
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
                       disabled={isSignUp}
-                      className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        isSignUp ? 'bg-gray-100 cursor-not-allowed' : ''
-                      }`}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isSignUp ? 'bg-gray-100 cursor-not-allowed' : ''
+                        }`}
                       required
                     />
                   </div>
@@ -3164,9 +3162,8 @@ const MMCCalendar = () => {
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
                       disabled={isSignUp}
-                      className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        isSignUp ? 'bg-gray-100 cursor-not-allowed' : ''
-                      }`}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isSignUp ? 'bg-gray-100 cursor-not-allowed' : ''
+                        }`}
                       required
                     />
                   </div>
@@ -3177,32 +3174,30 @@ const MMCCalendar = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Email
               </label>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      disabled={isSignUp}
-                      className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        isSignUp ? 'bg-gray-100 cursor-not-allowed' : ''
-                      }`}
-                      required
-                    />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isSignUp}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isSignUp ? 'bg-gray-100 cursor-not-allowed' : ''
+                  }`}
+                required
+              />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Password
               </label>
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      disabled={isSignUp}
-                      className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        isSignUp ? 'bg-gray-100 cursor-not-allowed' : ''
-                      }`}
-                      required
-                    />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isSignUp}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isSignUp ? 'bg-gray-100 cursor-not-allowed' : ''
+                  }`}
+                required
+              />
             </div>
 
             {!isSignUp && (
@@ -3219,37 +3214,36 @@ const MMCCalendar = () => {
                 </label>
               </div>
             )}
-            
+
             {authError && (
               <div className="text-red-600 text-sm text-center">
                 {authError}
               </div>
             )}
-            
-                  <button
-                    type="submit"
-                    disabled={isSignUp}
-                    className={`w-full py-2 px-4 rounded-md transition-colors ${
-                      isSignUp 
-                        ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
-                        : 'bg-blue-600 text-white hover:bg-blue-700'
-                    }`}
-                  >
-                    {isSignUp ? 'Sign Up (Disabled)' : 'Sign In'}
-                  </button>
-                  
-                  {!isSignUp && (
-                    <div className="text-center">
-                      <button
-                        type="button"
-                        onClick={() => setShowForgotPassword(true)}
-                        className="text-blue-600 hover:text-blue-800 text-sm"
-                      >
-                        Forgot your password?
-                      </button>
-                    </div>
-                  )}
-            
+
+            <button
+              type="submit"
+              disabled={isSignUp}
+              className={`w-full py-2 px-4 rounded-md transition-colors ${isSignUp
+                ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+            >
+              {isSignUp ? 'Sign Up (Disabled)' : 'Sign In'}
+            </button>
+
+            {!isSignUp && (
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-blue-600 hover:text-blue-800 text-sm"
+                >
+                  Forgot your password?
+                </button>
+              </div>
+            )}
+
             <div className="text-center">
               <button
                 type="button"
@@ -3259,7 +3253,7 @@ const MMCCalendar = () => {
                 {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
               </button>
             </div>
-            
+
             <div className="text-center">
               <button
                 type="button"
@@ -3269,52 +3263,52 @@ const MMCCalendar = () => {
                 ← Back to options
               </button>
             </div>
-        </form>
+          </form>
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
 
   // Kanban columns
   const kanbanColumns = [
-    { id: 'planned', title: 'Planned', color: 'bg-green-50' },
-    { id: 'in-progress', title: 'In Progress', color: 'bg-yellow-50' },
-    { id: 'review', title: 'Review', color: 'bg-orange-50' },
-    { id: 'completed', title: 'Completed', color: 'bg-blue-50' }
+    { id: 'planned', title: 'Planned', color: 'bg-green-50', borderColor: 'darkgreen' },
+    { id: 'in-progress', title: 'In Progress', color: 'bg-yellow-50', borderColor: 'rosybrown' },
+    { id: 'review', title: 'Review', color: 'bg-orange-50', borderColor: 'darkorange' },
+    { id: 'completed', title: 'Completed', color: 'bg-blue-50', borderColor: 'darkblue' }
   ];
 
   const getTasksByStatus = (status: string) => {
     const currentMonth = currentDate.getMonth();
     const currentYear = currentDate.getFullYear();
-    
-    const tasks = getAllFilteredTasks().filter(task => 
-      task.status === status && 
-      task.month === currentMonth && 
+
+    const tasks = getAllFilteredTasks().filter(task =>
+      task.status === status &&
+      task.month === currentMonth &&
       task.year === currentYear
     );
-    
+
     return tasks;
   };
 
   const handleMonthlyOverviewClick = (status: string) => {
     // Switch to Kanban view
     setActiveView('Kanban');
-    
+
     // Start the highlight animation sequence
     setHighlightedColumn(status);
     setHighlightPhase('appearing');
-    
+
     // Phase 1: Appearing (0.5s)
     setTimeout(() => {
       setHighlightPhase('glowing');
     }, 500);
-    
+
     // Phase 2: Glowing (2s)
     setTimeout(() => {
       setHighlightPhase('disappearing');
     }, 2500);
-    
+
     // Phase 3: Disappearing (1s)
     setTimeout(() => {
       setHighlightedColumn(null);
@@ -3357,7 +3351,7 @@ const MMCCalendar = () => {
         '[class*="overflow-y-auto"]',
         '.flex-1.overflow-y-auto'
       ];
-      
+
       for (const selector of selectors) {
         const container = document.querySelector(selector) as HTMLElement;
         if (container && container.scrollTop !== undefined) {
@@ -3365,7 +3359,7 @@ const MMCCalendar = () => {
           return true;
         }
       }
-      
+
       // Fallback: scroll window to top
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return true;
@@ -3373,7 +3367,7 @@ const MMCCalendar = () => {
 
     // Immediate attempt
     scrollToTop();
-    
+
     // Multiple retry attempts with increasing delays
     setTimeout(scrollToTop, 50);
     setTimeout(scrollToTop, 100);
@@ -3385,7 +3379,7 @@ const MMCCalendar = () => {
   const MonthYearPicker = () => {
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
-    
+
     return (
       <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-6 min-w-80 month-year-picker">
         <div className="flex items-center justify-between mb-4">
@@ -3399,7 +3393,7 @@ const MMCCalendar = () => {
             </svg>
           </button>
         </div>
-        
+
         {/* Year Selection */}
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
@@ -3421,7 +3415,7 @@ const MMCCalendar = () => {
             </button>
           </div>
         </div>
-        
+
         {/* Month Grid */}
         <div className="grid grid-cols-3 gap-2">
           {monthNames.map((month, index) => (
@@ -3431,11 +3425,10 @@ const MMCCalendar = () => {
                 setCurrentDate(new Date(currentYear, index, 1));
                 setShowMonthYearPicker(false);
               }}
-              className={`p-2 text-sm rounded-md transition-colors ${
-                index === currentMonth
-                  ? 'bg-blue-100 text-blue-800 font-semibold border border-blue-200'
-                  : 'hover:bg-gray-100 text-gray-700'
-              }`}
+              className={`p-2 text-sm rounded-md transition-colors ${index === currentMonth
+                ? 'bg-blue-100 text-blue-800 font-semibold border border-blue-200'
+                : 'hover:bg-gray-100 text-gray-700'
+                }`}
             >
               {month}
             </button>
@@ -3453,25 +3446,25 @@ const MMCCalendar = () => {
     const selectedDayValue = selectedDay.getDate();
     const selectedMonth = selectedDay.getMonth();
     const selectedYear = selectedDay.getFullYear();
-    
+
     // Generate calendar days
     const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
     const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
     const firstDayOfWeek = firstDayOfMonth.getDay();
     const daysInMonth = lastDayOfMonth.getDate();
-    
+
     const calendarDays: Array<number | null> = [];
-    
+
     // Add empty cells for days before the first day of the month
     for (let i = 0; i < firstDayOfWeek; i++) {
       calendarDays.push(null);
     }
-    
+
     // Add days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       calendarDays.push(day);
     }
-    
+
     return (
       <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-4 min-w-80 day-picker">
         <div className="flex items-center justify-between mb-4">
@@ -3485,7 +3478,7 @@ const MMCCalendar = () => {
             </svg>
           </button>
         </div>
-        
+
         {/* Month/Year Navigation */}
         <div className="flex items-center justify-between mb-4">
           <button
@@ -3510,7 +3503,7 @@ const MMCCalendar = () => {
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>
-        
+
         {/* Day Headers */}
         <div className="grid grid-cols-7 gap-1 mb-2">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
@@ -3519,21 +3512,21 @@ const MMCCalendar = () => {
             </div>
           ))}
         </div>
-        
+
         {/* Calendar Grid */}
         <div className="grid grid-cols-7 gap-1">
           {calendarDays.map((day, index) => {
             if (day === null) {
               return <div key={index} className="p-2"></div>;
             }
-            
-            const isToday = day === today.getDate() && 
-                           currentMonth === today.getMonth() && 
-                           currentYear === today.getFullYear();
-            const isSelected = day === selectedDayValue && 
-                              currentMonth === selectedMonth && 
-                              currentYear === selectedYear;
-            
+
+            const isToday = day === today.getDate() &&
+              currentMonth === today.getMonth() &&
+              currentYear === today.getFullYear();
+            const isSelected = day === selectedDayValue &&
+              currentMonth === selectedMonth &&
+              currentYear === selectedYear;
+
             return (
               <button
                 key={index}
@@ -3541,22 +3534,21 @@ const MMCCalendar = () => {
                   const newSelectedDay = new Date(currentYear, currentMonth, day);
                   setSelectedDay(newSelectedDay);
                   setShowDayPicker(false);
-                  
+
                   // Update top bar month if selecting a day from different month
                   const currentTopMonth = currentDate.getMonth();
                   const currentTopYear = currentDate.getFullYear();
-                  
+
                   if (currentMonth !== currentTopMonth || currentYear !== currentTopYear) {
                     setCurrentDate(new Date(currentYear, currentMonth, 1));
                   }
                 }}
-                className={`p-2 text-sm rounded-md transition-colors ${
-                  isSelected
-                    ? 'bg-blue-100 text-blue-800 font-semibold'
-                    : isToday
+                className={`p-2 text-sm rounded-md transition-colors ${isSelected
+                  ? 'bg-blue-100 text-blue-800 font-semibold'
+                  : isToday
                     ? 'bg-gray-100 text-gray-900 font-semibold'
                     : 'hover:bg-gray-100 text-gray-700'
-                }`}
+                  }`}
               >
                 {day}
               </button>
@@ -3572,36 +3564,36 @@ const MMCCalendar = () => {
     const year = date.getFullYear();
     const month = date.getMonth();
     const day = date.getDate();
-    
+
     const filteredTasks = allTasksWithRecurring.filter(task => {
       // Only exclude deleted tasks, include completed tasks for now
       if (task.status === 'deleted') return false;
-      
+
       // Exclude all-day tasks from hourly sections (they're shown in the all-day section)
       if (task.is_all_day) {
         return false;
       }
-      
+
       // Exclude multi-day tasks from hourly sections (they're shown in the all-day section)
       if (task.is_multiday) {
         return false;
       }
-      
+
       // For regular tasks, check if task is on this date
       const taskDate = new Date(task.year, task.month, task.date);
       const targetDate = new Date(year, month, day);
-      
+
       if (taskDate.getFullYear() !== targetDate.getFullYear() ||
-          taskDate.getMonth() !== targetDate.getMonth() ||
-          taskDate.getDate() !== targetDate.getDate()) {
+        taskDate.getMonth() !== targetDate.getMonth() ||
+        taskDate.getDate() !== targetDate.getDate()) {
         return false;
       }
-      
+
       // For regular tasks, check if task is scheduled for this hour
       const taskHour = parseInt(task.time.split(':')[0]);
       return taskHour === hour;
     });
-    
+
     return filteredTasks;
   };
 
@@ -3611,34 +3603,34 @@ const MMCCalendar = () => {
     const month = date.getMonth();
     const day = date.getDate();
     const targetDate = new Date(year, month, day);
-    
+
     return allTasksWithRecurring.filter(task => {
       // Only exclude deleted tasks, include completed tasks for now
       if (task.status === 'deleted') return false;
-      
+
       // All-day tasks
       if (task.is_all_day) {
         const taskDate = new Date(task.year, task.month, task.date);
         // More robust date comparison
         return taskDate.getFullYear() === targetDate.getFullYear() &&
-               taskDate.getMonth() === targetDate.getMonth() &&
-               taskDate.getDate() === targetDate.getDate();
+          taskDate.getMonth() === targetDate.getMonth() &&
+          taskDate.getDate() === targetDate.getDate();
       }
-      
+
       // Multi-day tasks
       if (task.is_multiday && task.start_date && task.end_date) {
         try {
           // Parse dates safely to avoid timezone issues
           const startDate = new Date(task.start_date + 'T00:00:00');
           const endDate = new Date(task.end_date + 'T23:59:59');
-          
+
           return targetDate >= startDate && targetDate <= endDate;
         } catch (error) {
           console.error('Error parsing multi-day task dates:', error, task);
           return false;
         }
       }
-      
+
       return false;
     });
   };
@@ -3694,7 +3686,7 @@ const MMCCalendar = () => {
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
-    
+
     if (activeView === 'Day') {
       // In day view, just switch to today's date
       setSelectedDay(today);
@@ -3703,37 +3695,37 @@ const MMCCalendar = () => {
     } else {
       // In calendar or kanban view, use the same logic as logo click
       // Check if we're already viewing the current month
-      const isAlreadyOnCurrentMonth = currentDate.getMonth() === currentMonth && 
-                                     currentDate.getFullYear() === currentYear;
-      
+      const isAlreadyOnCurrentMonth = currentDate.getMonth() === currentMonth &&
+        currentDate.getFullYear() === currentYear;
+
       // Only navigate if we're not already on the current month
       if (!isAlreadyOnCurrentMonth) {
         setCurrentDate(new Date(currentYear, currentMonth, today.getDate()));
       }
-      
+
       setActiveView('Calendar');
-      
+
       // Always show the highlight animation
       setHighlightedToday(true);
       setTodayHighlightPhase('appearing');
-      
+
       // Scroll to today's day after a delay to ensure the calendar is rendered
       // Use longer delay when navigating from different month
       const scrollDelay = isAlreadyOnCurrentMonth ? 100 : 500;
       setTimeout(() => {
         scrollToToday();
       }, scrollDelay);
-      
+
       // Phase 1: Appearing (0.5s)
       setTimeout(() => {
         setTodayHighlightPhase('glowing');
       }, 500);
-      
+
       // Phase 2: Glowing (2s)
       setTimeout(() => {
         setTodayHighlightPhase('disappearing');
       }, 2500);
-      
+
       // Phase 3: Disappearing (1s)
       setTimeout(() => {
         setHighlightedToday(false);
@@ -3777,7 +3769,7 @@ const MMCCalendar = () => {
           top: 0,
           behavior: 'smooth'
         });
-        
+
         // Add a visual indicator that drawer opened
         const drawer = document.querySelector('[data-drawer="true"]');
         if (drawer) {
@@ -3805,9 +3797,9 @@ const MMCCalendar = () => {
     <div className="flex min-h-screen bg-gray-50">
       {/* Mobile Notification - Full Screen */}
       {showMobileNotification && (
-        <div 
+        <div
           className="fixed top-0 left-0 w-screen h-screen z-[9999] bg-blue-600 text-white flex flex-col items-center justify-center p-6"
-          style={{ 
+          style={{
             position: 'fixed',
             top: 0,
             left: 0,
@@ -3844,21 +3836,19 @@ const MMCCalendar = () => {
         {notifications.map((notification) => (
           <div
             key={notification.id}
-            className={`w-[500px] bg-white rounded-2xl shadow-2xl border-4 p-12 transform transition-all duration-300 ease-in-out relative ${
-              notification.type === 'success' ? 'border-green-500' :
+            className={`w-[500px] bg-white rounded-2xl shadow-2xl border-4 p-12 transform transition-all duration-300 ease-in-out relative ${notification.type === 'success' ? 'border-green-500' :
               notification.type === 'error' ? 'border-red-500' :
-              notification.type === 'warning' ? 'border-yellow-500' :
-              'border-blue-500'
-            }`}
+                notification.type === 'warning' ? 'border-yellow-500' :
+                  'border-blue-500'
+              }`}
           >
             {/* Close button in top-right corner */}
             <button
-              className={`absolute top-2 right-2 inline-flex rounded-full p-1 bg-white border-2 shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                notification.type === 'success' ? 'text-green-500 border-green-500 hover:text-green-700 hover:bg-green-50 focus:ring-green-500' :
+              className={`absolute top-2 right-2 inline-flex rounded-full p-1 bg-white border-2 shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 ${notification.type === 'success' ? 'text-green-500 border-green-500 hover:text-green-700 hover:bg-green-50 focus:ring-green-500' :
                 notification.type === 'error' ? 'text-red-500 border-red-500 hover:text-red-700 hover:bg-red-50 focus:ring-red-500' :
-                notification.type === 'warning' ? 'text-yellow-500 border-yellow-500 hover:text-yellow-700 hover:bg-yellow-50 focus:ring-yellow-500' :
-                'text-blue-500 border-blue-500 hover:text-blue-700 hover:bg-blue-50 focus:ring-blue-500'
-              }`}
+                  notification.type === 'warning' ? 'text-yellow-500 border-yellow-500 hover:text-yellow-700 hover:bg-yellow-50 focus:ring-yellow-500' :
+                    'text-blue-500 border-blue-500 hover:text-blue-700 hover:bg-blue-50 focus:ring-blue-500'
+                }`}
               onClick={() => removeNotification(notification.id)}
             >
               <span className="sr-only">Close</span>
@@ -3869,39 +3859,38 @@ const MMCCalendar = () => {
 
             {/* Main content */}
             <div className="flex items-center justify-center">
-                <div className="flex-shrink-0 mr-4">
-                  {notification.type === 'success' && (
-                    <svg className="h-12 w-12 text-green-500" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                  {notification.type === 'error' && (
-                    <svg className="h-12 w-12 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                  {notification.type === 'warning' && (
-                    <svg className="h-12 w-12 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                  {notification.type === 'info' && (
-                    <svg className="h-12 w-12 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </div>
-                <div className="flex-1 text-center">
-                  <p className={`text-xl font-bold ${
-                    notification.type === 'success' ? 'text-green-800' :
-                    notification.type === 'error' ? 'text-red-800' :
-                    notification.type === 'warning' ? 'text-yellow-800' :
-                    'text-blue-800'
-                  }`}>
-                    {notification.message}
-                  </p>
-                </div>
+              <div className="flex-shrink-0 mr-4">
+                {notification.type === 'success' && (
+                  <svg className="h-12 w-12 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                )}
+                {notification.type === 'error' && (
+                  <svg className="h-12 w-12 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                )}
+                {notification.type === 'warning' && (
+                  <svg className="h-12 w-12 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                )}
+                {notification.type === 'info' && (
+                  <svg className="h-12 w-12 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                )}
               </div>
+              <div className="flex-1 text-center">
+                <p className={`text-xl font-bold ${notification.type === 'success' ? 'text-green-800' :
+                  notification.type === 'error' ? 'text-red-800' :
+                    notification.type === 'warning' ? 'text-yellow-800' :
+                      'text-blue-800'
+                  }`}>
+                  {notification.message}
+                </p>
+              </div>
+            </div>
           </div>
         ))}
       </div>
@@ -3909,7 +3898,7 @@ const MMCCalendar = () => {
 
       {/* Mobile Overlay */}
       {isMobile && sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40"
           onClick={() => {
             setSidebarOpen(false);
@@ -3917,29 +3906,26 @@ const MMCCalendar = () => {
           }}
         />
       )}
-      
+
       {/* Sidebar */}
-      <div className={`${
-        isMobile 
-          ? `fixed left-0 top-0 h-full w-80 z-50 transform transition-transform duration-300 ease-in-out ${
-              sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-            }`
-          : 'w-64'
-      } bg-white border-r border-gray-200 flex flex-col min-h-screen ${
-        user === 'guest' ? 'hidden' : ''
-      }`} style={{
-        // Ensure mobile sidebar is properly positioned
-        ...(isMobile && {
-          position: 'fixed',
-          left: 0,
-          top: 0,
-          height: '100%',
-          width: '320px',
-          zIndex: 50,
-          transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
-          transition: 'transform 300ms ease-in-out'
-        })
-      }}>
+      <div className={`${isMobile
+        ? `fixed left-0 top-0 h-full w-80 z-50 transform transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`
+        : 'w-64'
+        } bg-white border-r border-gray-200 flex flex-col min-h-screen ${user === 'guest' ? 'hidden' : ''
+        }`} style={{
+          // Ensure mobile sidebar is properly positioned
+          ...(isMobile && {
+            position: 'fixed',
+            left: 0,
+            top: 0,
+            height: '100%',
+            width: '320px',
+            zIndex: 50,
+            transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
+            transition: 'transform 300ms ease-in-out'
+          })
+        }}>
         {/* Close button for mobile */}
         {isMobile && sidebarOpen && (
           <button
@@ -3953,377 +3939,375 @@ const MMCCalendar = () => {
             <X className="w-5 h-5" />
           </button>
         )}
-        
+
         <div className="p-4 flex-1">
           <div className="mb-6">
-          <div 
-            className="flex items-center space-x-2 mb-4 cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => {
-              const today = new Date();
-              const currentYear = today.getFullYear();
-              const currentMonth = today.getMonth();
-              
-              // Check if we're already viewing the current month
-              const isAlreadyOnCurrentMonth = currentDate.getMonth() === currentMonth && 
-                                             currentDate.getFullYear() === currentYear;
-              
-              // Only navigate if we're not already on the current month
-              if (!isAlreadyOnCurrentMonth) {
-                setCurrentDate(new Date(currentYear, currentMonth, today.getDate()));
-              }
-              
-              setActiveView('Calendar');
-              
-              // Always show the highlight animation
-              setHighlightedToday(true);
-              setTodayHighlightPhase('appearing');
-              
-              // Scroll to today's day after a delay to ensure the calendar is rendered
-              // Use longer delay when navigating from different month
-              const scrollDelay = isAlreadyOnCurrentMonth ? 100 : 500;
-              setTimeout(() => {
-                scrollToToday();
-              }, scrollDelay);
-              
-              // Phase 1: Appearing (0.5s)
-              setTimeout(() => {
-                setTodayHighlightPhase('glowing');
-              }, 500);
-              
-              // Phase 2: Glowing (2s)
-              setTimeout(() => {
-                setTodayHighlightPhase('disappearing');
-              }, 2500);
-              
-              // Phase 3: Disappearing (1s)
-              setTimeout(() => {
-                setHighlightedToday(false);
-                setTodayHighlightPhase(null);
-              }, 3500);
-            }}
-            title="Go to today"
-          >
-            <div className="w-8 h-8 flex items-center justify-center">
-              <img 
-                src={`${(import.meta as any).env?.BASE_URL || '/'}atlas-logo.png`} 
-                alt="Atlas Logo" 
-                className="w-full h-full object-contain"
-              />
-            </div>
-            <h1 className="text-lg font-semibold text-gray-900">MMC Calendar</h1>
-          </div>
-        </div>
-        {/* Monthly Overview */}
-        <div className="mb-6">
-          <h3 className="text-sm font-medium text-gray-900 mb-3">Monthly Overview</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <div 
-              className="bg-green-50 rounded-lg p-3 cursor-pointer hover:bg-green-100 transition-colors text-center"
-              onClick={() => handleMonthlyOverviewClick('planned')}
-              title="Click to view in Kanban"
+            <div
+              className="flex items-center space-x-2 mb-4 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => {
+                const today = new Date();
+                const currentYear = today.getFullYear();
+                const currentMonth = today.getMonth();
+
+                // Check if we're already viewing the current month
+                const isAlreadyOnCurrentMonth = currentDate.getMonth() === currentMonth &&
+                  currentDate.getFullYear() === currentYear;
+
+                // Only navigate if we're not already on the current month
+                if (!isAlreadyOnCurrentMonth) {
+                  setCurrentDate(new Date(currentYear, currentMonth, today.getDate()));
+                }
+
+                setActiveView('Calendar');
+
+                // Always show the highlight animation
+                setHighlightedToday(true);
+                setTodayHighlightPhase('appearing');
+
+                // Scroll to today's day after a delay to ensure the calendar is rendered
+                // Use longer delay when navigating from different month
+                const scrollDelay = isAlreadyOnCurrentMonth ? 100 : 500;
+                setTimeout(() => {
+                  scrollToToday();
+                }, scrollDelay);
+
+                // Phase 1: Appearing (0.5s)
+                setTimeout(() => {
+                  setTodayHighlightPhase('glowing');
+                }, 500);
+
+                // Phase 2: Glowing (2s)
+                setTimeout(() => {
+                  setTodayHighlightPhase('disappearing');
+                }, 2500);
+
+                // Phase 3: Disappearing (1s)
+                setTimeout(() => {
+                  setHighlightedToday(false);
+                  setTodayHighlightPhase(null);
+                }, 3500);
+              }}
+              title="Go to today"
             >
-              <div className="text-2xl font-bold text-green-600">{upcomingCount}</div>
-              <div className="text-xs text-gray-600">Planned</div>
-            </div>
-            <div 
-              className="bg-yellow-50 rounded-lg p-3 cursor-pointer hover:bg-yellow-100 transition-colors text-center"
-              onClick={() => handleMonthlyOverviewClick('in-progress')}
-              title="Click to view in Kanban"
-            >
-              <div className="text-2xl font-bold text-yellow-600">{inProgressCount}</div>
-              <div className="text-xs text-gray-600">In Progress</div>
-            </div>
-            <div 
-              className="bg-orange-50 rounded-lg p-3 cursor-pointer hover:bg-orange-100 transition-colors text-center"
-              onClick={() => handleMonthlyOverviewClick('review')}
-              title="Click to view in Kanban"
-            >
-              <div className="text-2xl font-bold text-orange-600">{reviewCount}</div>
-              <div className="text-xs text-gray-600">Review</div>
-            </div>
-            <div 
-              className="bg-blue-50 rounded-lg p-3 cursor-pointer hover:bg-blue-100 transition-colors text-center"
-              onClick={() => handleMonthlyOverviewClick('completed')}
-              title="Click to view in Kanban"
-            >
-              <div className="text-2xl font-bold text-blue-600">{completedCount}</div>
-              <div className="text-xs text-gray-600">Completed</div>
-            </div>
-          </div>
-        </div>
-        {/* Team Filter */}
-        {selectedTeamMember && (
-          <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <UserCheck className="w-4 h-4 text-blue-600" />
-                <span className="text-sm text-blue-800">
-                  {teamMembers.find(m => m.id === selectedTeamMember)?.name}
-                </span>
-              </div>
-              <button
-                onClick={() => setSelectedTeamMember(null)}
-                className="text-blue-600 hover:text-blue-800"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
-        {/* Filters */}
-        <div className="mb-6">
-          <h3 className="text-sm font-medium text-gray-900 mb-3">Filters</h3>
-          <div className="space-y-2">
-            {categories.map(category => (
-              <label key={category.name} className={`flex items-center space-x-2 ${
-                user !== 'guest' ? 'cursor-pointer' : 'cursor-default'
-              }`}>
-                <input
-                  type="checkbox"
-                  checked={selectedFilters[category.name] || false}
-                  onChange={user !== 'guest' ? () => toggleFilter(category.name) : undefined}
-                  disabled={user === 'guest'}
-                  className="rounded border-gray-300"
+              <div className="w-8 h-8 flex items-center justify-center">
+                <img
+                  src={`${(import.meta as any).env?.BASE_URL || '/'}atlas-logo.png`}
+                  alt="Atlas Logo"
+                  className="w-full h-full object-contain"
                 />
-                <div className="flex items-center space-x-2 flex-1">
-                  <div 
-                    className={`w-3 h-3 rounded-full ${
-                      category.color_class.includes('bg-[') 
-                        ? '' 
-                        : category.color_class.includes('blue') ? 'bg-blue-500' :
-                          category.color_class.includes('green') ? 'bg-green-500' :
-                          category.color_class.includes('purple') ? 'bg-purple-500' :
-                          category.color_class.includes('orange') ? 'bg-orange-500' :
-                          category.color_class.includes('red') ? 'bg-red-500' :
-                          category.color_class.includes('yellow') ? 'bg-yellow-500' :
-                          category.color_class.includes('pink') ? 'bg-pink-500' :
-                          category.color_class.includes('indigo') ? 'bg-indigo-500' :
-                          category.color_class.includes('teal') ? 'bg-teal-500' :
-                          category.color_class.includes('cyan') ? 'bg-cyan-500' :
-                          category.color_class.includes('lime') ? 'bg-lime-500' :
-                          category.color_class.includes('white') ? 'bg-white border border-gray-300' :
-                          category.color_class.includes('amber') ? 'bg-amber-500' :
-                          category.color_class.includes('fuchsia') ? 'bg-fuchsia-500' :
-                          category.color_class.includes('stone') ? 'bg-stone-500' :
-                          category.color_class.includes('sky') ? 'bg-sky-500' :
-                          'bg-gray-500'
-                    }`}
-                    style={{
-                      backgroundColor: category.color_class.includes('bg-[') 
-                        ? category.color_class.match(/bg-\[([^\]]+)\]/)?.[1] || '#6B7280'
-                        : undefined
-                    }}
-                  ></div>
-                  <span className="text-sm text-gray-700">{category.display_name}</span>
-                </div>
-                <span className={`text-xs px-2 py-1 rounded min-w-[24px] text-center ${
-                  category.color_class.includes('white') 
-                    ? 'bg-white text-gray-800 border border-gray-300' 
-                    : category.color_class
-                }`}>
-                  {filterCounts[category.name] || 0}
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {/* Team Members */}
-        <div className="mb-6">
-          <h3 className="text-sm font-medium text-gray-900 mb-3">
-            Team Members
-            {user && user !== 'guest' && (
-              <span className="text-xs text-gray-500 ml-2">(Click to filter tasks)</span>
-            )}
-          </h3>
-          
-          
-          <div className="space-y-3">
-            {/* Show All option */}
-            <div 
-              className={`flex items-center space-x-3 p-2 rounded-lg ${
-                user !== 'guest' ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default'
-              } ${
-                selectedTeamMember === null ? 'bg-blue-50 border border-blue-200' : ''
-              }`}
-              onClick={user !== 'guest' ? () => handleTeamMemberClick(null) : undefined}
-            >
-              <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 text-xs font-medium">
-                All
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-gray-900">Show All Tasks</div>
-                <div className="text-xs text-gray-500">View tasks from all team members</div>
+              <h1 className="text-lg font-semibold text-gray-900">MMC Calendar</h1>
+            </div>
+          </div>
+          {/* Monthly Overview */}
+          <div className="mb-6">
+            <h3 className="text-sm font-medium text-gray-900 mb-3">Monthly Overview</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div
+                className="bg-green-50 rounded-lg p-3 cursor-pointer hover:bg-green-100 transition-colors text-center"
+                onClick={() => handleMonthlyOverviewClick('planned')}
+                title="Click to view in Kanban"
+              >
+                <div className="text-2xl font-bold text-green-600">{upcomingCount}</div>
+                <div className="text-xs text-gray-600">Planned</div>
+              </div>
+              <div
+                className="bg-yellow-50 rounded-lg p-3 cursor-pointer hover:bg-yellow-100 transition-colors text-center"
+                onClick={() => handleMonthlyOverviewClick('in-progress')}
+                title="Click to view in Kanban"
+              >
+                <div className="text-2xl font-bold text-yellow-600">{inProgressCount}</div>
+                <div className="text-xs text-gray-600">In Progress</div>
+              </div>
+              <div
+                className="bg-orange-50 rounded-lg p-3 cursor-pointer hover:bg-orange-100 transition-colors text-center"
+                onClick={() => handleMonthlyOverviewClick('review')}
+                title="Click to view in Kanban"
+              >
+                <div className="text-2xl font-bold text-orange-600">{reviewCount}</div>
+                <div className="text-xs text-gray-600">Review</div>
+              </div>
+              <div
+                className="bg-blue-50 rounded-lg p-3 cursor-pointer hover:bg-blue-100 transition-colors text-center"
+                onClick={() => handleMonthlyOverviewClick('completed')}
+                title="Click to view in Kanban"
+              >
+                <div className="text-2xl font-bold text-blue-600">{completedCount}</div>
+                <div className="text-xs text-gray-600">Completed</div>
               </div>
             </div>
-            
-            {teamMembers.map(member => (
-              <div 
-                key={member.id} 
-                className={`flex items-center space-x-3 p-2 rounded-lg ${
-                  user !== 'guest' ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default'
-                } ${
-                  selectedTeamMember === member.id ? 'bg-blue-50 border border-blue-200' : ''
-                }`}
-                onClick={user !== 'guest' ? () => handleTeamMemberClick(member.id) : undefined}
-              >
-                <div className={`w-8 h-8 ${member.color} rounded-full flex items-center justify-center text-white text-xs font-medium`}>
-                  {member.avatar}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-900">{member.name}</div>
-                  <div className="text-xs text-gray-500 truncate">{member.role}</div>
-                </div>
-                {member.active && (
-                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                )}
-              </div>
-            ))}
           </div>
-        </div>
-
-        {/* Admin Section - Bottom of Sidebar */}
-        {isAdmin && (
-          <div className="mt-auto">
-            {/* Separator */}
-            <div className="border-t border-gray-200 my-4"></div>
-            
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-medium text-blue-900">Admin Section</h3>
+          {/* Team Filter */}
+          {selectedTeamMember && (
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <UserCheck className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm text-blue-800">
+                    {teamMembers.find(m => m.id === selectedTeamMember)?.name}
+                  </span>
+                </div>
                 <button
-                  onClick={() => setShowCategoryManagement(!showCategoryManagement)}
-                  className="text-xs text-blue-600 hover:text-blue-800"
+                  onClick={() => setSelectedTeamMember(null)}
+                  className="text-blue-600 hover:text-blue-800"
                 >
-                  {showCategoryManagement ? 'Hide' : 'Manage All'}
+                  <X className="w-4 h-4" />
                 </button>
               </div>
-              
-              {showCategoryManagement && (
-                <div className="space-y-4">
-                  {/* Category Management */}
-                  <div>
-                    <h4 className="text-xs font-medium text-blue-700 mb-2 uppercase tracking-wide">Category Management</h4>
-                    <div className="space-y-2">
-                      {categories.map(category => (
-                        <div key={category.id} className="flex items-center justify-between p-2 bg-white rounded-lg border border-blue-100">
-                          <div className="flex items-center space-x-2 flex-1">
-                            <div 
-                              className={`w-3 h-3 rounded-full ${
-                                category.color_class.includes('bg-[') 
-                                  ? '' 
+            </div>
+          )}
+          {/* Filters */}
+          <div className="mb-6">
+            <h3 className="text-sm font-medium text-gray-900 mb-3">Filters</h3>
+            <div className="space-y-2">
+              {categories.map(category => (
+                <label key={category.name} className={`flex items-center space-x-2 ${user !== 'guest' ? 'cursor-pointer' : 'cursor-default'
+                  }`}>
+                  <input
+                    type="checkbox"
+                    checked={selectedFilters[category.name] || false}
+                    onChange={user !== 'guest' ? () => toggleFilter(category.name) : undefined}
+                    disabled={user === 'guest'}
+                    className="rounded border-gray-300"
+                  />
+                  <div className="flex items-center space-x-2 flex-1">
+                    <div
+                      className={`w-3 h-3 rounded-full ${category.color_class.includes('bg-[')
+                        ? ''
+                        : category.color_class.includes('blue') ? 'bg-blue-500' :
+                          category.color_class.includes('green') ? 'bg-green-500' :
+                            category.color_class.includes('purple') ? 'bg-purple-500' :
+                              category.color_class.includes('orange') ? 'bg-orange-500' :
+                                category.color_class.includes('red') ? 'bg-red-500' :
+                                  category.color_class.includes('yellow') ? 'bg-yellow-500' :
+                                    category.color_class.includes('pink') ? 'bg-pink-500' :
+                                      category.color_class.includes('indigo') ? 'bg-indigo-500' :
+                                        category.color_class.includes('teal') ? 'bg-teal-500' :
+                                          category.color_class.includes('cyan') ? 'bg-cyan-500' :
+                                            category.color_class.includes('lime') ? 'bg-lime-500' :
+                                              category.color_class.includes('white') ? 'bg-white border border-gray-300' :
+                                                category.color_class.includes('amber') ? 'bg-amber-500' :
+                                                  category.color_class.includes('fuchsia') ? 'bg-fuchsia-500' :
+                                                    category.color_class.includes('stone') ? 'bg-stone-500' :
+                                                      category.color_class.includes('sky') ? 'bg-sky-500' :
+                                                        'bg-gray-500'
+                        }`}
+                      style={{
+                        backgroundColor: category.color_class.includes('bg-[')
+                          ? category.color_class.match(/bg-\[([^\]]+)\]/)?.[1] || '#6B7280'
+                          : undefined
+                      }}
+                    ></div>
+                    <span className="text-sm text-gray-700">{category.display_name}</span>
+                  </div>
+                  <span className={`text-xs px-2 py-1 rounded min-w-[24px] text-center ${category.color_class.includes('white')
+                    ? 'bg-white text-gray-800 border border-gray-300'
+                    : category.color_class
+                    }`}>
+                    {filterCounts[category.name] || 0}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Team Members */}
+          <div className="mb-6">
+            <h3 className="text-sm font-medium text-gray-900 mb-3">
+              Team Members
+              {user && user !== 'guest' && (
+                <span className="text-xs text-gray-500 ml-2">(Click to filter tasks)</span>
+              )}
+            </h3>
+
+
+            <div className="space-y-3">
+              {/* Show All option */}
+              <div
+                className={`flex items-center space-x-3 p-2 rounded-lg ${user !== 'guest' ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default'
+                  } ${selectedTeamMember === null ? 'bg-blue-50 border border-blue-200' : ''
+                  }`}
+                onClick={user !== 'guest' ? () => handleTeamMemberClick(null) : undefined}
+              >
+                <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 text-xs font-medium">
+                  All
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-gray-900">Show All Tasks</div>
+                  <div className="text-xs text-gray-500">View tasks from all team members</div>
+                </div>
+              </div>
+
+              {teamMembers.map(member => (
+                <div
+                  key={member.id}
+                  className={`flex items-center space-x-3 p-2 rounded-lg ${user !== 'guest' ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default'
+                    } ${selectedTeamMember === member.id ? 'bg-blue-50 border border-blue-200' : ''
+                    }`}
+                  onClick={user !== 'guest' ? () => handleTeamMemberClick(member.id) : undefined}
+                >
+                  <div className={`w-8 h-8 ${member.color} rounded-full flex items-center justify-center text-white text-xs font-medium`}>
+                    {member.avatar}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-gray-900">{member.name}</div>
+                    <div className="text-xs text-gray-500 truncate">{member.role}</div>
+                  </div>
+                  {member.active && (
+                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Admin Section - Bottom of Sidebar */}
+          {isAdmin && (
+            <div className="mt-auto">
+              {/* Separator */}
+              <div className="border-t border-gray-200 my-4"></div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium text-blue-900">Admin Section</h3>
+                  <button
+                    onClick={() => setShowCategoryManagement(!showCategoryManagement)}
+                    className="text-xs text-blue-600 hover:text-blue-800"
+                  >
+                    {showCategoryManagement ? 'Hide' : 'Manage All'}
+                  </button>
+                </div>
+
+                {showCategoryManagement && (
+                  <div className="space-y-4">
+                    {/* Category Management */}
+                    <div>
+                      <h4 className="text-xs font-medium text-blue-700 mb-2 uppercase tracking-wide">Category Management</h4>
+                      <div className="space-y-2">
+                        {categories.map(category => (
+                          <div key={category.id} className="flex items-center justify-between p-2 bg-white rounded-lg border border-blue-100">
+                            <div className="flex items-center space-x-2 flex-1">
+                              <div
+                                className={`w-3 h-3 rounded-full ${category.color_class.includes('bg-[')
+                                  ? ''
                                   : category.color_class.includes('blue') ? 'bg-blue-500' :
                                     category.color_class.includes('green') ? 'bg-green-500' :
-                                    category.color_class.includes('purple') ? 'bg-purple-500' :
-                                    category.color_class.includes('orange') ? 'bg-orange-500' :
-                                    category.color_class.includes('red') ? 'bg-red-500' :
-                                    category.color_class.includes('yellow') ? 'bg-yellow-500' :
-                                    category.color_class.includes('pink') ? 'bg-pink-500' :
-                                    category.color_class.includes('indigo') ? 'bg-indigo-500' :
-                                    category.color_class.includes('teal') ? 'bg-teal-500' :
-                                    category.color_class.includes('cyan') ? 'bg-cyan-500' :
-                                    category.color_class.includes('lime') ? 'bg-lime-500' :
-                                    category.color_class.includes('white') ? 'bg-white border border-gray-300' :
-                                    category.color_class.includes('amber') ? 'bg-amber-500' :
-                                    category.color_class.includes('fuchsia') ? 'bg-fuchsia-500' :
-                                    category.color_class.includes('stone') ? 'bg-stone-500' :
-                                    category.color_class.includes('sky') ? 'bg-sky-500' :
-                                    'bg-gray-500'
-                              }`}
-                              style={{
-                                backgroundColor: category.color_class.includes('bg-[') 
-                                  ? category.color_class.match(/bg-\[([^\]]+)\]/)?.[1] || '#6B7280'
-                                  : undefined
-                              }}
-                            ></div>
-                            <div className="flex-1">
-                              <div className="text-sm font-medium text-gray-900">{category.display_name}</div>
-                              <div className="text-xs text-gray-500">{category.type} • {filterCounts[category.name] || 0} tasks</div>
-                            </div>
-                          </div>
-                          <div className="flex space-x-1">
-                            <button
-                              onClick={() => handleEditCategory(category)}
-                              className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
-                              title="Edit category"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                            </button>
-                            {category.is_custom && (
-                              <button
-                                onClick={() => {
-                                  setCategoryToDelete(category);
-                                  setShowDeleteCategoryModal(true);
+                                      category.color_class.includes('purple') ? 'bg-purple-500' :
+                                        category.color_class.includes('orange') ? 'bg-orange-500' :
+                                          category.color_class.includes('red') ? 'bg-red-500' :
+                                            category.color_class.includes('yellow') ? 'bg-yellow-500' :
+                                              category.color_class.includes('pink') ? 'bg-pink-500' :
+                                                category.color_class.includes('indigo') ? 'bg-indigo-500' :
+                                                  category.color_class.includes('teal') ? 'bg-teal-500' :
+                                                    category.color_class.includes('cyan') ? 'bg-cyan-500' :
+                                                      category.color_class.includes('lime') ? 'bg-lime-500' :
+                                                        category.color_class.includes('white') ? 'bg-white border border-gray-300' :
+                                                          category.color_class.includes('amber') ? 'bg-amber-500' :
+                                                            category.color_class.includes('fuchsia') ? 'bg-fuchsia-500' :
+                                                              category.color_class.includes('stone') ? 'bg-stone-500' :
+                                                                category.color_class.includes('sky') ? 'bg-sky-500' :
+                                                                  'bg-gray-500'
+                                  }`}
+                                style={{
+                                  backgroundColor: category.color_class.includes('bg-[')
+                                    ? category.color_class.match(/bg-\[([^\]]+)\]/)?.[1] || '#6B7280'
+                                    : undefined
                                 }}
-                                className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
-                                title="Delete category"
+                              ></div>
+                              <div className="flex-1">
+                                <div className="text-sm font-medium text-gray-900">{category.display_name}</div>
+                                <div className="text-xs text-gray-500">{category.type} • {filterCounts[category.name] || 0} tasks</div>
+                              </div>
+                            </div>
+                            <div className="flex space-x-1">
+                              <button
+                                onClick={() => handleEditCategory(category)}
+                                className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+                                title="Edit category"
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                 </svg>
                               </button>
-                            )}
+                              {category.is_custom && (
+                                <button
+                                  onClick={() => {
+                                    setCategoryToDelete(category);
+                                    setShowDeleteCategoryModal(true);
+                                  }}
+                                  className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                                  title="Delete category"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
                           </div>
+                        ))}
+                        <div className="pt-2 border-t border-blue-200">
+                          <button
+                            onClick={() => setShowCustomCategoryModal(true)}
+                            className="w-full flex items-center justify-center space-x-2 p-2 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-lg border border-dashed border-blue-300"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            <span>Add New Category</span>
+                          </button>
                         </div>
-                      ))}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* User Management */}
-                  <div>
-                    <h4 className="text-xs font-medium text-blue-700 mb-2 uppercase tracking-wide">User Management</h4>
-                    <div className="space-y-2">
-                      {teamMembers.map(member => (
-                        <div key={member.id} className="flex items-center justify-between p-2 bg-white rounded-lg border border-blue-100">
-                          <div className="flex items-center space-x-2 flex-1">
-                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium ${member.color}`}>
-                              {member.avatar}
+                    {/* User Management */}
+                    <div>
+                      <h4 className="text-xs font-medium text-blue-700 mb-2 uppercase tracking-wide">User Management</h4>
+                      <div className="space-y-2">
+                        {teamMembers.map(member => (
+                          <div key={member.id} className="flex items-center justify-between p-2 bg-white rounded-lg border border-blue-100">
+                            <div className="flex items-center space-x-2 flex-1">
+                              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium ${member.color}`}>
+                                {member.avatar}
+                              </div>
+                              <div className="flex-1">
+                                <div className="text-sm font-medium text-gray-900">{member.name}</div>
+                              </div>
                             </div>
-                            <div className="flex-1">
-                              <div className="text-sm font-medium text-gray-900">{member.name}</div>
-                              <div className="text-xs text-gray-500">{member.role}</div>
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={() => handleEditUser(member)}
+                                className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+                                title="Edit user"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </button>
                             </div>
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <div className={`w-2 h-2 rounded-full ${member.active ? 'bg-green-400' : 'bg-gray-400'}`}></div>
-                            <span className="text-xs text-gray-500">
-                              {member.active ? 'Active' : 'Inactive'}
-                            </span>
-                            <button
-                              onClick={() => handleEditUser(member)}
-                              className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
-                              title="Edit user"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                            </button>
-                          </div>
+                        ))}
+                        <div className="pt-2 border-t border-blue-200">
+                          <button
+                            onClick={() => {
+                              // TODO: Add user creation functionality
+                              showNotification('info', 'User creation functionality coming soon!');
+                            }}
+                            className="w-full flex items-center justify-center space-x-2 p-2 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-lg border border-dashed border-blue-300"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            <span>Add New User</span>
+                          </button>
                         </div>
-                      ))}
-                      <div className="pt-2 border-t border-blue-200">
-                        <button
-                          onClick={() => {
-                            // TODO: Add user creation functionality
-                            showNotification('info', 'User creation functionality coming soon!');
-                          }}
-                          className="w-full flex items-center justify-center space-x-2 p-2 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-lg border border-dashed border-blue-300"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                          </svg>
-                          <span>Add New User</span>
-                        </button>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         </div>
       </div>
@@ -4374,7 +4358,7 @@ const MMCCalendar = () => {
                   {showMonthYearPicker && <MonthYearPicker />}
                 </div>
               </div>
-              <button 
+              <button
                 className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-md hover:bg-blue-200"
                 onClick={handleTodayClick}
               >
@@ -4387,7 +4371,7 @@ const MMCCalendar = () => {
               {/* User Menu - Moved to first position */}
               {user && user !== 'guest' && (
                 <div className="flex items-center space-x-4">
-                  <div 
+                  <div
                     className="relative group"
                     onMouseEnter={() => setShowUserMenu(true)}
                     onMouseLeave={() => setShowUserMenu(false)}
@@ -4400,7 +4384,7 @@ const MMCCalendar = () => {
                         {user.user_metadata?.first_name || user.email?.split('@')[0]}
                       </span>
                       {getUserNotificationCount() > 0 && (
-                        <div 
+                        <div
                           className="relative cursor-pointer hover:scale-105 transition-transform"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -4411,23 +4395,22 @@ const MMCCalendar = () => {
                           }}
                           title={`${getUserNotificationCount()} urgent/overdue task${getUserNotificationCount() !== 1 ? 's' : ''} - Click to view`}
                         >
-                      <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition-colors">
-                        <span className="text-white text-xs font-bold">
-                          {getUserNotificationCount() > 9 ? '9+' : getUserNotificationCount()}
-                        </span>
-                      </div>
+                          <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition-colors">
+                            <span className="text-white text-xs font-bold">
+                              {getUserNotificationCount() > 9 ? '9+' : getUserNotificationCount()}
+                            </span>
+                          </div>
                         </div>
                       )}
                       <svg className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </button>
-                    
+
                     {/* User Menu Dropdown */}
-                    <div 
-                      className={`absolute top-full left-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 transition-all duration-200 z-50 ${
-                        showUserMenu ? 'opacity-100 visible' : 'opacity-0 invisible'
-                      }`}
+                    <div
+                      className={`absolute top-full left-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-400 transition-all duration-200 z-50 ${showUserMenu ? 'opacity-100 visible' : 'opacity-0 invisible'
+                        }`}
                       onMouseEnter={() => setShowUserMenu(true)}
                       onMouseLeave={() => setShowUserMenu(false)}
                     >
@@ -4488,40 +4471,39 @@ const MMCCalendar = () => {
                 </div>
               )}
 
-              
-                  {/* Reminders Button */}
-                  <div className="relative">
+
+              {/* Reminders Button */}
+              <div className="relative">
                 <button
                   onClick={user !== 'guest' ? () => {
                     setShowRemindersDrawer(!showRemindersDrawer);
                     if (!showRemindersDrawer) ensureDrawerVisibleOnMobile();
                   } : undefined}
-                  className={`relative p-2 rounded-lg transition-colors ${
-                    user !== 'guest' 
-                      ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 cursor-pointer' 
-                      : 'text-gray-400 cursor-not-allowed'
-                  }`}
+                  className={`relative p-2 rounded-lg transition-colors ${user !== 'guest'
+                    ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 cursor-pointer'
+                    : 'text-gray-400 cursor-not-allowed'
+                    }`}
                   title={user !== 'guest' ? "Reminders" : "Guest users cannot access reminders"}
                   disabled={user === 'guest'}
                 >
-                <div className="w-6 h-6 relative">
-                  {/* Bell Icon */}
-                  <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                  </svg>
-                </div>
-                {dismissedReminders.length > 0 && (
-                  <div className="absolute -top-1 -right-1 min-w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center px-1">
-                    <span className="text-xs text-white font-bold">
-                      {dismissedReminders.length}
-                    </span>
+                  <div className="w-6 h-6 relative">
+                    {/* Bell Icon */}
+                    <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
                   </div>
-                )}
+                  {dismissedReminders.length > 0 && (
+                    <div className="absolute -top-1 -right-1 min-w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center px-1">
+                      <span className="text-xs text-white font-bold">
+                        {dismissedReminders.length}
+                      </span>
+                    </div>
+                  )}
                 </button>
               </div>
 
-                            {/* Separator */}
-                            <div className="text-gray-300 text-lg">|</div>
+              {/* Separator */}
+              <div className="text-gray-300 text-lg">|</div>
 
               {/* Drawer Toggle Button */}
               <button
@@ -4530,11 +4512,10 @@ const MMCCalendar = () => {
                   setShowDrawer(!showDrawer);
                   if (!showDrawer) ensureDrawerVisibleOnMobile();
                 } : undefined}
-                className={`relative p-2 rounded-lg transition-colors ${
-                  user !== 'guest' 
-                    ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 cursor-pointer' 
-                    : 'text-gray-400 cursor-not-allowed'
-                }`}
+                className={`relative p-2 rounded-lg transition-colors ${user !== 'guest'
+                  ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 cursor-pointer'
+                  : 'text-gray-400 cursor-not-allowed'
+                  }`}
                 title={user !== 'guest' ? "Open task overview" : "Guest users cannot access task overview"}
                 disabled={user === 'guest'}
               >
@@ -4555,10 +4536,10 @@ const MMCCalendar = () => {
                   </div>
                 )}
               </button>
-              
-          
 
-              
+
+
+
               {/* Tasks Overview Button */}
               <div className="relative">
                 <button
@@ -4566,34 +4547,33 @@ const MMCCalendar = () => {
                     setShowActivitiesDrawer(!showActivitiesDrawer);
                     if (!showActivitiesDrawer) ensureDrawerVisibleOnMobile();
                   } : undefined}
-                  className={`relative p-2 rounded-lg transition-colors ${
-                    user !== 'guest' 
-                      ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 cursor-pointer' 
-                      : 'text-gray-400 cursor-not-allowed'
-                  }`}
+                  className={`relative p-2 rounded-lg transition-colors ${user !== 'guest'
+                    ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 cursor-pointer'
+                    : 'text-gray-400 cursor-not-allowed'
+                    }`}
                   title={user !== 'guest' ? "Recent Activities" : "Guest users cannot access activities"}
                   disabled={user === 'guest'}
                 >
-                <div className="w-6 h-6 relative">
-                  {/* Clock/Activity Icon */}
-                  <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                {recentActivitiesCount > 0 && (
-                  <div className="absolute -top-1 -right-1 min-w-5 h-5 bg-red-500 rounded-full flex items-center justify-center px-1">
-                    <span className="text-xs text-white font-bold">
-                      {recentActivitiesCount}
-                    </span>
+                  <div className="w-6 h-6 relative">
+                    {/* Clock/Activity Icon */}
+                    <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
                   </div>
-                )}
+                  {recentActivitiesCount > 0 && (
+                    <div className="absolute -top-1 -right-1 min-w-5 h-5 bg-red-500 rounded-full flex items-center justify-center px-1">
+                      <span className="text-xs text-white font-bold">
+                        {recentActivitiesCount}
+                      </span>
+                    </div>
+                  )}
                 </button>
               </div>
-             
+
               {/* Separator */}
               <div className="text-gray-300 text-lg">|</div>
-              
-              
+
+
               {/* Search Box - Hidden on mobile, shown on desktop */}
               <div className="relative search-container hidden 2xl:block">
                 <button
@@ -4604,7 +4584,7 @@ const MMCCalendar = () => {
                 >
                   <Search className="w-5 h-5" />
                 </button>
-                
+
                 {/* Search Dropdown */}
                 {showSearchInput && (
                   <div className="absolute top-full right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
@@ -4623,7 +4603,7 @@ const MMCCalendar = () => {
                         />
                       </div>
                     </div>
-                    
+
                     {/* Search Results */}
                     {showSearchResults && searchResults.length > 0 && (
                       <div className="max-h-64 overflow-y-auto">
@@ -4650,7 +4630,7 @@ const MMCCalendar = () => {
                         ))}
                       </div>
                     )}
-                    
+
                     {/* No Results Message */}
                     {showSearchResults && searchResults.length === 0 && searchQuery && (
                       <div className="p-3">
@@ -4663,42 +4643,39 @@ const MMCCalendar = () => {
 
               <div className="flex bg-gray-100 rounded-lg p-1">
                 <button
-                  className={`px-2 2xl:px-3 py-1 text-xs 2xl:text-sm rounded-md ${
-                    activeView === 'Calendar' 
-                      ? 'bg-white text-gray-900 shadow-sm' 
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  className={`px-2 2xl:px-3 py-1 text-xs 2xl:text-sm rounded-md ${activeView === 'Calendar'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                    }`}
                   onClick={() => setActiveView('Calendar')}
                 >
                   <span className="hidden sm:inline">Calendar</span>
                   <span className="sm:hidden">Cal</span>
                 </button>
                 <button
-                  className={`px-2 2xl:px-3 py-1 text-xs 2xl:text-sm rounded-md ${
-                    activeView === 'Day' 
-                      ? 'bg-white text-gray-900 shadow-sm' 
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  className={`px-2 2xl:px-3 py-1 text-xs 2xl:text-sm rounded-md ${activeView === 'Day'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                    }`}
                   onClick={() => setActiveView('Day')}
                 >
                   <span className="hidden sm:inline">Day</span>
                   <span className="sm:hidden">Day</span>
                 </button>
                 <button
-                  className={`px-2 2xl:px-3 py-1 text-xs 2xl:text-sm rounded-md ${
-                    activeView === 'Kanban' 
-                      ? 'bg-white text-gray-900 shadow-sm' 
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  className={`px-2 2xl:px-3 py-1 text-xs 2xl:text-sm rounded-md ${activeView === 'Kanban'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                    }`}
                   onClick={() => setActiveView('Kanban')}
                 >
                   <span className="hidden sm:inline">Kanban</span>
                   <span className="sm:hidden">Kan</span>
                 </button>
               </div>
-              
+
               {user && user !== 'guest' && (
-                <button 
+                <button
                   className="flex items-center space-x-1 2xl:space-x-2 bg-blue-600 text-white px-2 2xl:px-4 py-2 rounded-lg hover:bg-blue-700"
                   onClick={handleNewEntry}
                 >
@@ -4707,10 +4684,10 @@ const MMCCalendar = () => {
                   <span className="sm:hidden">New</span>
                 </button>
               )}
-              
+
               <div className="flex items-center space-x-1 2xl:space-x-2">
                 {user === 'guest' && (
-                  <button 
+                  <button
                     className="flex items-center space-x-1 2xl:space-x-2 bg-gray-100 text-gray-700 px-2 2xl:px-4 py-2 rounded-lg hover:bg-gray-200"
                     onClick={handleSignOut}
                   >
@@ -4719,8 +4696,8 @@ const MMCCalendar = () => {
                   </button>
                 )}
               </div>
-              
-              
+
+
 
               {/* Export Dropdown */}
               <div className="relative export-container">
@@ -4757,7 +4734,7 @@ const MMCCalendar = () => {
           {loading ? (
             <div className="flex items-center justify-center h-full text-gray-500">Loading...</div>
           ) : activeView === 'Calendar' ? (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 h-full">
+            <div className="bg-white rounded-lg shadow-lg border border-gray-400 h-full">
               {/* Calendar Header */}
               <div className="grid grid-cols-7 border-b border-gray-200">
                 {daysOfWeek.map(day => (
@@ -4773,21 +4750,18 @@ const MMCCalendar = () => {
                   <div
                     key={index}
                     id={day === today && isCurrentMonth ? 'today-calendar-day' : undefined}
-                    className={`border-r border-b border-gray-200 last:border-r-0 p-1 2xl:p-2 min-h-[80px] 2xl:min-h-[120px] relative cursor-pointer hover:bg-gray-50 transition-all duration-500 group ${
-                      dragOverDate === day ? 'bg-blue-50 border-blue-300' : ''
-                    } ${
-                      day === today && isCurrentMonth ? 'bg-blue-50' : ''
-                    } ${
-                      highlightedToday && day === today && isCurrentMonth
+                    className={`border-r border-b border-gray-200 last:border-r-0 p-1 2xl:p-2 min-h-[80px] 2xl:min-h-[120px] relative cursor-pointer hover:bg-gray-50 transition-all duration-500 group ${dragOverDate === day ? 'bg-blue-50 border-blue-300' : ''
+                      } ${day === today && isCurrentMonth ? 'bg-blue-50' : ''
+                      } ${highlightedToday && day === today && isCurrentMonth
                         ? todayHighlightPhase === 'appearing'
                           ? 'ring-2 ring-blue-400 ring-opacity-50 shadow-md'
                           : todayHighlightPhase === 'glowing'
-                          ? 'ring-4 ring-blue-400 ring-opacity-75 shadow-xl'
-                          : todayHighlightPhase === 'disappearing'
-                          ? 'ring-2 ring-blue-400 ring-opacity-25 shadow-sm'
-                          : ''
+                            ? 'ring-4 ring-blue-400 ring-opacity-75 shadow-xl'
+                            : todayHighlightPhase === 'disappearing'
+                              ? 'ring-2 ring-blue-400 ring-opacity-25 shadow-sm'
+                              : ''
                         : ''
-                    }`}
+                      }`}
                     onClick={day && user !== 'guest' ? () => handleDayClick(day) : undefined}
                     onMouseEnter={day && user !== 'guest' ? () => handleDayHover(day) : undefined}
                     onMouseLeave={day && user !== 'guest' ? () => handleDayLeave() : undefined}
@@ -4797,78 +4771,121 @@ const MMCCalendar = () => {
                   >
                     {day && (
                       <>
-                        <div className={`text-sm font-medium mb-2 ${
-                          day === today && isCurrentMonth ? 'text-blue-700' : 'text-gray-900'
-                        }`}>
+                        <div className={`text-sm font-medium mb-2 ${day === today && isCurrentMonth ? 'text-blue-700' : 'text-gray-900'
+                          }`}>
                           {day}
                         </div>
                         {/* Multi-day tasks container with negative margin */}
                         {getTasksForDate(day).filter(task => task.is_multiday).length > 0 && (
                           <div className="space-y-1 mb-2" style={{ margin: '0px -7px' }}>
-                          {getTasksForDate(day).filter(task => task.is_multiday).map((task, index) => {
-                            let isStart = false;
-                            let isEnd = false;
-                            let isMiddle = false;
-                            
-                            try {
-                              if (task.start_date) {
-                                const startDate = new Date(task.start_date + 'T00:00:00');
-                                isStart = startDate.getDate() === day && startDate.getMonth() === currentDate.getMonth() && startDate.getFullYear() === currentDate.getFullYear();
+                            {getTasksForDate(day).filter(task => task.is_multiday).map((task, index) => {
+                              let isStart = false;
+                              let isEnd = false;
+                              let isMiddle = false;
+
+                              try {
+                                if (task.start_date) {
+                                  const startDate = new Date(task.start_date + 'T00:00:00');
+                                  isStart = startDate.getDate() === day && startDate.getMonth() === currentDate.getMonth() && startDate.getFullYear() === currentDate.getFullYear();
+                                }
+                                if (task.end_date) {
+                                  const endDate = new Date(task.end_date + 'T00:00:00');
+                                  isEnd = endDate.getDate() === day && endDate.getMonth() === currentDate.getMonth() && endDate.getFullYear() === currentDate.getFullYear();
+                                }
+                                isMiddle = !isStart && !isEnd;
+                              } catch (error) {
+                                console.error('Error parsing multi-day task dates for rendering:', error, task);
+                                isStart = false;
+                                isEnd = false;
+                                isMiddle = true;
                               }
-                              if (task.end_date) {
-                                const endDate = new Date(task.end_date + 'T00:00:00');
-                                isEnd = endDate.getDate() === day && endDate.getMonth() === currentDate.getMonth() && endDate.getFullYear() === currentDate.getFullYear();
-                              }
-                              isMiddle = !isStart && !isEnd;
-                            } catch (error) {
-                              console.error('Error parsing multi-day task dates for rendering:', error, task);
-                              isStart = false;
-                              isEnd = false;
-                              isMiddle = true;
-                            }
-                            
+
+                              return (
+                                <div
+                                  key={`multiday-${task.id}-${day}`}
+                                  className={`h-6 ${task.color} cursor-pointer hover:opacity-80 relative flex items-center border-t-4 border-b-4 ${isStart ? 'border-l-4' : ''
+                                    } ${isEnd ? 'border-r-4' : ''} ${task.status === 'completed' ? 'opacity-50' : ''
+                                    } ${draggedTask?.id === task.id ? 'opacity-50' : ''} rounded-none`}
+                                  style={{
+                                    marginLeft: isStart ? '0' : '-3px',
+                                    marginRight: isEnd ? '0' : '-3px',
+                                    zIndex: 10
+                                  }}
+                                  onClick={user !== 'guest' ? (e) => {
+                                    e.stopPropagation();
+                                    handleTaskClick(task);
+                                  } : undefined}
+                                  title={`${task.title}${isStart ? ' (Start)' : isEnd ? ' (End)' : ''}`}
+                                >
+                                  <div className="flex items-center justify-between w-full p-1 2xl:p-2 min-w-0">
+                                    <div className="flex items-center space-x-1 min-w-0 flex-1">
+                                      <div className="text-xs font-medium truncate min-w-0 flex-1">
+                                        {task.title}
+                                      </div>
+                                      <div className="flex -space-x-1 ml-1 flex-shrink-0">
+                                        {getAssigneesAvatars(task).map((avatar: string, index: number) => {
+                                          const assigneeIds = task.assignees && task.assignees.length > 0 ? task.assignees : (task.assignee ? [task.assignee] : []);
+                                          const member = teamMembers.find(m => m.id === assigneeIds[index]);
+                                          return (
+                                            <div key={index} className={`w-4 h-4 ${member?.color || 'bg-gray-400'} rounded-full flex items-center justify-center text-white text-[8px] font-medium border border-white`}>
+                                              {avatar}
+                                            </div>
+                                          );
+                                        })}
+                                        {task.assignees && task.assignees.length > 3 && (
+                                          <div className="w-4 h-4 bg-gray-400 rounded-full flex items-center justify-center text-white text-[8px] font-medium border border-white">
+                                            +{task.assignees.length - 3}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center space-x-1 flex-shrink-0 ml-1">
+                                      {task.priority && task.priority !== 'medium' && (
+                                        <span className="text-xs">
+                                          {priorityConfig[task.priority]?.icon || '🟡'}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Regular tasks container with normal spacing */}
+                        <div className={`space-y-1 ${getTasksForDate(day).filter(task => task.is_multiday).length > 0 ? 'mt-3' : ''}`}>
+                          {getTasksForDate(day).filter(task => !task.is_multiday).map((task, index) => {
+                            // Check for time conflicts
+                            const hasTimeConflict = !task.is_all_day && getTasksForDate(day).filter(t =>
+                              !t.is_all_day && !t.is_multiday && t.time === task.time && t.id !== task.id
+                            ).length > 0;
+
                             return (
                               <div
-                                key={`multiday-${task.id}-${day}`}
-                                className={`h-6 ${task.color} cursor-pointer hover:opacity-80 relative flex items-center border-t-4 border-b-4 ${
-                                    isStart ? 'border-l-4' : ''
-                                  } ${isEnd ? 'border-r-4' : ''} ${
-                                  task.status === 'completed' ? 'opacity-50' : ''
-                                } ${draggedTask?.id === task.id ? 'opacity-50' : ''} rounded-none`}
-                                style={{
-                                  marginLeft: isStart ? '0' : '-3px',
-                                  marginRight: isEnd ? '0' : '-3px',
-                                  zIndex: 10
-                                }}
+                                key={task.id}
+                                className={`text-xs p-1 md:p-2 rounded border ${task.color} cursor-move hover:shadow-sm relative ${task.status === 'completed' ? 'opacity-75' : ''
+                                  } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${task.is_all_day ? 'border-2 border-dashed border-gray-400 bg-opacity-50' : ''
+                                  } ${hasTimeConflict ? 'border-l-4 border-l-red-400' : ''}`}
                                 onClick={user !== 'guest' ? (e) => {
                                   e.stopPropagation();
                                   handleTaskClick(task);
                                 } : undefined}
-                                title={`${task.title}${isStart ? ' (Start)' : isEnd ? ' (End)' : ''}`}
+                                draggable={user !== 'guest'}
+                                onDragStart={user !== 'guest' ? (e) => handleCalendarDragStart(e, task) : undefined}
                               >
-                                <div className="flex items-center justify-between w-full p-1 2xl:p-2 min-w-0">
-                                  <div className="flex items-center space-x-1 min-w-0 flex-1">
-                                    <div className="text-xs font-medium truncate min-w-0 flex-1">
-                                      {task.title}
-                                    </div>
-                                    <div className="flex -space-x-1 ml-1 flex-shrink-0">
-                                      {getAssigneesAvatars(task).map((avatar: string, index: number) => {
-                                        const assigneeIds = task.assignees && task.assignees.length > 0 ? task.assignees : (task.assignee ? [task.assignee] : []);
-                                        const member = teamMembers.find(m => m.id === assigneeIds[index]);
-                                        return (
-                                          <div key={index} className={`w-4 h-4 ${member?.color || 'bg-gray-400'} rounded-full flex items-center justify-center text-white text-[8px] font-medium border border-white`}>
-                                            {avatar}
-                                          </div>
-                                        );
-                                      })}
-                                      {task.assignees && task.assignees.length > 3 && (
-                                        <div className="w-4 h-4 bg-gray-400 rounded-full flex items-center justify-center text-white text-[8px] font-medium border border-white">
-                                          +{task.assignees.length - 3}
-                                        </div>
-                                      )}
-                                    </div>
+                                {task.status === 'completed' && (
+                                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                    <div className="w-full h-0.5 bg-gray-600 transform rotate-12"></div>
                                   </div>
+                                )}
+                                <div className="flex items-center justify-between min-w-0">
+                                  <div className={`font-medium truncate min-w-0 flex-1 ${task.status === 'completed' ? 'text-gray-500' : ''
+                                    }`}>{task.title}</div>
                                   <div className="flex items-center space-x-1 flex-shrink-0 ml-1">
+                                    {task.is_recurring && (
+                                      <Repeat className="w-3 h-3 text-blue-500" />
+                                    )}
                                     {task.priority && task.priority !== 'medium' && (
                                       <span className="text-xs">
                                         {priorityConfig[task.priority]?.icon || '🟡'}
@@ -4876,86 +4893,33 @@ const MMCCalendar = () => {
                                     )}
                                   </div>
                                 </div>
+                                <div className={`${task.status === 'completed' ? 'text-gray-400' : 'text-gray-600'
+                                  }`}>{getTaskCategoryDisplayName(task)}</div>
+                                <div className={`${task.status === 'completed' ? 'text-gray-400' : 'text-gray-500'
+                                  }`}>{getAssigneesDisplay(task)}</div>
+                                {task.is_all_day ? (
+                                  <div className={`${task.status === 'completed' ? 'text-gray-400' : 'text-gray-500'
+                                    }`}>All Day</div>
+                                ) : task.time && (
+                                  <div className={`${task.status === 'completed' ? 'text-gray-400' : 'text-gray-500'
+                                    }`}>{task.time}</div>
+                                )}
+                                {task.tags && task.tags.length > 0 && (
+                                  <div className="flex flex-wrap gap-0.5 sm:gap-1 mt-1">
+                                    {task.tags.slice(0, 2).map((tag: string, index: number) => (
+                                      <span
+                                        key={index}
+                                        className="text-[9px] sm:text-[10px] bg-gray-50 text-gray-600 px-1 py-0.5 rounded truncate max-w-[60px] sm:max-w-none"
+                                      >
+                                        {tag}
+                                      </span>
+                                    ))}
+                                    {task.tags.length > 2 && (
+                                      <span className="text-[9px] sm:text-[10px] text-gray-500">+{task.tags.length - 2}</span>
+                                    )}
+                                  </div>
+                                )}
                               </div>
-                            );
-                          })}
-                          </div>
-                        )}
-                          
-                        {/* Regular tasks container with normal spacing */}
-                        <div className={`space-y-1 ${getTasksForDate(day).filter(task => task.is_multiday).length > 0 ? 'mt-3' : ''}`}>
-                          {getTasksForDate(day).filter(task => !task.is_multiday).map((task, index) => {
-                            // Check for time conflicts
-                            const hasTimeConflict = !task.is_all_day && getTasksForDate(day).filter(t => 
-                              !t.is_all_day && !t.is_multiday && t.time === task.time && t.id !== task.id
-                            ).length > 0;
-                            
-                            return (
-                              <div
-                                key={task.id}
-                                className={`text-xs p-1 md:p-2 rounded border ${task.color} cursor-move hover:shadow-sm relative ${
-                                  task.status === 'completed' ? 'opacity-75' : ''
-                                } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${
-                                  task.is_all_day ? 'border-2 border-dashed border-gray-400 bg-opacity-50' : ''
-                                } ${hasTimeConflict ? 'border-l-4 border-l-red-400' : ''}`}
-                                onClick={user !== 'guest' ? (e) => {
-                                  e.stopPropagation();
-                                  handleTaskClick(task);
-                                } : undefined}
-                                draggable={user !== 'guest'}
-                              onDragStart={user !== 'guest' ? (e) => handleCalendarDragStart(e, task) : undefined}
-                            >
-                              {task.status === 'completed' && (
-                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                  <div className="w-full h-0.5 bg-gray-600 transform rotate-12"></div>
-                                </div>
-                              )}
-                              <div className="flex items-center justify-between min-w-0">
-                                <div className={`font-medium truncate min-w-0 flex-1 ${
-                                  task.status === 'completed' ? 'text-gray-500' : ''
-                                }`}>{task.title}</div>
-                                <div className="flex items-center space-x-1 flex-shrink-0 ml-1">
-                                  {task.is_recurring && (
-                                    <Repeat className="w-3 h-3 text-blue-500" />
-                                  )}
-                                  {task.priority && task.priority !== 'medium' && (
-                                    <span className="text-xs">
-                                      {priorityConfig[task.priority]?.icon || '🟡'}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              <div className={`${
-                                task.status === 'completed' ? 'text-gray-400' : 'text-gray-600'
-                              }`}>{getTaskCategoryDisplayName(task)}</div>
-                              <div className={`${
-                                task.status === 'completed' ? 'text-gray-400' : 'text-gray-500'
-                              }`}>{getAssigneesDisplay(task)}</div>
-                              {task.is_all_day ? (
-                                <div className={`${
-                                  task.status === 'completed' ? 'text-gray-400' : 'text-gray-500'
-                                }`}>All Day</div>
-                              ) : task.time && (
-                                <div className={`${
-                                  task.status === 'completed' ? 'text-gray-400' : 'text-gray-500'
-                                }`}>{task.time}</div>
-                              )}
-                              {task.tags && task.tags.length > 0 && (
-                                <div className="flex flex-wrap gap-0.5 sm:gap-1 mt-1">
-                                  {task.tags.slice(0, 2).map((tag: string, index: number) => (
-                                    <span
-                                      key={index}
-                                      className="text-[9px] sm:text-[10px] bg-gray-50 text-gray-600 px-1 py-0.5 rounded truncate max-w-[60px] sm:max-w-none"
-                                    >
-                                      {tag}
-                                    </span>
-                                  ))}
-                                  {task.tags.length > 2 && (
-                                    <span className="text-[9px] sm:text-[10px] text-gray-500">+{task.tags.length - 2}</span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
                             );
                           })}
                         </div>
@@ -4986,8 +4950,8 @@ const MMCCalendar = () => {
                             </button>
                           </div>
                         )}
-                        
-                        
+
+
                         {/* Today indicator */}
                         {day === today && isCurrentMonth && (
                           <div className="absolute top-1 right-1 w-2 h-2 bg-blue-500 rounded-full"></div>
@@ -5000,7 +4964,7 @@ const MMCCalendar = () => {
             </div>
           ) : activeView === 'Day' ? (
             /* Day View */
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 h-full flex flex-col day-view-container">
+            <div className="bg-white rounded-lg shadow-lg border border-gray-400 h-full flex flex-col day-view-container">
               {/* Day View Header */}
               <div className="flex items-center p-4 border-b border-gray-200">
                 <div className="flex items-center space-x-4">
@@ -5010,13 +4974,13 @@ const MMCCalendar = () => {
                         const prevDay = new Date(selectedDay);
                         prevDay.setDate(prevDay.getDate() - 1);
                         setSelectedDay(prevDay);
-                        
+
                         // Update top bar month if navigating to different month
                         const prevMonth = prevDay.getMonth();
                         const prevYear = prevDay.getFullYear();
                         const currentMonth = currentDate.getMonth();
                         const currentYear = currentDate.getFullYear();
-                        
+
                         if (prevMonth !== currentMonth || prevYear !== currentYear) {
                           setCurrentDate(new Date(prevYear, prevMonth, 1));
                         }
@@ -5030,13 +4994,13 @@ const MMCCalendar = () => {
                         const nextDay = new Date(selectedDay);
                         nextDay.setDate(nextDay.getDate() + 1);
                         setSelectedDay(nextDay);
-                        
+
                         // Update top bar month if navigating to different month
                         const nextMonth = nextDay.getMonth();
                         const nextYear = nextDay.getFullYear();
                         const currentMonth = currentDate.getMonth();
                         const currentYear = currentDate.getFullYear();
-                        
+
                         if (nextMonth !== currentMonth || nextYear !== currentYear) {
                           setCurrentDate(new Date(nextYear, nextMonth, 1));
                         }
@@ -5051,11 +5015,11 @@ const MMCCalendar = () => {
                       onClick={() => setShowDayPicker(!showDayPicker)}
                       className="text-xl font-semibold text-gray-900 hover:text-blue-600 transition-colors cursor-pointer"
                     >
-                      {selectedDay.toLocaleDateString('en-US', { 
-                        weekday: 'long', 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
+                      {selectedDay.toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
                       })}
                     </button>
                     <button
@@ -5109,26 +5073,24 @@ const MMCCalendar = () => {
                               </p>
                             )}
                             <div className="flex items-center space-x-2 text-xs">
-                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                task.category === 'blogPosts' || task.category === 'Blog Posts' ? 'bg-blue-100 text-blue-800' :
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${task.category === 'blogPosts' || task.category === 'Blog Posts' ? 'bg-blue-100 text-blue-800' :
                                 task.category === 'campaigns' || task.category === 'Campaigns' ? 'bg-purple-100 text-purple-800' :
-                                task.category === 'emailMarketing' || task.category === 'Email Marketing' ? 'bg-orange-100 text-orange-800' :
-                                task.category === 'socialMedia' || task.category === 'Social Media' ? 'bg-green-100 text-green-800' :
-                                task.category === 'vacations' || task.category === 'Vacations' ? 'bg-gray-100 text-gray-800' :
-                                task.category === 'eventsWebinars' || task.category === 'Events/webinars' ? 'bg-lime-100 text-lime-800' :
-                                task.category === 'halloween' || task.category === 'Halloween' ? 'bg-orange-100 text-orange-800' :
-                                'bg-gray-100 text-gray-800'
-                              }`}>
+                                  task.category === 'emailMarketing' || task.category === 'Email Marketing' ? 'bg-orange-100 text-orange-800' :
+                                    task.category === 'socialMedia' || task.category === 'Social Media' ? 'bg-green-100 text-green-800' :
+                                      task.category === 'vacations' || task.category === 'Vacations' ? 'bg-gray-100 text-gray-800' :
+                                        task.category === 'eventsWebinars' || task.category === 'Events/webinars' ? 'bg-lime-100 text-lime-800' :
+                                          task.category === 'halloween' || task.category === 'Halloween' ? 'bg-orange-100 text-orange-800' :
+                                            'bg-gray-100 text-gray-800'
+                                }`}>
                                 {getCategoryDisplayName(task.category) || task.type}
                               </span>
                             </div>
                           </div>
                           <div className="ml-2 flex-shrink-0">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              task.priority === 'high' ? 'bg-red-100 text-red-800' :
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${task.priority === 'high' ? 'bg-red-100 text-red-800' :
                               task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-green-100 text-green-800'
-                            }`}>
+                                'bg-green-100 text-green-800'
+                              }`}>
                               {task.priority}
                             </span>
                           </div>
@@ -5146,7 +5108,7 @@ const MMCCalendar = () => {
                   <div className="border-b border-gray-200">
                     <button
                       onClick={() => setShowEarlyHours(!showEarlyHours)}
-                      className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition-colors"
+                      className="w-full flex items-center justify-between p-3 bg-gray-100 hover:bg-gray-200 transition-colors"
                     >
                       <div className="flex items-center space-x-2">
                         <span className="text-sm font-medium text-gray-700">Early Hours (12:00 AM - 7:00 AM)</span>
@@ -5156,10 +5118,10 @@ const MMCCalendar = () => {
                           </span>
                         )}
                       </div>
-                      <svg 
+                      <svg
                         className={`w-4 h-4 transform transition-transform ${showEarlyHours ? 'rotate-180' : ''}`}
-                        fill="none" 
-                        stroke="currentColor" 
+                        fill="none"
+                        stroke="currentColor"
                         viewBox="0 0 24 24"
                       >
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -5170,11 +5132,11 @@ const MMCCalendar = () => {
                         {Array.from({ length: 8 }, (_, i) => {
                           const hour = i;
                           const timeString = `${hour.toString().padStart(2, '0')}:00`;
-                          const isCurrentHour = selectedDay.toDateString() === new Date().toDateString() && 
-                                             new Date().getHours() === hour;
+                          const isCurrentHour = selectedDay.toDateString() === new Date().toDateString() &&
+                            new Date().getHours() === hour;
                           const tasksForHour = getTasksForDayView(selectedDay, hour);
                           const hasTasks = tasksForHour.length > 0;
-                          
+
                           return (
                             <div key={hour} className="relative">
                               <div className="sticky top-0 bg-white z-10 flex items-center h-12 border-b border-gray-100">
@@ -5183,10 +5145,9 @@ const MMCCalendar = () => {
                                 </div>
                                 <div className="flex-1 h-px bg-gray-200"></div>
                               </div>
-                              <div 
-                                className={`relative bg-white hover:bg-gray-50 transition-colors cursor-pointer ${
-                                  hasTasks ? 'min-h-20 py-2' : 'min-h-12'
-                                }`}
+                              <div
+                                className={`relative bg-white hover:bg-gray-50 transition-colors cursor-pointer ${hasTasks ? 'min-h-20 py-2' : 'min-h-12'
+                                  }`}
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
@@ -5231,16 +5192,15 @@ const MMCCalendar = () => {
                                             </p>
                                           )}
                                           <div className="flex items-center space-x-2 mb-2">
-                                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                              task.category === 'blogPosts' || task.category === 'Blog Posts' ? 'bg-blue-100 text-blue-800' :
+                                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${task.category === 'blogPosts' || task.category === 'Blog Posts' ? 'bg-blue-100 text-blue-800' :
                                               task.category === 'campaigns' || task.category === 'Campaigns' ? 'bg-purple-100 text-purple-800' :
-                                              task.category === 'emailMarketing' || task.category === 'Email Marketing' ? 'bg-orange-100 text-orange-800' :
-                                              task.category === 'socialMedia' || task.category === 'Social Media' ? 'bg-green-100 text-green-800' :
-                                              task.category === 'vacations' || task.category === 'Vacations' ? 'bg-gray-100 text-gray-800' :
-                                              task.category === 'eventsWebinars' || task.category === 'Events/webinars' || task.category === 'events/webinars' ? 'bg-lime-100 text-lime-800' :
-                                              task.category === 'halloween' || task.category === 'Halloween' ? 'bg-orange-100 text-orange-800' :
-                                              'bg-gray-100 text-gray-800'
-                                            }`}>
+                                                task.category === 'emailMarketing' || task.category === 'Email Marketing' ? 'bg-orange-100 text-orange-800' :
+                                                  task.category === 'socialMedia' || task.category === 'Social Media' ? 'bg-green-100 text-green-800' :
+                                                    task.category === 'vacations' || task.category === 'Vacations' ? 'bg-gray-100 text-gray-800' :
+                                                      task.category === 'eventsWebinars' || task.category === 'Events/webinars' || task.category === 'events/webinars' ? 'bg-lime-100 text-lime-800' :
+                                                        task.category === 'halloween' || task.category === 'Halloween' ? 'bg-orange-100 text-orange-800' :
+                                                          'bg-gray-100 text-gray-800'
+                                              }`}>
                                               {getCategoryDisplayName(task.category) || task.type}
                                             </span>
                                           </div>
@@ -5258,11 +5218,10 @@ const MMCCalendar = () => {
                                           )}
                                         </div>
                                         <div className="ml-3 flex-shrink-0">
-                                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                                            task.priority === 'high' ? 'bg-red-100 text-red-800' :
+                                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${task.priority === 'high' ? 'bg-red-100 text-red-800' :
                                             task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                                            'bg-green-100 text-green-800'
-                                          }`}>
+                                              'bg-green-100 text-green-800'
+                                            }`}>
                                             {task.priority}
                                           </span>
                                         </div>
@@ -5282,11 +5241,11 @@ const MMCCalendar = () => {
                   {Array.from({ length: 13 }, (_, i) => {
                     const hour = i + 8;
                     const timeString = `${hour.toString().padStart(2, '0')}:00`;
-                    const isCurrentHour = selectedDay.toDateString() === new Date().toDateString() && 
-                                       new Date().getHours() === hour;
+                    const isCurrentHour = selectedDay.toDateString() === new Date().toDateString() &&
+                      new Date().getHours() === hour;
                     const tasksForHour = getTasksForDayView(selectedDay, hour);
                     const hasTasks = tasksForHour.length > 0;
-                    
+
                     return (
                       <div key={hour} className="relative">
                         <div className="sticky top-0 bg-white z-10 flex items-center h-12 border-b border-gray-100">
@@ -5295,10 +5254,9 @@ const MMCCalendar = () => {
                           </div>
                           <div className="flex-1 h-px bg-gray-200"></div>
                         </div>
-                        <div 
-                          className={`relative bg-white hover:bg-gray-50 transition-colors cursor-pointer ${
-                            hasTasks ? 'min-h-20 py-2' : 'min-h-12'
-                          }`}
+                        <div
+                          className={`relative bg-white hover:bg-gray-50 transition-colors cursor-pointer ${hasTasks ? 'min-h-20 py-2' : 'min-h-12'
+                            }`}
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
@@ -5348,16 +5306,15 @@ const MMCCalendar = () => {
                                       </p>
                                     )}
                                     <div className="flex items-center space-x-2 mb-2">
-                                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                        task.category === 'blogPosts' || task.category === 'Blog Posts' ? 'bg-blue-100 text-blue-800' :
+                                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${task.category === 'blogPosts' || task.category === 'Blog Posts' ? 'bg-blue-100 text-blue-800' :
                                         task.category === 'campaigns' || task.category === 'Campaigns' ? 'bg-purple-100 text-purple-800' :
-                                        task.category === 'emailMarketing' || task.category === 'Email Marketing' ? 'bg-orange-100 text-orange-800' :
-                                        task.category === 'socialMedia' || task.category === 'Social Media' ? 'bg-green-100 text-green-800' :
-                                        task.category === 'vacations' || task.category === 'Vacations' ? 'bg-gray-100 text-gray-800' :
-                                        task.category === 'eventsWebinars' || task.category === 'Events/webinars' || task.category === 'events/webinars' ? 'bg-lime-100 text-lime-800' :
-                                        task.category === 'halloween' || task.category === 'Halloween' ? 'bg-orange-100 text-orange-800' :
-                                        'bg-gray-100 text-gray-800'
-                                      }`}>
+                                          task.category === 'emailMarketing' || task.category === 'Email Marketing' ? 'bg-orange-100 text-orange-800' :
+                                            task.category === 'socialMedia' || task.category === 'Social Media' ? 'bg-green-100 text-green-800' :
+                                              task.category === 'vacations' || task.category === 'Vacations' ? 'bg-gray-100 text-gray-800' :
+                                                task.category === 'eventsWebinars' || task.category === 'Events/webinars' || task.category === 'events/webinars' ? 'bg-lime-100 text-lime-800' :
+                                                  task.category === 'halloween' || task.category === 'Halloween' ? 'bg-orange-100 text-orange-800' :
+                                                    'bg-gray-100 text-gray-800'
+                                        }`}>
                                         {getCategoryDisplayName(task.category) || task.type}
                                       </span>
                                     </div>
@@ -5375,11 +5332,10 @@ const MMCCalendar = () => {
                                     )}
                                   </div>
                                   <div className="ml-3 flex-shrink-0">
-                                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                                      task.priority === 'high' ? 'bg-red-100 text-red-800' :
+                                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${task.priority === 'high' ? 'bg-red-100 text-red-800' :
                                       task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                                      'bg-green-100 text-green-800'
-                                    }`}>
+                                        'bg-green-100 text-green-800'
+                                      }`}>
                                       {task.priority}
                                     </span>
                                   </div>
@@ -5396,7 +5352,8 @@ const MMCCalendar = () => {
                   <div className="border-t border-gray-200">
                     <button
                       onClick={() => setShowLateHours(!showLateHours)}
-                      className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition-colors"
+                      className="w-full flex items-center justify-between p-3 bg-gray-100 hover:bg-gray-200 transition-colors"
+                      style={{ borderRadius: '8px' }}
                     >
                       <div className="flex items-center space-x-2">
                         <span className="text-sm font-medium text-gray-700">Late Hours (9:00 PM - 11:00 PM)</span>
@@ -5406,10 +5363,10 @@ const MMCCalendar = () => {
                           </span>
                         )}
                       </div>
-                      <svg 
+                      <svg
                         className={`w-4 h-4 transform transition-transform ${showLateHours ? 'rotate-180' : ''}`}
-                        fill="none" 
-                        stroke="currentColor" 
+                        fill="none"
+                        stroke="currentColor"
                         viewBox="0 0 24 24"
                       >
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -5420,11 +5377,11 @@ const MMCCalendar = () => {
                         {Array.from({ length: 3 }, (_, i) => {
                           const hour = i + 21;
                           const timeString = `${hour.toString().padStart(2, '0')}:00`;
-                          const isCurrentHour = selectedDay.toDateString() === new Date().toDateString() && 
-                                             new Date().getHours() === hour;
+                          const isCurrentHour = selectedDay.toDateString() === new Date().toDateString() &&
+                            new Date().getHours() === hour;
                           const tasksForHour = getTasksForDayView(selectedDay, hour);
                           const hasTasks = tasksForHour.length > 0;
-                          
+
                           return (
                             <div key={hour} className="relative">
                               <div className="sticky top-0 bg-white z-10 flex items-center h-12 border-b border-gray-100">
@@ -5433,10 +5390,9 @@ const MMCCalendar = () => {
                                 </div>
                                 <div className="flex-1 h-px bg-gray-200"></div>
                               </div>
-                              <div 
-                                className={`relative bg-white hover:bg-gray-50 transition-colors cursor-pointer ${
-                                  hasTasks ? 'min-h-20 py-2' : 'min-h-12'
-                                }`}
+                              <div
+                                className={`relative bg-white hover:bg-gray-50 transition-colors cursor-pointer ${hasTasks ? 'min-h-20 py-2' : 'min-h-12'
+                                  }`}
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
@@ -5486,16 +5442,15 @@ const MMCCalendar = () => {
                                             </p>
                                           )}
                                           <div className="flex items-center space-x-2 mb-2">
-                                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                              task.category === 'blogPosts' || task.category === 'Blog Posts' ? 'bg-blue-100 text-blue-800' :
+                                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${task.category === 'blogPosts' || task.category === 'Blog Posts' ? 'bg-blue-100 text-blue-800' :
                                               task.category === 'campaigns' || task.category === 'Campaigns' ? 'bg-purple-100 text-purple-800' :
-                                              task.category === 'emailMarketing' || task.category === 'Email Marketing' ? 'bg-orange-100 text-orange-800' :
-                                              task.category === 'socialMedia' || task.category === 'Social Media' ? 'bg-green-100 text-green-800' :
-                                              task.category === 'vacations' || task.category === 'Vacations' ? 'bg-gray-100 text-gray-800' :
-                                              task.category === 'eventsWebinars' || task.category === 'Events/webinars' || task.category === 'events/webinars' ? 'bg-lime-100 text-lime-800' :
-                                              task.category === 'halloween' || task.category === 'Halloween' ? 'bg-orange-100 text-orange-800' :
-                                              'bg-gray-100 text-gray-800'
-                                            }`}>
+                                                task.category === 'emailMarketing' || task.category === 'Email Marketing' ? 'bg-orange-100 text-orange-800' :
+                                                  task.category === 'socialMedia' || task.category === 'Social Media' ? 'bg-green-100 text-green-800' :
+                                                    task.category === 'vacations' || task.category === 'Vacations' ? 'bg-gray-100 text-gray-800' :
+                                                      task.category === 'eventsWebinars' || task.category === 'Events/webinars' || task.category === 'events/webinars' ? 'bg-lime-100 text-lime-800' :
+                                                        task.category === 'halloween' || task.category === 'Halloween' ? 'bg-orange-100 text-orange-800' :
+                                                          'bg-gray-100 text-gray-800'
+                                              }`}>
                                               {getCategoryDisplayName(task.category) || task.type}
                                             </span>
                                           </div>
@@ -5513,11 +5468,10 @@ const MMCCalendar = () => {
                                           )}
                                         </div>
                                         <div className="ml-3 flex-shrink-0">
-                                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                                            task.priority === 'high' ? 'bg-red-100 text-red-800' :
+                                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${task.priority === 'high' ? 'bg-red-100 text-red-800' :
                                             task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                                            'bg-green-100 text-green-800'
-                                          }`}>
+                                              'bg-green-100 text-green-800'
+                                            }`}>
                                             {task.priority}
                                           </span>
                                         </div>
@@ -5540,19 +5494,22 @@ const MMCCalendar = () => {
             <div className="h-full">
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 h-full">
                 {kanbanColumns.map(column => (
-                  <div 
-                    key={column.id} 
-                    className={`${column.color} rounded-lg p-4 transition-all duration-500 ${
-                      highlightedColumn === column.id 
-                        ? highlightPhase === 'appearing'
-                          ? 'ring-2 ring-blue-400 ring-opacity-50 shadow-md'
-                          : highlightPhase === 'glowing'
+                  <div
+                    key={column.id}
+                    className={`${column.color} rounded-lg p-4 transition-all duration-500 ${highlightedColumn === column.id
+                      ? highlightPhase === 'appearing'
+                        ? 'ring-2 ring-blue-400 ring-opacity-50 shadow-md'
+                        : highlightPhase === 'glowing'
                           ? 'ring-4 ring-blue-400 ring-opacity-75 shadow-xl'
                           : highlightPhase === 'disappearing'
-                          ? 'ring-2 ring-blue-400 ring-opacity-25 shadow-sm'
-                          : ''
-                        : ''
-                    }`}
+                            ? 'ring-2 ring-blue-400 ring-opacity-25 shadow-sm'
+                            : ''
+                      : ''
+                      }`}
+                    style={{
+                      border: `1px solid ${column.borderColor}`,
+                      borderRight: `5px solid ${column.borderColor}`
+                    }}
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, column.id)}
                   >
@@ -5566,9 +5523,8 @@ const MMCCalendar = () => {
                       {getTasksByStatus(column.id).map(task => (
                         <div
                           key={task.id}
-                          className={`bg-white p-4 rounded-lg shadow-sm border cursor-move hover:shadow-md transition-shadow ${
-                            draggedTask?.id === task.id ? 'opacity-50' : ''
-                          }`}
+                          className={`bg-white p-4 rounded-lg shadow-sm border cursor-move hover:shadow-md transition-shadow ${draggedTask?.id === task.id ? 'opacity-50' : ''
+                            }`}
                           draggable={user !== 'guest'}
                           onDragStart={user !== 'guest' ? (e) => handleDragStart(e, task) : undefined}
                           onClick={user !== 'guest' ? () => handleTaskClick(task) : undefined}
@@ -5600,8 +5556,8 @@ const MMCCalendar = () => {
                             <div className="flex items-center space-x-2 mb-2">
                               <Calendar className="w-4 h-4 text-gray-400" />
                               <span className="text-xs text-gray-500">
-                                {task.start_date && task.end_date ? 
-                                  `${new Date(task.start_date + 'T00:00:00').toLocaleDateString()} - ${new Date(task.end_date + 'T00:00:00').toLocaleDateString()}` : 
+                                {task.start_date && task.end_date ?
+                                  `${new Date(task.start_date + 'T00:00:00').toLocaleDateString()} - ${new Date(task.end_date + 'T00:00:00').toLocaleDateString()}` :
                                   'Multi-Day'
                                 }
                               </span>
@@ -5665,11 +5621,11 @@ const MMCCalendar = () => {
       </div>
       {/* New Entry Modal */}
       {showNewEntryModal && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-2 md:p-4"
           onClick={() => setShowNewEntryModal(false)}
         >
-          <div 
+          <div
             className="bg-white rounded-lg p-4 md:p-6 w-full max-w-[95vw] md:w-[800px] mx-2 md:mx-4 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
@@ -5750,9 +5706,9 @@ const MMCCalendar = () => {
                           const startDate = new Date(prev.year, prev.month, prev.date);
                           const endDate = new Date(startDate);
                           endDate.setDate(endDate.getDate() + 1);
-                          
+
                           return {
-                            ...prev, 
+                            ...prev,
                             is_multiday: isMultiday,
                             is_all_day: false,
                             time: '',
@@ -5761,7 +5717,7 @@ const MMCCalendar = () => {
                           };
                         } else {
                           return {
-                            ...prev, 
+                            ...prev,
                             is_multiday: isMultiday,
                             is_all_day: prev.is_all_day,
                             time: prev.time || '09:00',
@@ -5777,7 +5733,7 @@ const MMCCalendar = () => {
                     Multi-Day Task
                   </label>
                 </div>
-                
+
                 {newTask.is_multiday ? (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -5785,8 +5741,8 @@ const MMCCalendar = () => {
                       <input
                         type="date"
                         value={newTask.start_date || ''}
-                        onChange={(e) => setNewTask((prev: any) => ({ 
-                          ...prev, 
+                        onChange={(e) => setNewTask((prev: any) => ({
+                          ...prev,
                           start_date: e.target.value,
                           date: e.target.value ? new Date(e.target.value).getDate() : prev.date,
                           month: e.target.value ? new Date(e.target.value).getMonth() : prev.month,
@@ -5826,8 +5782,8 @@ const MMCCalendar = () => {
                             type="checkbox"
                             id="is_all_day"
                             checked={newTask.is_all_day}
-                            onChange={(e) => setNewTask((prev: any) => ({ 
-                              ...prev, 
+                            onChange={(e) => setNewTask((prev: any) => ({
+                              ...prev,
                               is_all_day: e.target.checked,
                               time: e.target.checked ? '' : prev.time || '09:00'
                             }))}
@@ -5857,8 +5813,8 @@ const MMCCalendar = () => {
                     <select
                       value={newTask.category || ''}
                       onChange={(e) => {
-                        setNewTask((prev: any) => ({ 
-                          ...prev, 
+                        setNewTask((prev: any) => ({
+                          ...prev,
                           category: e.target.value,
                           type: getCategoryConfig(e.target.value).type
                         }));
@@ -5937,7 +5893,7 @@ const MMCCalendar = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Created by
@@ -5949,9 +5905,8 @@ const MMCCalendar = () => {
                   value={newTask.created_by || ''}
                   onChange={(e) => setNewTask((prev: any) => ({ ...prev, created_by: e.target.value ? parseInt(e.target.value) : null }))}
                   disabled={user && user !== 'guest'}
-                  className={`w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    user && user !== 'guest' ? 'bg-gray-100 cursor-not-allowed' : ''
-                  }`}
+                  className={`w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${user && user !== 'guest' ? 'bg-gray-100 cursor-not-allowed' : ''
+                    }`}
                 >
                   <option value="">Select Created by</option>
                   {teamMembers.map(member => (
@@ -5959,7 +5914,7 @@ const MMCCalendar = () => {
                   ))}
                 </select>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
@@ -5974,7 +5929,7 @@ const MMCCalendar = () => {
                   </select>
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Recurring</label>
                 <div className="space-y-3">
@@ -5983,33 +5938,33 @@ const MMCCalendar = () => {
                       type="checkbox"
                       id="is_recurring"
                       checked={newTask.is_recurring}
-                        onChange={(e) => setNewTask((prev: any) => {
-                          if (e.target.checked) {
-                            // Set default end date to the same day as start date
-                            const startDate = new Date(prev.year, prev.month, prev.date);
-                            
-                            return {
-                              ...prev, 
-                              is_recurring: true,
-                              recurring_pattern: prev.recurring_pattern || 'weekly',
-                              recurring_end_date: startDate.toISOString().split('T')[0]
-                            };
-                          } else {
-                            return {
-                              ...prev, 
-                              is_recurring: false,
-                              recurring_pattern: '',
-                              recurring_end_date: null
-                            };
-                          }
-                        })}
+                      onChange={(e) => setNewTask((prev: any) => {
+                        if (e.target.checked) {
+                          // Set default end date to the same day as start date
+                          const startDate = new Date(prev.year, prev.month, prev.date);
+
+                          return {
+                            ...prev,
+                            is_recurring: true,
+                            recurring_pattern: prev.recurring_pattern || 'weekly',
+                            recurring_end_date: startDate.toISOString().split('T')[0]
+                          };
+                        } else {
+                          return {
+                            ...prev,
+                            is_recurring: false,
+                            recurring_pattern: '',
+                            recurring_end_date: null
+                          };
+                        }
+                      })}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
                     <label htmlFor="is_recurring" className="text-sm text-gray-700">
                       Make this task recurring
                     </label>
                   </div>
-                  
+
                   {newTask.is_recurring && (
                     <div className="ml-6 space-y-3 border-l-2 border-gray-200 pl-4">
                       <div>
@@ -6020,8 +5975,8 @@ const MMCCalendar = () => {
                             min="1"
                             max="99"
                             value={newTask.recurring_interval}
-                            onChange={(e) => setNewTask((prev: any) => ({ 
-                              ...prev, 
+                            onChange={(e) => setNewTask((prev: any) => ({
+                              ...prev,
                               recurring_interval: parseInt(e.target.value) || 1
                             }))}
                             className="w-16 border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -6032,7 +5987,7 @@ const MMCCalendar = () => {
                               setNewTask((prev: any) => {
                                 const unit = e.target.value;
                                 let pattern = prev.recurring_pattern;
-                                
+
                                 // Update pattern based on unit selection
                                 if (unit === 'day') {
                                   pattern = 'daily';
@@ -6045,9 +6000,9 @@ const MMCCalendar = () => {
                                 } else if (unit === '') {
                                   pattern = '';
                                 }
-                                
+
                                 return {
-                                  ...prev, 
+                                  ...prev,
                                   recurring_unit: unit,
                                   recurring_pattern: pattern,
                                   // Clear recurring_days when not using weekly pattern
@@ -6070,7 +6025,7 @@ const MMCCalendar = () => {
                           </select>
                         </div>
                       </div>
-                      
+
                       {newTask.recurring_unit === 'week' && (
                         <div>
                           <label className="block text-xs font-medium text-gray-600 mb-2">Repeat on days</label>
@@ -6081,19 +6036,18 @@ const MMCCalendar = () => {
                                 type="button"
                                 onClick={() => {
                                   const currentDays = newTask.recurring_days || [];
-                                  const newDays = currentDays.includes(index) 
+                                  const newDays = currentDays.includes(index)
                                     ? currentDays.filter((d: number) => d !== index)
                                     : [...currentDays, index];
-                                  setNewTask((prev: any) => ({ 
-                                    ...prev, 
+                                  setNewTask((prev: any) => ({
+                                    ...prev,
                                     recurring_days: newDays
                                   }));
                                 }}
-                                className={`w-8 h-8 rounded-full text-xs font-medium ${
-                                  (newTask.recurring_days || []).includes(index)
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                }`}
+                                className={`w-8 h-8 rounded-full text-xs font-medium ${(newTask.recurring_days || []).includes(index)
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                  }`}
                               >
                                 {day[0]}
                               </button>
@@ -6101,7 +6055,7 @@ const MMCCalendar = () => {
                           </div>
                         </div>
                       )}
-                      
+
                       {(newTask.recurring_unit === 'first_day_of_month' || newTask.recurring_unit === '2nd_day_of_month' || newTask.recurring_unit === '3rd_day_of_month' || newTask.recurring_unit === '4th_day_of_month' || newTask.recurring_unit === 'last_day_of_month') && (
                         <div>
                           <label className="block text-xs font-medium text-gray-600 mb-2">Select day of week</label>
@@ -6111,16 +6065,15 @@ const MMCCalendar = () => {
                                 key={day}
                                 type="button"
                                 onClick={() => {
-                                  setNewTask((prev: any) => ({ 
-                                    ...prev, 
+                                  setNewTask((prev: any) => ({
+                                    ...prev,
                                     recurring_days: [index] // Only one day for first/last patterns
                                   }));
                                 }}
-                                className={`w-8 h-8 rounded-full text-xs font-medium ${
-                                  (newTask.recurring_days || []).includes(index)
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                }`}
+                                className={`w-8 h-8 rounded-full text-xs font-medium ${(newTask.recurring_days || []).includes(index)
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                  }`}
                               >
                                 {day[0]}
                               </button>
@@ -6128,14 +6081,14 @@ const MMCCalendar = () => {
                           </div>
                         </div>
                       )}
-                      
+
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">End date (optional)</label>
                         <input
                           type="date"
                           value={newTask.recurring_end_date ? newTask.recurring_end_date : ''}
-                          onChange={(e) => setNewTask((prev: any) => ({ 
-                            ...prev, 
+                          onChange={(e) => setNewTask((prev: any) => ({
+                            ...prev,
                             recurring_end_date: e.target.value || null
                           }))}
                           className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -6147,7 +6100,7 @@ const MMCCalendar = () => {
                   )}
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes or comments</label>
                 <textarea
@@ -6158,7 +6111,7 @@ const MMCCalendar = () => {
                   placeholder="Add any additional notes or comments..."
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Reminders</label>
                 <div className="flex items-center space-x-2">
@@ -6175,138 +6128,138 @@ const MMCCalendar = () => {
                 </div>
                 {newTask.has_reminders && (
                   <div className="ml-6 space-y-3 border-l-2 border-gray-200 pl-4 mt-3">
-                  <div className="space-y-3">
-                    {[
-                      { value: '15min', label: '15 min before' },
-                      { value: '30min', label: '30 min before' },
-                      { value: '1hour', label: '1 hour before' },
-                      { value: '2hours', label: '2 hours before' },
-                      { value: '1day', label: '1 day before' },
-                      { value: '2days', label: '2 days before' },
-                      { value: '1week', label: '1 week before' }
-                    ].map((reminder) => (
-                      <div key={reminder.value} className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          checked={newTask.reminder_times?.includes(reminder.value) || false}
-                          onChange={(e) => {
-                            const currentTimes = newTask.reminder_times || [];
-                            const newTimes = e.target.checked
-                              ? [...currentTimes, reminder.value]
-                              : currentTimes.filter((time: string) => time !== reminder.value);
-                            setNewTask((prev: any) => ({ ...prev, reminder_times: newTimes }));
-                          }}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                        <span className="text-sm text-gray-700 w-24">{reminder.label}</span>
-                        <input
-                          type="text"
-                          placeholder="Reminder name (optional)"
-                          value={newTask.reminder_names?.[reminder.value] || ''}
-                          onChange={(e) => {
-                            const currentNames = newTask.reminder_names || {};
-                            setNewTask((prev: any) => ({
-                              ...prev,
-                              reminder_names: {
-                                ...currentNames,
-                                [reminder.value]: e.target.value
-                              }
-                            }));
-                          }}
-                          className="flex-1 text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          disabled={!newTask.reminder_times?.includes(reminder.value)}
-                        />
-                      </div>
-                    ))}
+                    <div className="space-y-3">
+                      {[
+                        { value: '15min', label: '15 min before' },
+                        { value: '30min', label: '30 min before' },
+                        { value: '1hour', label: '1 hour before' },
+                        { value: '2hours', label: '2 hours before' },
+                        { value: '1day', label: '1 day before' },
+                        { value: '2days', label: '2 days before' },
+                        { value: '1week', label: '1 week before' }
+                      ].map((reminder) => (
+                        <div key={reminder.value} className="flex items-center space-x-3">
+                          <input
+                            type="checkbox"
+                            checked={newTask.reminder_times?.includes(reminder.value) || false}
+                            onChange={(e) => {
+                              const currentTimes = newTask.reminder_times || [];
+                              const newTimes = e.target.checked
+                                ? [...currentTimes, reminder.value]
+                                : currentTimes.filter((time: string) => time !== reminder.value);
+                              setNewTask((prev: any) => ({ ...prev, reminder_times: newTimes }));
+                            }}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          />
+                          <span className="text-sm text-gray-700 w-24">{reminder.label}</span>
+                          <input
+                            type="text"
+                            placeholder="Reminder name (optional)"
+                            value={newTask.reminder_names?.[reminder.value] || ''}
+                            onChange={(e) => {
+                              const currentNames = newTask.reminder_names || {};
+                              setNewTask((prev: any) => ({
+                                ...prev,
+                                reminder_names: {
+                                  ...currentNames,
+                                  [reminder.value]: e.target.value
+                                }
+                              }));
+                            }}
+                            className="flex-1 text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            disabled={!newTask.reminder_times?.includes(reminder.value)}
+                          />
+                        </div>
+                      ))}
                     </div>
-                    
+
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Custom reminder time</label>
                       <div className="space-y-2">
                         <input
                           type="datetime-local"
                           value={newTask.reminder_custom_time}
-                        onChange={(e) => setNewTask((prev: any) => ({ ...prev, reminder_custom_time: e.target.value }))}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Custom reminder name (optional)"
-                        value={newTask.reminder_custom_name || ''}
-                        onChange={(e) => setNewTask((prev: any) => ({ ...prev, reminder_custom_name: e.target.value }))}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
+                          onChange={(e) => setNewTask((prev: any) => ({ ...prev, reminder_custom_time: e.target.value }))}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Custom reminder name (optional)"
+                          value={newTask.reminder_custom_name || ''}
+                          onChange={(e) => setNewTask((prev: any) => ({ ...prev, reminder_custom_name: e.target.value }))}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Set a specific date and time for the reminder</p>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Set a specific date and time for the reminder</p>
-                  </div>
-                  
+
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <label className="block text-xs font-medium text-gray-600">Additional custom reminders</label>
                         <button
                           type="button"
                           onClick={() => setNewTask((prev: any) => ({
-                          ...prev,
-                          custom_reminders: [...(prev.custom_reminders || []), { time: '', name: '' }]
-                        }))}
-                        className="flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
-                      >
-                        <Plus className="w-3 h-3 mr-1" />
-                        Add Reminder
-                      </button>
+                            ...prev,
+                            custom_reminders: [...(prev.custom_reminders || []), { time: '', name: '' }]
+                          }))}
+                          className="flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                        >
+                          <Plus className="w-3 h-3 mr-1" />
+                          Add Reminder
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        {newTask.custom_reminders?.map((reminder: any, index: number) => (
+                          <div key={index} className="flex items-center space-x-2">
+                            <input
+                              type="datetime-local"
+                              value={reminder.time}
+                              onChange={(e) => {
+                                const updatedReminders = [...(newTask.custom_reminders || [])];
+                                updatedReminders[index] = { ...reminder, time: e.target.value };
+                                setNewTask((prev: any) => ({ ...prev, custom_reminders: updatedReminders }));
+                              }}
+                              className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Reminder name (optional)"
+                              value={reminder.name}
+                              onChange={(e) => {
+                                const updatedReminders = [...(newTask.custom_reminders || [])];
+                                updatedReminders[index] = { ...reminder, name: e.target.value };
+                                setNewTask((prev: any) => ({ ...prev, custom_reminders: updatedReminders }));
+                              }}
+                              className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updatedReminders = (newTask.custom_reminders || []).filter((_: any, i: number) => i !== index);
+                                setNewTask((prev: any) => ({ ...prev, custom_reminders: updatedReminders }));
+                              }}
+                              className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      {newTask.custom_reminders?.length === 0 && (
+                        <p className="text-xs text-gray-500 mt-1">Click "Add Reminder" to create additional custom reminders</p>
+                      )}
                     </div>
-                    <div className="space-y-2">
-                      {newTask.custom_reminders?.map((reminder: any, index: number) => (
-                        <div key={index} className="flex items-center space-x-2">
-                          <input
-                            type="datetime-local"
-                            value={reminder.time}
-                            onChange={(e) => {
-                              const updatedReminders = [...(newTask.custom_reminders || [])];
-                              updatedReminders[index] = { ...reminder, time: e.target.value };
-                              setNewTask((prev: any) => ({ ...prev, custom_reminders: updatedReminders }));
-                            }}
-                            className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                          <input
-                            type="text"
-                            placeholder="Reminder name (optional)"
-                            value={reminder.name}
-                            onChange={(e) => {
-                              const updatedReminders = [...(newTask.custom_reminders || [])];
-                              updatedReminders[index] = { ...reminder, name: e.target.value };
-                              setNewTask((prev: any) => ({ ...prev, custom_reminders: updatedReminders }));
-                            }}
-                            className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const updatedReminders = (newTask.custom_reminders || []).filter((_: any, i: number) => i !== index);
-                              setNewTask((prev: any) => ({ ...prev, custom_reminders: updatedReminders }));
-                            }}
-                            className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    {newTask.custom_reminders?.length === 0 && (
-                      <p className="text-xs text-gray-500 mt-1">Click "Add Reminder" to create additional custom reminders</p>
-                    )}
                   </div>
-                </div>
                 )}
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
                 <input
                   type="text"
                   value={newTask.tags?.join(', ') || ''}
-                  onChange={(e) => setNewTask((prev: any) => ({ 
-                    ...prev, 
+                  onChange={(e) => setNewTask((prev: any) => ({
+                    ...prev,
                     tags: e.target.value ? e.target.value.split(',').map((tag: string) => tag.trim()).filter((tag: string) => tag) : []
                   }))}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -6335,11 +6288,11 @@ const MMCCalendar = () => {
       )}
       {/* Custom Category Modal */}
       {showCustomCategoryModal && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-2 md:p-4"
           onClick={() => setShowCustomCategoryModal(false)}
         >
-          <div 
+          <div
             className="bg-white rounded-lg p-4 md:p-6 w-full max-w-[95vw] md:w-[500px] mx-2 md:mx-4 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
@@ -6378,7 +6331,7 @@ const MMCCalendar = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
-                
+
                 {/* Preset Colors */}
                 <div className="grid grid-cols-4 gap-2">
                   {colorOptions.map((color) => (
@@ -6388,11 +6341,10 @@ const MMCCalendar = () => {
                       onClick={() => {
                         setCustomCategory(prev => ({ ...prev, color_class: color.class }));
                       }}
-                      className={`p-3 rounded-md border-2 ${
-                        customCategory.color_class === color.class 
-                          ? 'border-blue-500 ring-2 ring-blue-200' 
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
+                      className={`p-3 rounded-md border-2 ${customCategory.color_class === color.class
+                        ? 'border-blue-500 ring-2 ring-blue-200'
+                        : 'border-gray-200 hover:border-gray-300'
+                        }`}
                       title={color.name}
                     >
                       <div className={`w-full h-6 rounded ${color.class} flex items-center justify-center text-xs font-medium`}>
@@ -6423,11 +6375,11 @@ const MMCCalendar = () => {
       )}
       {/* Task Details Modal */}
       {showTaskModal && selectedTask && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-2 md:p-4"
           onClick={() => setShowTaskModal(false)}
         >
-          <div 
+          <div
             className="bg-white rounded-lg p-4 md:p-6 w-full max-w-[95vw] md:w-[800px] mx-2 md:mx-4 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
@@ -6454,12 +6406,11 @@ const MMCCalendar = () => {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">STATUS</label>
-                  <span className={`text-xs px-2 py-1 rounded capitalize ${
-                    selectedTask.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                  <span className={`text-xs px-2 py-1 rounded capitalize ${selectedTask.status === 'completed' ? 'bg-blue-100 text-blue-800' :
                     selectedTask.status === 'in-progress' ? 'bg-yellow-100 text-yellow-800' :
-                    selectedTask.status === 'review' ? 'bg-orange-100 text-orange-800' :
-                    'bg-green-100 text-green-800'
-                  }`}>
+                      selectedTask.status === 'review' ? 'bg-orange-100 text-orange-800' :
+                        'bg-green-100 text-green-800'
+                    }`}>
                     {selectedTask.status?.replace('-', ' ') || 'Unknown'}
                   </span>
                 </div>
@@ -6518,8 +6469,8 @@ const MMCCalendar = () => {
                     <>
                       <Calendar className="w-4 h-4 text-gray-400 ml-4" />
                       <span className="text-sm text-gray-900">
-                        {selectedTask.start_date && selectedTask.end_date ? 
-                          `${new Date(selectedTask.start_date + 'T00:00:00').toLocaleDateString()} - ${new Date(selectedTask.end_date + 'T00:00:00').toLocaleDateString()}` : 
+                        {selectedTask.start_date && selectedTask.end_date ?
+                          `${new Date(selectedTask.start_date + 'T00:00:00').toLocaleDateString()} - ${new Date(selectedTask.end_date + 'T00:00:00').toLocaleDateString()}` :
                           'Multi-Day'
                         }
                       </span>
@@ -6537,7 +6488,7 @@ const MMCCalendar = () => {
                   )}
                 </div>
               </div>
-              
+
               {selectedTask.comments && (
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">COMMENTS</label>
@@ -6546,7 +6497,7 @@ const MMCCalendar = () => {
                   </div>
                 </div>
               )}
-              
+
               {selectedTask.tags && selectedTask.tags.length > 0 && (
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-2">TAGS</label>
@@ -6562,7 +6513,7 @@ const MMCCalendar = () => {
                   </div>
                 </div>
               )}
-              
+
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">CREATED</label>
                 <div className="flex items-center space-x-2">
@@ -6588,7 +6539,7 @@ const MMCCalendar = () => {
                   )}
                 </div>
               </div>
-              
+
               {selectedTask.reminders && selectedTask.reminders.filter((r: any) => !r.dismissed).length > 0 && (
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">REMINDERS</label>
@@ -6600,13 +6551,13 @@ const MMCCalendar = () => {
                           <div className="flex items-center space-x-2">
                             <span className="text-sm text-gray-900">
                               {reminder.type === '15min' ? '15 min before' :
-                               reminder.type === '30min' ? '30 min before' :
-                               reminder.type === '1hour' ? '1 hour before' :
-                               reminder.type === '2hours' ? '2 hours before' :
-                               reminder.type === '1day' ? '1 day before' :
-                               reminder.type === '2days' ? '2 days before' :
-                               reminder.type === '1week' ? '1 week before' :
-                               'Custom reminder'}
+                                reminder.type === '30min' ? '30 min before' :
+                                  reminder.type === '1hour' ? '1 hour before' :
+                                    reminder.type === '2hours' ? '2 hours before' :
+                                      reminder.type === '1day' ? '1 day before' :
+                                        reminder.type === '2days' ? '2 days before' :
+                                          reminder.type === '1week' ? '1 week before' :
+                                            'Custom reminder'}
                             </span>
                             {reminder.name && (
                               <span className="text-sm font-medium text-blue-600">
@@ -6680,11 +6631,11 @@ const MMCCalendar = () => {
       )}
       {/* Edit Task Modal */}
       {showEditModal && editingTask && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-2 md:p-4"
           onClick={() => setShowEditModal(false)}
         >
-          <div 
+          <div
             className="bg-white rounded-lg p-4 md:p-6 w-full max-w-[95vw] md:w-[800px] mx-2 md:mx-4 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
@@ -6697,7 +6648,7 @@ const MMCCalendar = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             {/* Edit Mode Selection for Recurring Tasks */}
             {(editingTask.is_recurring || editingTask.is_recurring_instance) && (
               <div className="mb-6 p-4 bg-blue-50 rounded-lg">
@@ -6732,7 +6683,7 @@ const MMCCalendar = () => {
                 </div>
               </div>
             )}
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
@@ -6794,9 +6745,9 @@ const MMCCalendar = () => {
                           const startDate = new Date(prev.year, prev.month, prev.date);
                           const endDate = new Date(startDate);
                           endDate.setDate(endDate.getDate() + 1);
-                          
+
                           return {
-                            ...prev, 
+                            ...prev,
                             is_multiday: isMultiday,
                             is_all_day: false,
                             time: '',
@@ -6805,7 +6756,7 @@ const MMCCalendar = () => {
                           };
                         } else {
                           return {
-                            ...prev, 
+                            ...prev,
                             is_multiday: isMultiday,
                             is_all_day: prev.is_all_day,
                             time: prev.time || '09:00',
@@ -6821,7 +6772,7 @@ const MMCCalendar = () => {
                     Multi-Day Task
                   </label>
                 </div>
-                
+
                 {editingTask.is_multiday ? (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -6829,8 +6780,8 @@ const MMCCalendar = () => {
                       <input
                         type="date"
                         value={editingTask.start_date || ''}
-                        onChange={(e) => setEditingTask((prev: any) => ({ 
-                          ...prev, 
+                        onChange={(e) => setEditingTask((prev: any) => ({
+                          ...prev,
                           start_date: e.target.value,
                           date: e.target.value ? new Date(e.target.value).getDate() : prev.date,
                           month: e.target.value ? new Date(e.target.value).getMonth() : prev.month,
@@ -6870,8 +6821,8 @@ const MMCCalendar = () => {
                             type="checkbox"
                             id="edit_is_all_day"
                             checked={editingTask.is_all_day}
-                            onChange={(e) => setEditingTask((prev: any) => ({ 
-                              ...prev, 
+                            onChange={(e) => setEditingTask((prev: any) => ({
+                              ...prev,
                               is_all_day: e.target.checked,
                               time: e.target.checked ? '' : prev.time || '09:00'
                             }))}
@@ -6899,8 +6850,8 @@ const MMCCalendar = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
                   <select
                     value={editingTask.category}
-                    onChange={(e) => setEditingTask((prev: any) => ({ 
-                      ...prev, 
+                    onChange={(e) => setEditingTask((prev: any) => ({
+                      ...prev,
                       category: e.target.value,
                       type: getCategoryConfig(e.target.value).type
                     }))}
@@ -6997,7 +6948,7 @@ const MMCCalendar = () => {
                   </select>
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Recurring</label>
                 <div className="space-y-3">
@@ -7006,33 +6957,33 @@ const MMCCalendar = () => {
                       type="checkbox"
                       id="edit_is_recurring"
                       checked={editingTask.is_recurring || false}
-                        onChange={(e) => setEditingTask((prev: any) => {
-                          if (e.target.checked) {
-                            // Set default end date to the same day as start date
-                            const startDate = new Date(prev.year, prev.month, prev.date);
-                            
-                            return {
-                              ...prev, 
-                              is_recurring: true,
-                              recurring_pattern: prev.recurring_pattern || 'weekly',
-                              recurring_end_date: prev.recurring_end_date || startDate.toISOString().split('T')[0]
-                            };
-                          } else {
-                            return {
-                              ...prev, 
-                              is_recurring: false,
-                              recurring_pattern: '',
-                              recurring_end_date: null
-                            };
-                          }
-                        })}
+                      onChange={(e) => setEditingTask((prev: any) => {
+                        if (e.target.checked) {
+                          // Set default end date to the same day as start date
+                          const startDate = new Date(prev.year, prev.month, prev.date);
+
+                          return {
+                            ...prev,
+                            is_recurring: true,
+                            recurring_pattern: prev.recurring_pattern || 'weekly',
+                            recurring_end_date: prev.recurring_end_date || startDate.toISOString().split('T')[0]
+                          };
+                        } else {
+                          return {
+                            ...prev,
+                            is_recurring: false,
+                            recurring_pattern: '',
+                            recurring_end_date: null
+                          };
+                        }
+                      })}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
                     <label htmlFor="edit_is_recurring" className="text-sm text-gray-700">
                       Make this task recurring
                     </label>
                   </div>
-                  
+
                   {(editingTask.is_recurring || false) && (
                     <div className="ml-6 space-y-3 border-l-2 border-gray-200 pl-4">
                       <div>
@@ -7043,8 +6994,8 @@ const MMCCalendar = () => {
                             min="1"
                             max="99"
                             value={editingTask.recurring_interval || 1}
-                            onChange={(e) => setEditingTask((prev: any) => ({ 
-                              ...prev, 
+                            onChange={(e) => setEditingTask((prev: any) => ({
+                              ...prev,
                               recurring_interval: parseInt(e.target.value) || 1
                             }))}
                             className="w-16 border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -7054,7 +7005,7 @@ const MMCCalendar = () => {
                             onChange={(e) => setEditingTask((prev: any) => {
                               const unit = e.target.value;
                               let pattern = prev.recurring_pattern;
-                              
+
                               // Update pattern based on unit selection
                               if (unit === 'day') {
                                 pattern = 'daily';
@@ -7067,9 +7018,9 @@ const MMCCalendar = () => {
                               } else if (unit === '') {
                                 pattern = '';
                               }
-                              
+
                               return {
-                                ...prev, 
+                                ...prev,
                                 recurring_unit: unit,
                                 recurring_pattern: pattern,
                                 // Clear recurring_days when not using weekly pattern
@@ -7091,7 +7042,7 @@ const MMCCalendar = () => {
                           </select>
                         </div>
                       </div>
-                      
+
                       {(editingTask.recurring_unit || 'week') === 'week' && (
                         <div>
                           <label className="block text-xs font-medium text-gray-600 mb-2">Repeat on days</label>
@@ -7102,19 +7053,18 @@ const MMCCalendar = () => {
                                 type="button"
                                 onClick={() => {
                                   const currentDays = editingTask.recurring_days || [];
-                                  const newDays = currentDays.includes(index) 
+                                  const newDays = currentDays.includes(index)
                                     ? currentDays.filter((d: number) => d !== index)
                                     : [...currentDays, index];
-                                  setEditingTask((prev: any) => ({ 
-                                    ...prev, 
+                                  setEditingTask((prev: any) => ({
+                                    ...prev,
                                     recurring_days: newDays
                                   }));
                                 }}
-                                className={`w-8 h-8 rounded-full text-xs font-medium ${
-                                  (editingTask.recurring_days || []).includes(index)
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                }`}
+                                className={`w-8 h-8 rounded-full text-xs font-medium ${(editingTask.recurring_days || []).includes(index)
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                  }`}
                               >
                                 {day[0]}
                               </button>
@@ -7122,7 +7072,7 @@ const MMCCalendar = () => {
                           </div>
                         </div>
                       )}
-                      
+
                       {((editingTask.recurring_unit || 'week') === 'first_day_of_month' || (editingTask.recurring_unit || 'week') === '2nd_day_of_month' || (editingTask.recurring_unit || 'week') === '3rd_day_of_month' || (editingTask.recurring_unit || 'week') === '4th_day_of_month' || (editingTask.recurring_unit || 'week') === 'last_day_of_month') && (
                         <div>
                           <label className="block text-xs font-medium text-gray-600 mb-2">Select day of week</label>
@@ -7132,16 +7082,15 @@ const MMCCalendar = () => {
                                 key={day}
                                 type="button"
                                 onClick={() => {
-                                  setEditingTask((prev: any) => ({ 
-                                    ...prev, 
+                                  setEditingTask((prev: any) => ({
+                                    ...prev,
                                     recurring_days: [index] // Only one day for first/last patterns
                                   }));
                                 }}
-                                className={`w-8 h-8 rounded-full text-xs font-medium ${
-                                  (editingTask.recurring_days || []).includes(index)
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                }`}
+                                className={`w-8 h-8 rounded-full text-xs font-medium ${(editingTask.recurring_days || []).includes(index)
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                  }`}
                               >
                                 {day[0]}
                               </button>
@@ -7149,14 +7098,14 @@ const MMCCalendar = () => {
                           </div>
                         </div>
                       )}
-                      
+
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">End date (optional)</label>
                         <input
                           type="date"
                           value={editingTask.recurring_end_date ? editingTask.recurring_end_date : ''}
-                          onChange={(e) => setEditingTask((prev: any) => ({ 
-                            ...prev, 
+                          onChange={(e) => setEditingTask((prev: any) => ({
+                            ...prev,
                             recurring_end_date: e.target.value || null
                           }))}
                           className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -7168,7 +7117,7 @@ const MMCCalendar = () => {
                   )}
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes or comments</label>
                 <textarea
@@ -7179,7 +7128,7 @@ const MMCCalendar = () => {
                   placeholder="Add any additional notes or comments..."
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Reminders</label>
                 <div className="flex items-center space-x-2">
@@ -7196,138 +7145,138 @@ const MMCCalendar = () => {
                 </div>
                 {(editingTask.has_reminders || false) && (
                   <div className="ml-6 space-y-3 border-l-2 border-gray-200 pl-4 mt-3">
-                  <div className="space-y-3">
-                    {[
-                      { value: '15min', label: '15 min before' },
-                      { value: '30min', label: '30 min before' },
-                      { value: '1hour', label: '1 hour before' },
-                      { value: '2hours', label: '2 hours before' },
-                      { value: '1day', label: '1 day before' },
-                      { value: '2days', label: '2 days before' },
-                      { value: '1week', label: '1 week before' }
-                    ].map((reminder) => (
-                      <div key={reminder.value} className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          checked={editingTask.reminder_times?.includes(reminder.value) || false}
-                          onChange={(e) => {
-                            const currentTimes = editingTask.reminder_times || [];
-                            const newTimes = e.target.checked
-                              ? [...currentTimes, reminder.value]
-                              : currentTimes.filter((time: string) => time !== reminder.value);
-                            setEditingTask((prev: any) => ({ ...prev, reminder_times: newTimes }));
-                          }}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                        <span className="text-sm text-gray-700 w-24">{reminder.label}</span>
-                        <input
-                          type="text"
-                          placeholder="Reminder name (optional)"
-                          value={editingTask.reminder_names?.[reminder.value] || ''}
-                          onChange={(e) => {
-                            const currentNames = editingTask.reminder_names || {};
-                            setEditingTask((prev: any) => ({
-                              ...prev,
-                              reminder_names: {
-                                ...currentNames,
-                                [reminder.value]: e.target.value
-                              }
-                            }));
-                          }}
-                          className="flex-1 text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          disabled={!editingTask.reminder_times?.includes(reminder.value)}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Custom reminder time</label>
-                    <div className="space-y-2">
-                      <input
-                        type="datetime-local"
-                        value={editingTask.reminder_custom_time || ''}
-                        onChange={(e) => setEditingTask((prev: any) => ({ ...prev, reminder_custom_time: e.target.value }))}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Custom reminder name (optional)"
-                        value={editingTask.reminder_custom_name || ''}
-                        onChange={(e) => setEditingTask((prev: any) => ({ ...prev, reminder_custom_name: e.target.value }))}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">Set a specific date and time for the reminder</p>
-                  </div>
-                  
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="block text-xs font-medium text-gray-600">Additional custom reminders</label>
-                      <button
-                        type="button"
-                        onClick={() => setEditingTask((prev: any) => ({
-                          ...prev,
-                          custom_reminders: [...(prev.custom_reminders || []), { time: '', name: '' }]
-                        }))}
-                        className="flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
-                      >
-                        <Plus className="w-3 h-3 mr-1" />
-                        Add Reminder
-                      </button>
-                    </div>
-                    <div className="space-y-2">
-                      {editingTask.custom_reminders?.map((reminder: any, index: number) => (
-                        <div key={index} className="flex items-center space-x-2">
+                    <div className="space-y-3">
+                      {[
+                        { value: '15min', label: '15 min before' },
+                        { value: '30min', label: '30 min before' },
+                        { value: '1hour', label: '1 hour before' },
+                        { value: '2hours', label: '2 hours before' },
+                        { value: '1day', label: '1 day before' },
+                        { value: '2days', label: '2 days before' },
+                        { value: '1week', label: '1 week before' }
+                      ].map((reminder) => (
+                        <div key={reminder.value} className="flex items-center space-x-3">
                           <input
-                            type="datetime-local"
-                            value={reminder.time}
+                            type="checkbox"
+                            checked={editingTask.reminder_times?.includes(reminder.value) || false}
                             onChange={(e) => {
-                              const updatedReminders = [...(editingTask.custom_reminders || [])];
-                              updatedReminders[index] = { ...reminder, time: e.target.value };
-                              setEditingTask((prev: any) => ({ ...prev, custom_reminders: updatedReminders }));
+                              const currentTimes = editingTask.reminder_times || [];
+                              const newTimes = e.target.checked
+                                ? [...currentTimes, reminder.value]
+                                : currentTimes.filter((time: string) => time !== reminder.value);
+                              setEditingTask((prev: any) => ({ ...prev, reminder_times: newTimes }));
                             }}
-                            className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                           />
+                          <span className="text-sm text-gray-700 w-24">{reminder.label}</span>
                           <input
                             type="text"
                             placeholder="Reminder name (optional)"
-                            value={reminder.name}
+                            value={editingTask.reminder_names?.[reminder.value] || ''}
                             onChange={(e) => {
-                              const updatedReminders = [...(editingTask.custom_reminders || [])];
-                              updatedReminders[index] = { ...reminder, name: e.target.value };
-                              setEditingTask((prev: any) => ({ ...prev, custom_reminders: updatedReminders }));
+                              const currentNames = editingTask.reminder_names || {};
+                              setEditingTask((prev: any) => ({
+                                ...prev,
+                                reminder_names: {
+                                  ...currentNames,
+                                  [reminder.value]: e.target.value
+                                }
+                              }));
                             }}
-                            className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="flex-1 text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            disabled={!editingTask.reminder_times?.includes(reminder.value)}
                           />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const updatedReminders = (editingTask.custom_reminders || []).filter((_: any, i: number) => i !== index);
-                              setEditingTask((prev: any) => ({ ...prev, custom_reminders: updatedReminders }));
-                            }}
-                            className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
                         </div>
                       ))}
                     </div>
-                    {editingTask.custom_reminders?.length === 0 && (
-                      <p className="text-xs text-gray-500 mt-1">Click "Add Reminder" to create additional custom reminders</p>
-                    )}
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Custom reminder time</label>
+                      <div className="space-y-2">
+                        <input
+                          type="datetime-local"
+                          value={editingTask.reminder_custom_time || ''}
+                          onChange={(e) => setEditingTask((prev: any) => ({ ...prev, reminder_custom_time: e.target.value }))}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Custom reminder name (optional)"
+                          value={editingTask.reminder_custom_name || ''}
+                          onChange={(e) => setEditingTask((prev: any) => ({ ...prev, reminder_custom_name: e.target.value }))}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Set a specific date and time for the reminder</p>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-xs font-medium text-gray-600">Additional custom reminders</label>
+                        <button
+                          type="button"
+                          onClick={() => setEditingTask((prev: any) => ({
+                            ...prev,
+                            custom_reminders: [...(prev.custom_reminders || []), { time: '', name: '' }]
+                          }))}
+                          className="flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                        >
+                          <Plus className="w-3 h-3 mr-1" />
+                          Add Reminder
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        {editingTask.custom_reminders?.map((reminder: any, index: number) => (
+                          <div key={index} className="flex items-center space-x-2">
+                            <input
+                              type="datetime-local"
+                              value={reminder.time}
+                              onChange={(e) => {
+                                const updatedReminders = [...(editingTask.custom_reminders || [])];
+                                updatedReminders[index] = { ...reminder, time: e.target.value };
+                                setEditingTask((prev: any) => ({ ...prev, custom_reminders: updatedReminders }));
+                              }}
+                              className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Reminder name (optional)"
+                              value={reminder.name}
+                              onChange={(e) => {
+                                const updatedReminders = [...(editingTask.custom_reminders || [])];
+                                updatedReminders[index] = { ...reminder, name: e.target.value };
+                                setEditingTask((prev: any) => ({ ...prev, custom_reminders: updatedReminders }));
+                              }}
+                              className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updatedReminders = (editingTask.custom_reminders || []).filter((_: any, i: number) => i !== index);
+                                setEditingTask((prev: any) => ({ ...prev, custom_reminders: updatedReminders }));
+                              }}
+                              className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      {editingTask.custom_reminders?.length === 0 && (
+                        <p className="text-xs text-gray-500 mt-1">Click "Add Reminder" to create additional custom reminders</p>
+                      )}
+                    </div>
                   </div>
-                </div>
                 )}
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
                 <input
                   type="text"
                   value={editingTask.tags?.join(', ') || ''}
-                  onChange={(e) => setEditingTask((prev: any) => ({ 
-                    ...prev, 
+                  onChange={(e) => setEditingTask((prev: any) => ({
+                    ...prev,
                     tags: e.target.value ? e.target.value.split(',').map((tag: string) => tag.trim()).filter((tag: string) => tag) : []
                   }))}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -7335,7 +7284,7 @@ const MMCCalendar = () => {
                 />
                 <p className="text-xs text-gray-500 mt-1">Separate multiple tags with commas</p>
               </div>
-              
+
               <div className="pt-2 border-t border-gray-200">
                 <label className="block text-xs font-medium text-gray-500 mb-1">CREATED</label>
                 <div className="flex items-center space-x-2">
@@ -7379,41 +7328,38 @@ const MMCCalendar = () => {
       {showDrawer && (
         <div className="fixed inset-0 z-50 overflow-hidden">
           {/* Backdrop */}
-          <div 
-            className={`absolute inset-0 bg-black transition-all duration-300 ease-in-out ${
-              isDrawerClosing 
-                ? 'bg-opacity-0 animate-[fadeOut_0.3s_ease-in-out_forwards]' 
-                : 'bg-opacity-50 animate-[fadeIn_0.3s_ease-in-out_forwards]'
-            }`}
+          <div
+            className={`absolute inset-0 bg-black transition-all duration-300 ease-in-out ${isDrawerClosing
+              ? 'bg-opacity-0 animate-[fadeOut_0.3s_ease-in-out_forwards]'
+              : 'bg-opacity-50 animate-[fadeIn_0.3s_ease-in-out_forwards]'
+              }`}
             onClick={user !== 'guest' ? closeDrawer : undefined}
           />
-          
+
           {/* Drawer */}
-          <div 
+          <div
             data-drawer="true"
-            className={`absolute right-0 top-0 h-full w-full max-w-sm md:w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
-              isDrawerClosing 
-                ? 'translate-x-full animate-[slideOutRight_0.3s_ease-in-out_forwards]' 
-                : 'translate-x-0 animate-[slideInRight_0.3s_ease-in-out_forwards]'
-            }`}>
+            className={`absolute right-0 top-0 h-full w-full max-w-sm md:w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${isDrawerClosing
+              ? 'translate-x-full animate-[slideOutRight_0.3s_ease-in-out_forwards]'
+              : 'translate-x-0 animate-[slideInRight_0.3s_ease-in-out_forwards]'
+              }`}>
             <div className="flex flex-col h-full">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
                 <div>
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {showPersonalTasks ? 'My Tasks' : 'Task Overview'}
-                </h2>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    {showPersonalTasks ? 'My Tasks' : 'Task Overview'}
+                  </h2>
                   <p className="text-sm text-gray-500 mt-1">
                     {showPersonalTasks ? 'Your personal tasks and assignments' : 'Overdue and high priority tasks'}
                   </p>
                 </div>
                 <button
                   onClick={user !== 'guest' ? closeDrawer : undefined}
-                  className={`p-2 rounded-lg transition-colors ${
-                    user !== 'guest' 
-                      ? 'text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer' 
-                      : 'text-gray-300 cursor-not-allowed'
-                  }`}
+                  className={`p-2 rounded-lg transition-colors ${user !== 'guest'
+                    ? 'text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer'
+                    : 'text-gray-300 cursor-not-allowed'
+                    }`}
                   disabled={user === 'guest'}
                 >
                   <X className="w-5 h-5" />
@@ -7436,11 +7382,10 @@ const MMCCalendar = () => {
                       {(showPersonalTasks ? getPersonalOverdueTasks() : getOverdueTasks()).map((task) => (
                         <div
                           key={task.id}
-                          className={`p-3 bg-red-50 border border-red-200 rounded-lg transition-colors ${
-                            user !== 'guest' 
-                              ? 'cursor-pointer hover:bg-red-100' 
-                              : 'cursor-default'
-                          }`}
+                          className={`p-3 bg-red-50 border border-red-200 rounded-lg transition-colors ${user !== 'guest'
+                            ? 'cursor-pointer hover:bg-red-100'
+                            : 'cursor-default'
+                            }`}
                           onClick={user !== 'guest' ? () => {
                             setSelectedTask(ensureCompleteTaskData(task));
                             setShowTaskModal(true);
@@ -7486,11 +7431,10 @@ const MMCCalendar = () => {
                       {(showPersonalTasks ? getPersonalHighPriorityTasks() : getHighPriorityTasks()).map((task) => (
                         <div
                           key={task.id}
-                          className={`p-3 bg-orange-50 border border-orange-200 rounded-lg transition-colors ${
-                            user !== 'guest' 
-                              ? 'cursor-pointer hover:bg-orange-100' 
-                              : 'cursor-default'
-                          }`}
+                          className={`p-3 bg-orange-50 border border-orange-200 rounded-lg transition-colors ${user !== 'guest'
+                            ? 'cursor-pointer hover:bg-orange-100'
+                            : 'cursor-default'
+                            }`}
                           onClick={user !== 'guest' ? () => {
                             setSelectedTask(ensureCompleteTaskData(task));
                             setShowTaskModal(true);
@@ -7534,8 +7478,8 @@ const MMCCalendar = () => {
                     </div>
                     <h3 className="text-lg font-medium text-gray-900 mb-2">All caught up!</h3>
                     <p className="text-gray-500 text-sm">
-                      {showPersonalTasks 
-                        ? "No overdue tasks or high priority items assigned to you at the moment." 
+                      {showPersonalTasks
+                        ? "No overdue tasks or high priority items assigned to you at the moment."
                         : "No overdue tasks or high priority items at the moment."
                       }
                     </p>
@@ -7551,23 +7495,21 @@ const MMCCalendar = () => {
       {showActivitiesDrawer && user !== 'guest' && (
         <div className="fixed inset-0 z-50 overflow-hidden">
           {/* Backdrop */}
-          <div 
-            className={`absolute inset-0 bg-black transition-all duration-300 ease-in-out ${
-              isActivitiesDrawerClosing 
-                ? 'bg-opacity-0 animate-[fadeOut_0.3s_ease-in-out_forwards]' 
-                : 'bg-opacity-50 animate-[fadeIn_0.3s_ease-in-out_forwards]'
-            }`}
+          <div
+            className={`absolute inset-0 bg-black transition-all duration-300 ease-in-out ${isActivitiesDrawerClosing
+              ? 'bg-opacity-0 animate-[fadeOut_0.3s_ease-in-out_forwards]'
+              : 'bg-opacity-50 animate-[fadeIn_0.3s_ease-in-out_forwards]'
+              }`}
             onClick={closeActivitiesDrawer}
           />
-          
+
           {/* Drawer */}
-          <div 
+          <div
             data-drawer="true"
-            className={`absolute right-0 top-0 h-full w-full max-w-sm md:w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
-              isActivitiesDrawerClosing 
-                ? 'translate-x-full animate-[slideOutRight_0.3s_ease-in-out_forwards]' 
-                : 'translate-x-0 animate-[slideInRight_0.3s_ease-in-out_forwards]'
-            }`}>
+            className={`absolute right-0 top-0 h-full w-full max-w-sm md:w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${isActivitiesDrawerClosing
+              ? 'translate-x-full animate-[slideOutRight_0.3s_ease-in-out_forwards]'
+              : 'translate-x-0 animate-[slideInRight_0.3s_ease-in-out_forwards]'
+              }`}>
             <div className="flex flex-col h-full">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
@@ -7582,7 +7524,7 @@ const MMCCalendar = () => {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              
+
               {/* Content */}
               <div className="flex-1 overflow-y-auto p-6">
                 <div className="space-y-3">
@@ -7595,7 +7537,7 @@ const MMCCalendar = () => {
                         const allTasksFlat = Object.values(allTasks).flat();
                         const taskTitle = activity.task?.title || activity.message?.replace(/^(Created|Updated) (new )?task: /, '');
                         let completeTask = allTasksFlat.find(t => t.title === taskTitle);
-                        
+
                         // If not found in current tasks, try to fetch it from the database by title
                         if (!completeTask) {
                           try {
@@ -7606,7 +7548,7 @@ const MMCCalendar = () => {
                               .order('created_at', { ascending: false })
                               .limit(1)
                               .single();
-                            
+
                             if (data && !error) {
                               completeTask = data;
                             }
@@ -7614,7 +7556,7 @@ const MMCCalendar = () => {
                             console.error('Error fetching task by title:', err);
                           }
                         }
-                        
+
                         if (completeTask) {
                           setSelectedTask(ensureCompleteTaskData(completeTask));
                           setShowTaskModal(true);
@@ -7628,15 +7570,14 @@ const MMCCalendar = () => {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-1">
-                            <span className={`text-xs px-2 py-1 rounded ${
-                              activity.type === 'task_created' ? 'bg-green-100 text-green-800' :
+                            <span className={`text-xs px-2 py-1 rounded ${activity.type === 'task_created' ? 'bg-green-100 text-green-800' :
                               activity.type === 'task_updated' ? 'bg-blue-100 text-blue-800' :
-                              activity.type === 'status_changed' ? 'bg-purple-100 text-purple-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
+                                activity.type === 'status_changed' ? 'bg-purple-100 text-purple-800' :
+                                  'bg-gray-100 text-gray-800'
+                              }`}>
                               {activity.type === 'task_created' ? 'Created' :
-                               activity.type === 'task_updated' ? 'Updated' :
-                               activity.type === 'status_changed' ? 'Status Changed' : 'Activity'}
+                                activity.type === 'task_updated' ? 'Updated' :
+                                  activity.type === 'status_changed' ? 'Status Changed' : 'Activity'}
                             </span>
                             <span className="text-xs text-gray-500">
                               {activity.timestamp.toLocaleDateString()} at {activity.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -7649,19 +7590,17 @@ const MMCCalendar = () => {
                           {activity.type === 'status_changed' && (
                             <div className="flex items-center mt-2 space-x-2">
                               <span className="text-xs text-gray-500">From:</span>
-                              <span className={`text-xs px-2 py-1 rounded ${
-                                activity.oldStatus === 'completed' ? 'bg-green-100 text-green-800' :
+                              <span className={`text-xs px-2 py-1 rounded ${activity.oldStatus === 'completed' ? 'bg-green-100 text-green-800' :
                                 activity.oldStatus === 'in-progress' ? 'bg-blue-100 text-blue-800' :
-                                'bg-gray-100 text-gray-800'
-                              }`}>
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
                                 {activity.oldStatus}
                               </span>
                               <span className="text-xs text-gray-500">→</span>
-                              <span className={`text-xs px-2 py-1 rounded ${
-                                activity.newStatus === 'completed' ? 'bg-green-100 text-green-800' :
+                              <span className={`text-xs px-2 py-1 rounded ${activity.newStatus === 'completed' ? 'bg-green-100 text-green-800' :
                                 activity.newStatus === 'in-progress' ? 'bg-blue-100 text-blue-800' :
-                                'bg-gray-100 text-gray-800'
-                              }`}>
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
                                 {activity.newStatus}
                               </span>
                             </div>
@@ -7694,23 +7633,21 @@ const MMCCalendar = () => {
       {showRemindersDrawer && user !== 'guest' && (
         <div className="fixed inset-0 z-50 overflow-hidden">
           {/* Backdrop */}
-          <div 
-            className={`absolute inset-0 bg-black transition-opacity duration-300 ${
-              isRemindersDrawerClosing 
-                ? 'bg-opacity-0 animate-[fadeOut_0.3s_ease-in-out_forwards]' 
-                : 'bg-opacity-50 animate-[fadeIn_0.3s_ease-in-out_forwards]'
-            }`}
+          <div
+            className={`absolute inset-0 bg-black transition-opacity duration-300 ${isRemindersDrawerClosing
+              ? 'bg-opacity-0 animate-[fadeOut_0.3s_ease-in-out_forwards]'
+              : 'bg-opacity-50 animate-[fadeIn_0.3s_ease-in-out_forwards]'
+              }`}
             onClick={closeRemindersDrawer}
           />
-          
+
           {/* Drawer */}
-          <div 
+          <div
             data-drawer="true"
-            className={`absolute right-0 top-0 h-full w-full max-w-sm md:w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
-              isRemindersDrawerClosing 
-                ? 'translate-x-full animate-[slideOutRight_0.3s_ease-in-out_forwards]' 
-                : 'translate-x-0 animate-[slideInRight_0.3s_ease-in-out_forwards]'
-            }`}>
+            className={`absolute right-0 top-0 h-full w-full max-w-sm md:w-96 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${isRemindersDrawerClosing
+              ? 'translate-x-full animate-[slideOutRight_0.3s_ease-in-out_forwards]'
+              : 'translate-x-0 animate-[slideInRight_0.3s_ease-in-out_forwards]'
+              }`}>
             <div className="flex flex-col h-full">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
@@ -7725,7 +7662,7 @@ const MMCCalendar = () => {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              
+
               {/* Content */}
               <div className="flex-1 overflow-y-auto p-6">
                 <div className="space-y-6">
@@ -7748,13 +7685,13 @@ const MMCCalendar = () => {
                               <div className="flex items-center space-x-2">
                                 <span className="text-xs text-gray-600 font-medium bg-gray-100 px-2 py-1 rounded">
                                   {reminder.reminderType === '15min' ? '15 min before' :
-                                   reminder.reminderType === '30min' ? '30 min before' :
-                                   reminder.reminderType === '1hour' ? '1 hour before' :
-                                   reminder.reminderType === '2hours' ? '2 hours before' :
-                                   reminder.reminderType === '1day' ? '1 day before' :
-                                   reminder.reminderType === '2days' ? '2 days before' :
-                                   reminder.reminderType === '1week' ? '1 week before' :
-                                   'Custom reminder'}
+                                    reminder.reminderType === '30min' ? '30 min before' :
+                                      reminder.reminderType === '1hour' ? '1 hour before' :
+                                        reminder.reminderType === '2hours' ? '2 hours before' :
+                                          reminder.reminderType === '1day' ? '1 day before' :
+                                            reminder.reminderType === '2days' ? '2 days before' :
+                                              reminder.reminderType === '1week' ? '1 week before' :
+                                                'Custom reminder'}
                                 </span>
                                 <span className="text-xs text-gray-500">
                                   {reminder.reminderTime.toLocaleString()}
@@ -7805,13 +7742,13 @@ const MMCCalendar = () => {
                               <div className="flex items-center space-x-2">
                                 <span className="text-xs text-blue-600 font-medium bg-blue-100 px-2 py-1 rounded">
                                   {reminder.reminderType === '15min' ? '15 min before' :
-                                   reminder.reminderType === '30min' ? '30 min before' :
-                                   reminder.reminderType === '1hour' ? '1 hour before' :
-                                   reminder.reminderType === '2hours' ? '2 hours before' :
-                                   reminder.reminderType === '1day' ? '1 day before' :
-                                   reminder.reminderType === '2days' ? '2 days before' :
-                                   reminder.reminderType === '1week' ? '1 week before' :
-                                   'Custom reminder'}
+                                    reminder.reminderType === '30min' ? '30 min before' :
+                                      reminder.reminderType === '1hour' ? '1 hour before' :
+                                        reminder.reminderType === '2hours' ? '2 hours before' :
+                                          reminder.reminderType === '1day' ? '1 day before' :
+                                            reminder.reminderType === '2days' ? '2 days before' :
+                                              reminder.reminderType === '1week' ? '1 week before' :
+                                                'Custom reminder'}
                                 </span>
                                 <span className="text-xs text-gray-500">
                                   {reminder.reminderTime.toLocaleString()}
@@ -7866,11 +7803,11 @@ const MMCCalendar = () => {
 
       {/* Edit Category Modal */}
       {showEditCategoryModal && editingCategory && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-2 md:p-4"
           onClick={() => setShowEditCategoryModal(false)}
         >
-          <div 
+          <div
             className="bg-white rounded-lg p-4 md:p-6 w-full max-w-[95vw] md:w-[500px] mx-2 md:mx-4 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
@@ -7920,11 +7857,10 @@ const MMCCalendar = () => {
                       key={color.name}
                       type="button"
                       onClick={() => setEditingCategory(prev => ({ ...prev, color_class: color.class }))}
-                      className={`p-3 rounded-md border-2 ${
-                        editingCategory.color_class === color.class 
-                          ? 'border-blue-500 ring-2 ring-blue-200' 
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
+                      className={`p-3 rounded-md border-2 ${editingCategory.color_class === color.class
+                        ? 'border-blue-500 ring-2 ring-blue-200'
+                        : 'border-gray-200 hover:border-gray-300'
+                        }`}
                       title={color.name}
                     >
                       <div className={`w-full h-6 rounded ${color.class} flex items-center justify-center text-xs font-medium`}>
@@ -7956,11 +7892,11 @@ const MMCCalendar = () => {
 
       {/* Delete Category Modal */}
       {showDeleteCategoryModal && categoryToDelete && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-2 md:p-4"
           onClick={() => setShowDeleteCategoryModal(false)}
         >
-          <div 
+          <div
             className="bg-white rounded-lg p-4 md:p-6 w-full max-w-[95vw] md:w-[500px] mx-2 md:mx-4 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
@@ -7991,7 +7927,7 @@ const MMCCalendar = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Reassign tasks to:
@@ -8036,11 +7972,11 @@ const MMCCalendar = () => {
 
       {/* Edit User Modal */}
       {showEditUserModal && editingUser && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-2 md:p-4"
           onClick={() => setShowEditUserModal(false)}
         >
-          <div 
+          <div
             className="bg-white rounded-lg p-4 md:p-6 w-full max-w-[95vw] md:w-[500px] mx-2 md:mx-4 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
@@ -8096,11 +8032,10 @@ const MMCCalendar = () => {
                       key={color}
                       type="button"
                       onClick={() => setEditingUser(prev => ({ ...prev, color }))}
-                      className={`w-8 h-8 rounded-full ${color} ${
-                        editingUser.color === color 
-                          ? 'ring-2 ring-blue-500 ring-offset-2' 
-                          : 'hover:opacity-80'
-                      }`}
+                      className={`w-8 h-8 rounded-full ${color} ${editingUser.color === color
+                        ? 'ring-2 ring-blue-500 ring-offset-2'
+                        : 'hover:opacity-80'
+                        }`}
                       title={color.replace('bg-', '').replace('-500', '')}
                     />
                   ))}
@@ -8128,11 +8063,11 @@ const MMCCalendar = () => {
 
       {/* Password Change Modal */}
       {showPasswordChangeModal && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-2 md:p-4"
           onClick={() => setShowPasswordChangeModal(false)}
         >
-          <div 
+          <div
             className="bg-white rounded-lg p-4 md:p-6 w-full max-w-[95vw] md:w-[400px] mx-2 md:mx-4 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
