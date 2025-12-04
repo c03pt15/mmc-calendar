@@ -5128,7 +5128,7 @@ const MMCCalendar = () => {
                       </svg>
                     </button>
                     <div className={`overflow-hidden transition-all duration-300 ease-in-out ${showEarlyHours ? 'max-h-screen' : 'max-h-0'}`}>
-                      <div className="bg-blue-50">
+                      <div className="bg-gray-50 border-b border-gray-200">
                         {Array.from({ length: 8 }, (_, i) => {
                           const hour = i;
                           const timeString = `${hour.toString().padStart(2, '0')}:00`;
@@ -5139,14 +5139,14 @@ const MMCCalendar = () => {
 
                           return (
                             <div key={hour} className="relative">
-                              <div className="sticky top-0 bg-white z-10 flex items-center h-12 border-b border-gray-100">
+                              <div className="sticky top-0 bg-gray-50 z-10 flex items-center h-12 border-b border-gray-200">
                                 <div className="w-16 text-right pr-3 text-sm text-gray-500 font-medium">
                                   {timeString}
                                 </div>
                                 <div className="flex-1 h-px bg-gray-200"></div>
                               </div>
                               <div
-                                className={`relative bg-white hover:bg-gray-50 transition-colors cursor-pointer ${hasTasks ? 'min-h-20 py-2' : 'min-h-12'
+                                className={`relative bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer ${hasTasks ? 'min-h-20 py-2' : 'min-h-12'
                                   }`}
                                 onClick={(e) => {
                                   e.preventDefault();
