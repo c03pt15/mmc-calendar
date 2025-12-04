@@ -5127,8 +5127,8 @@ const MMCCalendar = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </button>
-                    {showEarlyHours && (
-                      <div>
+                    <div className={`overflow-hidden transition-all duration-300 ease-in-out ${showEarlyHours ? 'max-h-screen' : 'max-h-0'}`}>
+                      <div className="bg-blue-50">
                         {Array.from({ length: 8 }, (_, i) => {
                           const hour = i;
                           const timeString = `${hour.toString().padStart(2, '0')}:00`;
@@ -5234,7 +5234,7 @@ const MMCCalendar = () => {
                           );
                         })}
                       </div>
-                    )}
+                    </div>
                   </div>
 
                   {/* Core Hours (8-20) - Always visible */}
@@ -5352,8 +5352,7 @@ const MMCCalendar = () => {
                   <div className="border-t border-gray-200">
                     <button
                       onClick={() => setShowLateHours(!showLateHours)}
-                      className="w-full flex items-center justify-between p-3 bg-gray-100 hover:bg-gray-200 transition-colors"
-                      style={{ borderRadius: '8px' }}
+                      className="w-full flex items-center justify-between p-3 bg-gray-100 hover:bg-gray-200 transition-colors rounded-lg"
                     >
                       <div className="flex items-center space-x-2">
                         <span className="text-sm font-medium text-gray-700">Late Hours (9:00 PM - 11:00 PM)</span>
