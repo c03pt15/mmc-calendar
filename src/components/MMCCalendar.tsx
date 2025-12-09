@@ -1337,7 +1337,6 @@ const MMCCalendar = () => {
     });
 
     setNewTask({
-      id: Date.now(),
       title: '',
       description: '',
       type: 'Blog',
@@ -2173,8 +2172,15 @@ const MMCCalendar = () => {
         reminders: reminders
       };
 
-      // Remove has_reminders as it's only used for UI state, not database
+      // Remove fields that are only used for UI state, not database
       delete task.has_reminders;
+      delete task.id; // Let database auto-generate the ID
+      delete task.reminder_times; // UI state only
+      delete task.reminder_custom_time; // UI state only
+      delete task.reminder_names; // UI state only
+      delete task.reminder_custom_name; // UI state only
+      delete task.custom_reminders; // UI state only
+
 
 
       const { data, error } = await supabase.from('tasks').insert([task]).select();
@@ -2548,8 +2554,13 @@ const MMCCalendar = () => {
         reminders: reminders
       };
 
-      // Remove has_reminders as it's only used for UI state, not database
+      // Remove fields that are only used for UI state, not database
       delete updatedTask.has_reminders;
+      delete updatedTask.reminder_times; // UI state only
+      delete updatedTask.reminder_custom_time; // UI state only
+      delete updatedTask.reminder_names; // UI state only
+      delete updatedTask.reminder_custom_name; // UI state only
+      delete updatedTask.custom_reminders; // UI state only
 
       const isRecurring = editingTask.is_recurring || editingTask.is_recurring_instance;
 
@@ -3783,11 +3794,15 @@ const MMCCalendar = () => {
     setCurrentDate(prev => {
       const newDate = new Date(prev);
       newDate.setMonth(prev.getMonth() + direction);
-      // Ensure we don't go too far into the future
-      const currentYear = new Date().getFullYear();
-      if (newDate.getFullYear() > currentYear + 1) {
-        newDate.setFullYear(currentYear);
-        newDate.setMonth(10); // November
+      // Ensure we don't go beyond year 2099
+      if (newDate.getFullYear() > 2099) {
+        newDate.setFullYear(2099);
+        newDate.setMonth(11); // December
+      }
+      // Ensure we don't go before year 2020
+      if (newDate.getFullYear() < 2020) {
+        newDate.setFullYear(2020);
+        newDate.setMonth(0); // January
       }
       return newDate;
     });
@@ -5686,7 +5701,7 @@ const MMCCalendar = () => {
                     onChange={(e) => setNewTask((prev: any) => ({ ...prev, year: parseInt(e.target.value) || new Date().getFullYear() }))}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     min="2020"
-                    max="2030"
+                    max="2099"
                     placeholder="Enter year"
                   />
                 </div>
@@ -6256,8 +6271,8 @@ const MMCCalendar = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
                 <input
                   type="text"
-                  value={newTask.tags?.join(', ') || ''}
-                  onChange={(e) => setNewTask((prev: any) => ({
+                  defaultValue={newTask.tags?.join(', ') || ''}
+                  onBlur={(e) => setNewTask((prev: any) => ({
                     ...prev,
                     tags: e.target.value ? e.target.value.split(',').map((tag: string) => tag.trim()).filter((tag: string) => tag) : []
                   }))}
@@ -6725,7 +6740,7 @@ const MMCCalendar = () => {
                     onChange={(e) => setEditingTask((prev: any) => ({ ...prev, year: parseInt(e.target.value) || new Date().getFullYear() }))}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     min="2020"
-                    max="2030"
+                    max="2099"
                     placeholder="Enter year"
                   />
                 </div>
@@ -7273,8 +7288,8 @@ const MMCCalendar = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
                 <input
                   type="text"
-                  value={editingTask.tags?.join(', ') || ''}
-                  onChange={(e) => setEditingTask((prev: any) => ({
+                  defaultValue={editingTask.tags?.join(', ') || ''}
+                  onBlur={(e) => setEditingTask((prev: any) => ({
                     ...prev,
                     tags: e.target.value ? e.target.value.split(',').map((tag: string) => tag.trim()).filter((tag: string) => tag) : []
                   }))}
