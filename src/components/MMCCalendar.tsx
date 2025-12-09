@@ -2237,6 +2237,105 @@ const MMCCalendar = () => {
       if (cleanedTask.end_date === '') cleanedTask.end_date = null;
       if (cleanedTask.recurring_end_date === '') cleanedTask.recurring_end_date = null;
 
+      // For advanced recurring patterns, adjust the start date to the next valid occurrence
+      if (cleanedTask.is_recurring && (cleanedTask.recurring_unit === 'monthly_advanced' || cleanedTask.recurring_unit === 'yearly_advanced')) {
+        const today = new Date();
+        const occurrence = cleanedTask.recurring_occurrence || 'first';
+        const dayOfWeek = cleanedTask.recurring_days && cleanedTask.recurring_days[0] !== undefined ? cleanedTask.recurring_days[0] : 1;
+
+        let nextOccurrenceDate: Date;
+
+        if (cleanedTask.recurring_unit === 'monthly_advanced') {
+          // Calculate the occurrence date for the current month
+          const currentMonth = today.getMonth();
+          const currentYear = today.getFullYear();
+
+          if (occurrence === 'last') {
+            const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
+            const lastDayWeekday = lastDayOfMonth.getDay();
+            const daysBack = (lastDayWeekday - dayOfWeek + 7) % 7;
+            nextOccurrenceDate = new Date(lastDayOfMonth);
+            nextOccurrenceDate.setDate(lastDayOfMonth.getDate() - daysBack);
+          } else {
+            const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+            const firstDayWeekday = firstDayOfMonth.getDay();
+            const daysToFirstOccurrence = (dayOfWeek - firstDayWeekday + 7) % 7;
+            const occurrenceNumber = occurrence === 'first' ? 0 : occurrence === 'second' ? 1 : occurrence === 'third' ? 2 : 3;
+            nextOccurrenceDate = new Date(firstDayOfMonth);
+            nextOccurrenceDate.setDate(firstDayOfMonth.getDate() + daysToFirstOccurrence + (occurrenceNumber * 7));
+          }
+
+          // If the occurrence date has already passed this month, move to next month
+          if (nextOccurrenceDate < today) {
+            const nextMonth = currentMonth + 1;
+            const nextYear = nextMonth > 11 ? currentYear + 1 : currentYear;
+            const adjustedMonth = nextMonth > 11 ? 0 : nextMonth;
+
+            if (occurrence === 'last') {
+              const lastDayOfNextMonth = new Date(nextYear, adjustedMonth + 1, 0);
+              const lastDayWeekday = lastDayOfNextMonth.getDay();
+              const daysBack = (lastDayWeekday - dayOfWeek + 7) % 7;
+              nextOccurrenceDate = new Date(lastDayOfNextMonth);
+              nextOccurrenceDate.setDate(lastDayOfNextMonth.getDate() - daysBack);
+            } else {
+              const firstDayOfNextMonth = new Date(nextYear, adjustedMonth, 1);
+              const firstDayWeekday = firstDayOfNextMonth.getDay();
+              const daysToFirstOccurrence = (dayOfWeek - firstDayWeekday + 7) % 7;
+              const occurrenceNumber = occurrence === 'first' ? 0 : occurrence === 'second' ? 1 : occurrence === 'third' ? 2 : 3;
+              nextOccurrenceDate = new Date(firstDayOfNextMonth);
+              nextOccurrenceDate.setDate(firstDayOfNextMonth.getDate() + daysToFirstOccurrence + (occurrenceNumber * 7));
+            }
+          }
+        } else if (cleanedTask.recurring_unit === 'yearly_advanced') {
+          // Calculate the occurrence date for the current year
+          const currentYear = today.getFullYear();
+          const targetMonth = cleanedTask.recurring_month !== null && cleanedTask.recurring_month !== undefined ? cleanedTask.recurring_month : 0;
+
+          if (occurrence === 'last') {
+            const lastDayOfTargetMonth = new Date(currentYear, targetMonth + 1, 0);
+            const lastDayWeekday = lastDayOfTargetMonth.getDay();
+            const daysBack = (lastDayWeekday - dayOfWeek + 7) % 7;
+            nextOccurrenceDate = new Date(lastDayOfTargetMonth);
+            nextOccurrenceDate.setDate(lastDayOfTargetMonth.getDate() - daysBack);
+          } else {
+            const firstDayOfTargetMonth = new Date(currentYear, targetMonth, 1);
+            const firstDayWeekday = firstDayOfTargetMonth.getDay();
+            const daysToFirstOccurrence = (dayOfWeek - firstDayWeekday + 7) % 7;
+            const occurrenceNumber = occurrence === 'first' ? 0 : occurrence === 'second' ? 1 : occurrence === 'third' ? 2 : 3;
+            nextOccurrenceDate = new Date(firstDayOfTargetMonth);
+            nextOccurrenceDate.setDate(firstDayOfTargetMonth.getDate() + daysToFirstOccurrence + (occurrenceNumber * 7));
+          }
+
+          // If the occurrence date has already passed this year, move to next year
+          if (nextOccurrenceDate < today) {
+            const nextYear = currentYear + 1;
+
+            if (occurrence === 'last') {
+              const lastDayOfTargetMonth = new Date(nextYear, targetMonth + 1, 0);
+              const lastDayWeekday = lastDayOfTargetMonth.getDay();
+              const daysBack = (lastDayWeekday - dayOfWeek + 7) % 7;
+              nextOccurrenceDate = new Date(lastDayOfTargetMonth);
+              nextOccurrenceDate.setDate(lastDayOfTargetMonth.getDate() - daysBack);
+            } else {
+              const firstDayOfTargetMonth = new Date(nextYear, targetMonth, 1);
+              const firstDayWeekday = firstDayOfTargetMonth.getDay();
+              const daysToFirstOccurrence = (dayOfWeek - firstDayWeekday + 7) % 7;
+              const occurrenceNumber = occurrence === 'first' ? 0 : occurrence === 'second' ? 1 : occurrence === 'third' ? 2 : 3;
+              nextOccurrenceDate = new Date(firstDayOfTargetMonth);
+              nextOccurrenceDate.setDate(firstDayOfTargetMonth.getDate() + daysToFirstOccurrence + (occurrenceNumber * 7));
+            }
+          }
+        }
+
+        // Update the task's date to the calculated next occurrence
+        if (nextOccurrenceDate!) {
+          cleanedTask.date = nextOccurrenceDate.getDate();
+          cleanedTask.month = nextOccurrenceDate.getMonth();
+          cleanedTask.year = nextOccurrenceDate.getFullYear();
+        }
+      }
+
+
       // Process reminders
       const reminders: Array<{ type: string, custom_time?: any, name?: string }> = [];
       if (cleanedTask.reminder_times && cleanedTask.reminder_times.length > 0) {
