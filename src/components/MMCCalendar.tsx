@@ -4223,7 +4223,7 @@ const MMCCalendar = () => {
             <h3 className="text-sm font-medium text-gray-900 mb-3">Monthly Overview</h3>
             <div className="grid grid-cols-2 gap-3">
               <div
-                className="bg-green-50 rounded-lg p-3 cursor-pointer hover:bg-green-100 transition-colors text-center"
+                className="bg-green-50 rounded-lg p-3 cursor-pointer hover:bg-green-100 transition-colors text-center border border-green-200 border-r-[3px] border-r-green-500"
                 onClick={() => handleMonthlyOverviewClick('planned')}
                 title="Click to view in Kanban"
               >
@@ -4231,7 +4231,7 @@ const MMCCalendar = () => {
                 <div className="text-xs text-gray-600">Planned</div>
               </div>
               <div
-                className="bg-yellow-50 rounded-lg p-3 cursor-pointer hover:bg-yellow-100 transition-colors text-center"
+                className="bg-yellow-50 rounded-lg p-3 cursor-pointer hover:bg-yellow-100 transition-colors text-center border border-yellow-200 border-r-[3px] border-r-yellow-500"
                 onClick={() => handleMonthlyOverviewClick('in-progress')}
                 title="Click to view in Kanban"
               >
@@ -4239,7 +4239,7 @@ const MMCCalendar = () => {
                 <div className="text-xs text-gray-600">In Progress</div>
               </div>
               <div
-                className="bg-orange-50 rounded-lg p-3 cursor-pointer hover:bg-orange-100 transition-colors text-center"
+                className="bg-orange-50 rounded-lg p-3 cursor-pointer hover:bg-orange-100 transition-colors text-center border border-orange-200 border-r-[3px] border-r-orange-500"
                 onClick={() => handleMonthlyOverviewClick('review')}
                 title="Click to view in Kanban"
               >
@@ -4247,7 +4247,7 @@ const MMCCalendar = () => {
                 <div className="text-xs text-gray-600">Review</div>
               </div>
               <div
-                className="bg-blue-50 rounded-lg p-3 cursor-pointer hover:bg-blue-100 transition-colors text-center"
+                className="bg-blue-50 rounded-lg p-3 cursor-pointer hover:bg-blue-100 transition-colors text-center border border-blue-200 border-r-[3px] border-r-blue-500"
                 onClick={() => handleMonthlyOverviewClick('completed')}
                 title="Click to view in Kanban"
               >
@@ -5085,7 +5085,11 @@ const MMCCalendar = () => {
                                 key={task.id}
                                 className={`text-xs p-1 md:p-2 rounded border ${task.color} cursor-move hover:shadow-sm relative ${task.status === 'completed' ? 'opacity-75' : ''
                                   } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${task.is_all_day ? 'border-2 border-dashed border-gray-400 bg-opacity-50' : ''
-                                  } ${hasTimeConflict ? 'border-l-4 border-l-red-400' : ''}`}
+                                  } ${hasTimeConflict ? 'border-l-4 border-l-red-400' : ''} ${task.status === 'planned' ? 'border-r-[3px] border-r-green-500' :
+                                    task.status === 'in-progress' ? 'border-r-[3px] border-r-yellow-500' :
+                                      task.status === 'review' ? 'border-r-[3px] border-r-orange-500' :
+                                        task.status === 'completed' ? 'border-r-[3px] border-r-blue-500' : ''
+                                  }`}
                                 onClick={user !== 'guest' ? (e) => {
                                   e.stopPropagation();
                                   handleTaskClick(task);
@@ -5725,8 +5729,18 @@ const MMCCalendar = () => {
                       : ''
                       }`}
                     style={{
-                      border: `1px solid ${column.borderColor}`,
-                      borderRight: `5px solid ${column.borderColor}`
+                      border: `1px solid ${column.id === 'planned' ? '#bbf7d0' :  // green-200
+                          column.id === 'in-progress' ? '#fef08a' :  // yellow-200
+                            column.id === 'review' ? '#fed7aa' :  // orange-200
+                              column.id === 'completed' ? '#bfdbfe' :  // blue-200
+                                column.borderColor
+                        }`,
+                      borderRight: `5px solid ${column.id === 'planned' ? '#22c55e' :  // green-500
+                          column.id === 'in-progress' ? '#eab308' :  // yellow-500
+                            column.id === 'review' ? '#f97316' :  // orange-500
+                              column.id === 'completed' ? '#3b82f6' :  // blue-500
+                                column.borderColor
+                        }`
                     }}
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, column.id)}
