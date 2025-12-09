@@ -239,6 +239,51 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
                   nextDate = new Date(lastDay);
                   nextDate.setDate(lastDay.getDate() - daysToSubtract);
                   break;
+                case 'monthly_advanced':
+                  nextDate = new Date(currentDate);
+                  nextDate.setMonth(currentDate.getMonth() + interval);
+                  const occurrence = task.recurring_occurrence || 'first';
+                  const dayOfWeek = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+
+                  if (occurrence === 'last') {
+                    const lastDayOfMonth = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0);
+                    const lastDayWeekday = lastDayOfMonth.getDay();
+                    const daysBack = (lastDayWeekday - dayOfWeek + 7) % 7;
+                    nextDate = new Date(lastDayOfMonth);
+                    nextDate.setDate(lastDayOfMonth.getDate() - daysBack);
+                  } else {
+                    const firstDayOfMonth = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+                    const firstDayWeekday = firstDayOfMonth.getDay();
+                    const daysToFirstOccurrence = (dayOfWeek - firstDayWeekday + 7) % 7;
+                    const occurrenceNumber = occurrence === 'first' ? 0 : occurrence === 'second' ? 1 : occurrence === 'third' ? 2 : 3;
+                    nextDate = new Date(firstDayOfMonth);
+                    nextDate.setDate(firstDayOfMonth.getDate() + daysToFirstOccurrence + (occurrenceNumber * 7));
+                  }
+                  break;
+                case 'yearly_advanced':
+                  nextDate = new Date(currentDate);
+                  nextDate.setFullYear(currentDate.getFullYear() + interval);
+                  const yearOccurrence = task.recurring_occurrence || 'first';
+                  const yearDayOfWeek = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+                  const targetMonth = task.recurring_month !== null && task.recurring_month !== undefined ? task.recurring_month : 0;
+
+                  nextDate.setMonth(targetMonth);
+
+                  if (yearOccurrence === 'last') {
+                    const lastDayOfTargetMonth = new Date(nextDate.getFullYear(), targetMonth + 1, 0);
+                    const lastDayWeekdayYear = lastDayOfTargetMonth.getDay();
+                    const daysBackYear = (lastDayWeekdayYear - yearDayOfWeek + 7) % 7;
+                    nextDate = new Date(lastDayOfTargetMonth);
+                    nextDate.setDate(lastDayOfTargetMonth.getDate() - daysBackYear);
+                  } else {
+                    const firstDayOfTargetMonth = new Date(nextDate.getFullYear(), targetMonth, 1);
+                    const firstDayWeekdayYear = firstDayOfTargetMonth.getDay();
+                    const daysToFirstOccurrenceYear = (yearDayOfWeek - firstDayWeekdayYear + 7) % 7;
+                    const yearOccurrenceNumber = yearOccurrence === 'first' ? 0 : yearOccurrence === 'second' ? 1 : yearOccurrence === 'third' ? 2 : 3;
+                    nextDate = new Date(firstDayOfTargetMonth);
+                    nextDate.setDate(firstDayOfTargetMonth.getDate() + daysToFirstOccurrenceYear + (yearOccurrenceNumber * 7));
+                  }
+                  break;
                 default:
                   nextDate = new Date(currentDate);
                   nextDate.setDate(currentDate.getDate() + 1);
@@ -364,6 +409,58 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
               const daysToSubtract = (lastDayOfWeek - targetDayLast + 7) % 7;
               nextDate = new Date(lastDay);
               nextDate.setDate(lastDay.getDate() - daysToSubtract);
+              break;
+            case 'monthly_advanced':
+              // Advanced monthly pattern: e.g., "First Monday of every 3 months"
+              nextDate = new Date(currentDate);
+              nextDate.setMonth(currentDate.getMonth() + interval);
+              const occurrence = task.recurring_occurrence || 'first';
+              const dayOfWeek = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+
+              if (occurrence === 'last') {
+                // Find last occurrence of the day in the month
+                const lastDayOfMonth = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0);
+                const lastDayWeekday = lastDayOfMonth.getDay();
+                const daysBack = (lastDayWeekday - dayOfWeek + 7) % 7;
+                nextDate = new Date(lastDayOfMonth);
+                nextDate.setDate(lastDayOfMonth.getDate() - daysBack);
+              } else {
+                // Find first/second/third/fourth occurrence
+                const firstDayOfMonth = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+                const firstDayWeekday = firstDayOfMonth.getDay();
+                const daysToFirstOccurrence = (dayOfWeek - firstDayWeekday + 7) % 7;
+                const occurrenceNumber = occurrence === 'first' ? 0 : occurrence === 'second' ? 1 : occurrence === 'third' ? 2 : 3;
+                nextDate = new Date(firstDayOfMonth);
+                nextDate.setDate(firstDayOfMonth.getDate() + daysToFirstOccurrence + (occurrenceNumber * 7));
+              }
+              break;
+            case 'yearly_advanced':
+              // Advanced yearly pattern: e.g., "Last Sunday in September every year"
+              nextDate = new Date(currentDate);
+              nextDate.setFullYear(currentDate.getFullYear() + interval);
+              const yearOccurrence = task.recurring_occurrence || 'first';
+              const yearDayOfWeek = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
+              const targetMonth = task.recurring_month !== null && task.recurring_month !== undefined ? task.recurring_month : 0;
+
+              // Set to the target month
+              nextDate.setMonth(targetMonth);
+
+              if (yearOccurrence === 'last') {
+                // Find last occurrence of the day in the target month
+                const lastDayOfTargetMonth = new Date(nextDate.getFullYear(), targetMonth + 1, 0);
+                const lastDayWeekdayYear = lastDayOfTargetMonth.getDay();
+                const daysBackYear = (lastDayWeekdayYear - yearDayOfWeek + 7) % 7;
+                nextDate = new Date(lastDayOfTargetMonth);
+                nextDate.setDate(lastDayOfTargetMonth.getDate() - daysBackYear);
+              } else {
+                // Find first/second/third/fourth occurrence in the target month
+                const firstDayOfTargetMonth = new Date(nextDate.getFullYear(), targetMonth, 1);
+                const firstDayWeekdayYear = firstDayOfTargetMonth.getDay();
+                const daysToFirstOccurrenceYear = (yearDayOfWeek - firstDayWeekdayYear + 7) % 7;
+                const yearOccurrenceNumber = yearOccurrence === 'first' ? 0 : yearOccurrence === 'second' ? 1 : yearOccurrence === 'third' ? 2 : 3;
+                nextDate = new Date(firstDayOfTargetMonth);
+                nextDate.setDate(firstDayOfTargetMonth.getDate() + daysToFirstOccurrenceYear + (yearOccurrenceNumber * 7));
+              }
               break;
             default:
               nextDate = new Date(currentDate);
@@ -567,6 +664,8 @@ const MMCCalendar = () => {
     recurring_unit: '',
     recurring_days: [],
     recurring_end_date: null,
+    recurring_occurrence: null, // For advanced patterns (first, second, third, fourth, last)
+    recurring_month: null, // For yearly advanced patterns
     comments: '',
     tags: [],
     created_by: 1,
@@ -2217,6 +2316,12 @@ const MMCCalendar = () => {
   const handleEditTask = () => {
     // Get the latest task data from allTasksWithRecurring to ensure we have the most up-to-date information
     const latestTask = allTasksWithRecurring.find(task => task.id === selectedTask.id) || selectedTask;
+
+    // If this is a recurring task or recurring instance, automatically open the recurring task editor
+    if (latestTask.is_recurring || latestTask.is_recurring_instance) {
+      handleEditRecurringTask();
+      return;
+    }
 
     // Initialize reminder names from existing reminders (only non-dismissed ones)
     const reminderNames: { [key: string]: string } = {};
@@ -5982,69 +6087,82 @@ const MMCCalendar = () => {
                   {newTask.is_recurring && (
                     <div className="ml-6 space-y-3 border-l-2 border-gray-200 pl-4">
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Repeat every</label>
-                        <div className="flex space-x-2">
-                          <input
-                            type="number"
-                            min="1"
-                            max="99"
-                            value={newTask.recurring_interval}
-                            onChange={(e) => setNewTask((prev: any) => ({
-                              ...prev,
-                              recurring_interval: parseInt(e.target.value) || 1
-                            }))}
-                            className="w-16 border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                          <select
-                            value={newTask.recurring_unit}
-                            onChange={(e) => {
-                              setNewTask((prev: any) => {
-                                const unit = e.target.value;
-                                let pattern = prev.recurring_pattern;
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Pattern Type</label>
+                        <select
+                          value={newTask.recurring_unit || ''}
+                          onChange={(e) => {
+                            setNewTask((prev: any) => {
+                              const unit = e.target.value;
+                              let pattern = '';
+                              let interval = 1;
 
-                                // Update pattern based on unit selection
-                                if (unit === 'day') {
-                                  pattern = 'daily';
-                                } else if (unit === 'week') {
-                                  pattern = 'weekly';
-                                } else if (unit === 'month') {
-                                  pattern = 'monthly';
-                                } else if (unit === 'year') {
-                                  pattern = 'yearly';
-                                } else if (unit === '') {
-                                  pattern = '';
-                                }
+                              // Set pattern based on selection
+                              if (unit === 'day') pattern = 'daily';
+                              else if (unit === 'week') pattern = 'weekly';
+                              else if (unit === 'month') pattern = 'monthly';
+                              else if (unit === 'year') pattern = 'yearly';
+                              else if (unit === 'monthly_advanced') pattern = 'monthly_advanced';
+                              else if (unit === 'yearly_advanced') pattern = 'yearly_advanced';
 
-                                return {
-                                  ...prev,
-                                  recurring_unit: unit,
-                                  recurring_pattern: pattern,
-                                  // Clear recurring_days when not using weekly pattern
-                                  recurring_days: unit === 'week' ? prev.recurring_days : []
-                                };
-                              });
-                            }}
-                            className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          >
-                            <option value="">Please select recurring period</option>
-                            <option value="day">day(s)</option>
-                            <option value="week">week(s)</option>
-                            <option value="month">month(s)</option>
-                            <option value="year">year(s)</option>
-                            <option value="first_day_of_month">first [day] of month</option>
-                            <option value="2nd_day_of_month">2nd [day] of month</option>
-                            <option value="3rd_day_of_month">3rd [day] of month</option>
-                            <option value="4th_day_of_month">4th [day] of month</option>
-                            <option value="last_day_of_month">last [day] of month</option>
-                          </select>
-                        </div>
+                              return {
+                                ...prev,
+                                recurring_unit: unit,
+                                recurring_pattern: pattern,
+                                recurring_interval: interval,
+                                recurring_days: [],
+                                recurring_occurrence: unit.includes('advanced') ? 'first' : null,
+                                recurring_month: unit === 'yearly_advanced' ? 0 : null
+                              };
+                            });
+                          }}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">Please select pattern type</option>
+                          <optgroup label="Simple Patterns">
+                            <option value="day">Every X day(s)</option>
+                            <option value="week">Every X week(s)</option>
+                            <option value="month">Every X month(s)</option>
+                            <option value="year">Every X year(s)</option>
+                          </optgroup>
+                          <optgroup label="Advanced Patterns">
+                            <option value="monthly_advanced">Specific day of month (e.g., First Monday)</option>
+                            <option value="yearly_advanced">Specific day of year (e.g., Last Sunday in September)</option>
+                          </optgroup>
+                        </select>
                       </div>
 
+                      {/* Simple patterns: show interval */}
+                      {(newTask.recurring_unit === 'day' || newTask.recurring_unit === 'week' || newTask.recurring_unit === 'month' || newTask.recurring_unit === 'year') && (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Repeat every</label>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="number"
+                              min="1"
+                              max="99"
+                              value={newTask.recurring_interval || 1}
+                              onChange={(e) => setNewTask((prev: any) => ({
+                                ...prev,
+                                recurring_interval: parseInt(e.target.value) || 1
+                              }))}
+                              className="w-20 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">
+                              {newTask.recurring_unit === 'day' && 'day(s)'}
+                              {newTask.recurring_unit === 'week' && 'week(s)'}
+                              {newTask.recurring_unit === 'month' && 'month(s)'}
+                              {newTask.recurring_unit === 'year' && 'year(s)'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Weekly: select days */}
                       {newTask.recurring_unit === 'week' && (
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-2">Repeat on days</label>
-                          <div className="flex space-x-1">
-                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
+                          <label className="block text-xs font-medium text-gray-600 mb-2">Repeat on</label>
+                          <div className="flex flex-wrap gap-2">
+                            {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day, index) => (
                               <button
                                 key={day}
                                 type="button"
@@ -6058,42 +6176,157 @@ const MMCCalendar = () => {
                                     recurring_days: newDays
                                   }));
                                 }}
-                                className={`w-8 h-8 rounded-full text-xs font-medium ${(newTask.recurring_days || []).includes(index)
+                                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${(newTask.recurring_days || []).includes(index)
                                   ? 'bg-blue-600 text-white'
                                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                                   }`}
                               >
-                                {day[0]}
+                                {day}
                               </button>
                             ))}
                           </div>
                         </div>
                       )}
 
-                      {(newTask.recurring_unit === 'first_day_of_month' || newTask.recurring_unit === '2nd_day_of_month' || newTask.recurring_unit === '3rd_day_of_month' || newTask.recurring_unit === '4th_day_of_month' || newTask.recurring_unit === 'last_day_of_month') && (
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-2">Select day of week</label>
-                          <div className="flex space-x-1">
-                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
-                              <button
-                                key={day}
-                                type="button"
-                                onClick={() => {
-                                  setNewTask((prev: any) => ({
-                                    ...prev,
-                                    recurring_days: [index] // Only one day for first/last patterns
-                                  }));
-                                }}
-                                className={`w-8 h-8 rounded-full text-xs font-medium ${(newTask.recurring_days || []).includes(index)
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                  }`}
-                              >
-                                {day[0]}
-                              </button>
-                            ))}
+                      {/* Monthly Advanced: occurrence + day */}
+                      {newTask.recurring_unit === 'monthly_advanced' && (
+                        <>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Repeat every</label>
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="number"
+                                min="1"
+                                max="12"
+                                value={newTask.recurring_interval || 1}
+                                onChange={(e) => setNewTask((prev: any) => ({
+                                  ...prev,
+                                  recurring_interval: parseInt(e.target.value) || 1
+                                }))}
+                                className="w-20 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                              <span className="text-sm text-gray-700">month(s)</span>
+                            </div>
                           </div>
-                        </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">On the</label>
+                            <select
+                              value={newTask.recurring_occurrence || 'first'}
+                              onChange={(e) => setNewTask((prev: any) => ({
+                                ...prev,
+                                recurring_occurrence: e.target.value
+                              }))}
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="first">First</option>
+                              <option value="second">Second</option>
+                              <option value="third">Third</option>
+                              <option value="fourth">Fourth</option>
+                              <option value="last">Last</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-2">Day of week</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day, index) => (
+                                <button
+                                  key={day}
+                                  type="button"
+                                  onClick={() => {
+                                    setNewTask((prev: any) => ({
+                                      ...prev,
+                                      recurring_days: [index]
+                                    }));
+                                  }}
+                                  className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${(newTask.recurring_days || []).includes(index)
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    }`}
+                                >
+                                  {day}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {/* Yearly Advanced: occurrence + day + month */}
+                      {newTask.recurring_unit === 'yearly_advanced' && (
+                        <>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Repeat every</label>
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="number"
+                                min="1"
+                                max="10"
+                                value={newTask.recurring_interval || 1}
+                                onChange={(e) => setNewTask((prev: any) => ({
+                                  ...prev,
+                                  recurring_interval: parseInt(e.target.value) || 1
+                                }))}
+                                className="w-20 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                              <span className="text-sm text-gray-700">year(s)</span>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">On the</label>
+                            <select
+                              value={newTask.recurring_occurrence || 'first'}
+                              onChange={(e) => setNewTask((prev: any) => ({
+                                ...prev,
+                                recurring_occurrence: e.target.value
+                              }))}
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="first">First</option>
+                              <option value="second">Second</option>
+                              <option value="third">Third</option>
+                              <option value="fourth">Fourth</option>
+                              <option value="last">Last</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-2">Day of week</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day, index) => (
+                                <button
+                                  key={day}
+                                  type="button"
+                                  onClick={() => {
+                                    setNewTask((prev: any) => ({
+                                      ...prev,
+                                      recurring_days: [index]
+                                    }));
+                                  }}
+                                  className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${(newTask.recurring_days || []).includes(index)
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    }`}
+                                >
+                                  {day}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">In</label>
+                            <select
+                              value={newTask.recurring_month !== null && newTask.recurring_month !== undefined ? newTask.recurring_month : 0}
+                              onChange={(e) => setNewTask((prev: any) => ({
+                                ...prev,
+                                recurring_month: parseInt(e.target.value)
+                              }))}
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              {monthNames.map((month, index) => (
+                                <option key={index} value={index}>{month}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </>
                       )}
 
                       <div>
@@ -7001,67 +7234,82 @@ const MMCCalendar = () => {
                   {(editingTask.is_recurring || false) && (
                     <div className="ml-6 space-y-3 border-l-2 border-gray-200 pl-4">
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Repeat every</label>
-                        <div className="flex space-x-2">
-                          <input
-                            type="number"
-                            min="1"
-                            max="99"
-                            value={editingTask.recurring_interval || 1}
-                            onChange={(e) => setEditingTask((prev: any) => ({
-                              ...prev,
-                              recurring_interval: parseInt(e.target.value) || 1
-                            }))}
-                            className="w-16 border border-gray-300 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                          <select
-                            value={editingTask.recurring_unit || ''}
-                            onChange={(e) => setEditingTask((prev: any) => {
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Pattern Type</label>
+                        <select
+                          value={editingTask.recurring_unit || ''}
+                          onChange={(e) => {
+                            setEditingTask((prev: any) => {
                               const unit = e.target.value;
-                              let pattern = prev.recurring_pattern;
+                              let pattern = '';
+                              let interval = 1;
 
-                              // Update pattern based on unit selection
-                              if (unit === 'day') {
-                                pattern = 'daily';
-                              } else if (unit === 'week') {
-                                pattern = 'weekly';
-                              } else if (unit === 'month') {
-                                pattern = 'monthly';
-                              } else if (unit === 'year') {
-                                pattern = 'yearly';
-                              } else if (unit === '') {
-                                pattern = '';
-                              }
+                              // Set pattern based on selection
+                              if (unit === 'day') pattern = 'daily';
+                              else if (unit === 'week') pattern = 'weekly';
+                              else if (unit === 'month') pattern = 'monthly';
+                              else if (unit === 'year') pattern = 'yearly';
+                              else if (unit === 'monthly_advanced') pattern = 'monthly_advanced';
+                              else if (unit === 'yearly_advanced') pattern = 'yearly_advanced';
 
                               return {
                                 ...prev,
                                 recurring_unit: unit,
                                 recurring_pattern: pattern,
-                                // Clear recurring_days when not using weekly pattern
-                                recurring_days: unit === 'week' ? prev.recurring_days : []
+                                recurring_interval: interval,
+                                recurring_days: [],
+                                recurring_occurrence: unit.includes('advanced') ? 'first' : null,
+                                recurring_month: unit === 'yearly_advanced' ? 0 : null
                               };
-                            })}
-                            className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          >
-                            <option value="">Please select recurring period</option>
-                            <option value="day">day(s)</option>
-                            <option value="week">week(s)</option>
-                            <option value="month">month(s)</option>
-                            <option value="year">year(s)</option>
-                            <option value="first_day_of_month">first [day] of month</option>
-                            <option value="2nd_day_of_month">2nd [day] of month</option>
-                            <option value="3rd_day_of_month">3rd [day] of month</option>
-                            <option value="4th_day_of_month">4th [day] of month</option>
-                            <option value="last_day_of_month">last [day] of month</option>
-                          </select>
-                        </div>
+                            });
+                          }}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">Please select pattern type</option>
+                          <optgroup label="Simple Patterns">
+                            <option value="day">Every X day(s)</option>
+                            <option value="week">Every X week(s)</option>
+                            <option value="month">Every X month(s)</option>
+                            <option value="year">Every X year(s)</option>
+                          </optgroup>
+                          <optgroup label="Advanced Patterns">
+                            <option value="monthly_advanced">Specific day of month (e.g., First Monday)</option>
+                            <option value="yearly_advanced">Specific day of year (e.g., Last Sunday in September)</option>
+                          </optgroup>
+                        </select>
                       </div>
 
-                      {(editingTask.recurring_unit || 'week') === 'week' && (
+                      {/* Simple patterns: show interval */}
+                      {(editingTask.recurring_unit === 'day' || editingTask.recurring_unit === 'week' || editingTask.recurring_unit === 'month' || editingTask.recurring_unit === 'year') && (
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-2">Repeat on days</label>
-                          <div className="flex space-x-1">
-                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Repeat every</label>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="number"
+                              min="1"
+                              max="99"
+                              value={editingTask.recurring_interval || 1}
+                              onChange={(e) => setEditingTask((prev: any) => ({
+                                ...prev,
+                                recurring_interval: parseInt(e.target.value) || 1
+                              }))}
+                              className="w-20 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">
+                              {editingTask.recurring_unit === 'day' && 'day(s)'}
+                              {editingTask.recurring_unit === 'week' && 'week(s)'}
+                              {editingTask.recurring_unit === 'month' && 'month(s)'}
+                              {editingTask.recurring_unit === 'year' && 'year(s)'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Weekly: select days */}
+                      {editingTask.recurring_unit === 'week' && (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-2">Repeat on</label>
+                          <div className="flex flex-wrap gap-2">
+                            {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day, index) => (
                               <button
                                 key={day}
                                 type="button"
@@ -7075,42 +7323,157 @@ const MMCCalendar = () => {
                                     recurring_days: newDays
                                   }));
                                 }}
-                                className={`w-8 h-8 rounded-full text-xs font-medium ${(editingTask.recurring_days || []).includes(index)
+                                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${(editingTask.recurring_days || []).includes(index)
                                   ? 'bg-blue-600 text-white'
                                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                                   }`}
                               >
-                                {day[0]}
+                                {day}
                               </button>
                             ))}
                           </div>
                         </div>
                       )}
 
-                      {((editingTask.recurring_unit || 'week') === 'first_day_of_month' || (editingTask.recurring_unit || 'week') === '2nd_day_of_month' || (editingTask.recurring_unit || 'week') === '3rd_day_of_month' || (editingTask.recurring_unit || 'week') === '4th_day_of_month' || (editingTask.recurring_unit || 'week') === 'last_day_of_month') && (
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-2">Select day of week</label>
-                          <div className="flex space-x-1">
-                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
-                              <button
-                                key={day}
-                                type="button"
-                                onClick={() => {
-                                  setEditingTask((prev: any) => ({
-                                    ...prev,
-                                    recurring_days: [index] // Only one day for first/last patterns
-                                  }));
-                                }}
-                                className={`w-8 h-8 rounded-full text-xs font-medium ${(editingTask.recurring_days || []).includes(index)
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                  }`}
-                              >
-                                {day[0]}
-                              </button>
-                            ))}
+                      {/* Monthly Advanced: occurrence + day */}
+                      {editingTask.recurring_unit === 'monthly_advanced' && (
+                        <>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Repeat every</label>
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="number"
+                                min="1"
+                                max="12"
+                                value={editingTask.recurring_interval || 1}
+                                onChange={(e) => setEditingTask((prev: any) => ({
+                                  ...prev,
+                                  recurring_interval: parseInt(e.target.value) || 1
+                                }))}
+                                className="w-20 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                              <span className="text-sm text-gray-700">month(s)</span>
+                            </div>
                           </div>
-                        </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">On the</label>
+                            <select
+                              value={editingTask.recurring_occurrence || 'first'}
+                              onChange={(e) => setEditingTask((prev: any) => ({
+                                ...prev,
+                                recurring_occurrence: e.target.value
+                              }))}
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="first">First</option>
+                              <option value="second">Second</option>
+                              <option value="third">Third</option>
+                              <option value="fourth">Fourth</option>
+                              <option value="last">Last</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-2">Day of week</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day, index) => (
+                                <button
+                                  key={day}
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingTask((prev: any) => ({
+                                      ...prev,
+                                      recurring_days: [index]
+                                    }));
+                                  }}
+                                  className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${(editingTask.recurring_days || []).includes(index)
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    }`}
+                                >
+                                  {day}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {/* Yearly Advanced: occurrence + day + month */}
+                      {editingTask.recurring_unit === 'yearly_advanced' && (
+                        <>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Repeat every</label>
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="number"
+                                min="1"
+                                max="10"
+                                value={editingTask.recurring_interval || 1}
+                                onChange={(e) => setEditingTask((prev: any) => ({
+                                  ...prev,
+                                  recurring_interval: parseInt(e.target.value) || 1
+                                }))}
+                                className="w-20 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                              <span className="text-sm text-gray-700">year(s)</span>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">On the</label>
+                            <select
+                              value={editingTask.recurring_occurrence || 'first'}
+                              onChange={(e) => setEditingTask((prev: any) => ({
+                                ...prev,
+                                recurring_occurrence: e.target.value
+                              }))}
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="first">First</option>
+                              <option value="second">Second</option>
+                              <option value="third">Third</option>
+                              <option value="fourth">Fourth</option>
+                              <option value="last">Last</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-2">Day of week</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day, index) => (
+                                <button
+                                  key={day}
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingTask((prev: any) => ({
+                                      ...prev,
+                                      recurring_days: [index]
+                                    }));
+                                  }}
+                                  className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${(editingTask.recurring_days || []).includes(index)
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    }`}
+                                >
+                                  {day}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">In</label>
+                            <select
+                              value={editingTask.recurring_month !== null && editingTask.recurring_month !== undefined ? editingTask.recurring_month : 0}
+                              onChange={(e) => setEditingTask((prev: any) => ({
+                                ...prev,
+                                recurring_month: parseInt(e.target.value)
+                              }))}
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              {monthNames.map((month, index) => (
+                                <option key={index} value={index}>{month}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </>
                       )}
 
                       <div>
