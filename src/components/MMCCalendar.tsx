@@ -4297,7 +4297,7 @@ const MMCCalendar = () => {
           </div>
           {/* Priority Overview */}
           <div className="mb-6">
-            <h3 className="text-sm font-medium text-gray-900 mb-3">Priority</h3>
+            <h3 className="text-sm font-medium text-gray-900 mb-3">Monthly Priority</h3>
             <div className="grid grid-cols-3 gap-2">
               <div
                 className="bg-green-50 rounded-lg p-2 cursor-pointer hover:bg-green-100 transition-colors text-center border border-green-200 border-b-[3px] border-b-green-500"
