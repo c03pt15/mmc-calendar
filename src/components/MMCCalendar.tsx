@@ -4940,7 +4940,7 @@ const MMCCalendar = () => {
                                 {getTaskCategoryDisplayName(task)}
                               </span>
                               <span className="text-xs text-gray-500">
-                                {monthNames[task.month || currentDate.getMonth()]} {task.date}, {task.year || currentDate.getFullYear()}
+                                {monthNames[task.month !== undefined && task.month !== null ? task.month : currentDate.getMonth()]} {task.date}, {task.year !== undefined && task.year !== null ? task.year : currentDate.getFullYear()}
                               </span>
                               <span className="text-xs text-gray-500">
                                 {getAssigneesDisplay(task)}
