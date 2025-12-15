@@ -937,40 +937,7 @@ const MMCCalendar = () => {
     }
   }, [categories]);
 
-  // Fetch tasks from Supabase for the current month
-  useEffect(() => {
-    const fetchTasks = async () => {
-      try {
-        setLoading(true);
-        const { data, error } = await supabase
-          .from('tasks')
-          .select('*')
-          .eq('year', currentDate.getFullYear())
-          .eq('month', currentDate.getMonth());
-
-        if (error) {
-          console.error('Error fetching tasks:', error);
-          showNotification('error', `Error loading tasks: ${error.message}`);
-          return;
-        }
-
-        setAllTasks((prev) => ({ ...prev, [currentMonthKey]: data || [] }));
-
-        // Load activities after tasks are loaded
-        if (!activitiesLoaded) {
-          await loadActivities();
-        }
-      } catch (err) {
-        console.error('Unexpected error fetching tasks:', err);
-        showNotification('error', `Unexpected error: ${err}`);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTasks();
-  }, [currentDate, loadActivities, activitiesLoaded]);
-
-  const refreshTasks = async () => {
+  const refreshTasks = useCallback(async () => {
     try {
       // Fetch all tasks to properly handle recurring instances and deleted instances
       const { data, error } = await supabase
@@ -996,15 +963,33 @@ const MMCCalendar = () => {
       // Rebuild deleted instances from database records
       const deletedInstanceKeys = new Set<string>();
       (data || []).forEach(task => {
-        if (task.is_deleted_instance && task.instance_key) {
-          deletedInstanceKeys.add(task.instance_key);
+        if (task.is_deleted_instance) {
+          // Fallback to manual key construction if instance_key is missing
+          const key = task.instance_key || `${task.parent_task_id}_${task.year}_${task.month}_${task.date}`;
+          if (key) deletedInstanceKeys.add(key);
         }
       });
       setDeletedInstances(deletedInstanceKeys);
     } catch (err) {
       console.error('Unexpected error refreshing tasks:', err);
     }
-  };
+  }, []);
+
+  // Fetch tasks from Supabase for the current month
+  useEffect(() => {
+    const initData = async () => {
+      setLoading(true);
+      await refreshTasks();
+
+      // Load activities after tasks are loaded
+      if (!activitiesLoaded) {
+        await loadActivities();
+      }
+      setLoading(false);
+    };
+
+    initData();
+  }, [refreshTasks, loadActivities, activitiesLoaded]);
 
   // Authentication functions
   const handleSignUp = async (e: React.FormEvent) => {
@@ -2572,12 +2557,21 @@ const MMCCalendar = () => {
     }
 
     const allTasksFlat = Object.values(allTasks).flat();
-    const results = allTasksFlat.filter(task =>
-      task.title.toLowerCase().includes(query.toLowerCase()) ||
-      task.description.toLowerCase().includes(query.toLowerCase()) ||
-      task.type.toLowerCase().includes(query.toLowerCase()) ||
-      getAssigneesDisplay(task).toLowerCase().includes(query.toLowerCase())
-    );
+    const results = allTasksFlat.filter(task => {
+      // Exclude explicitly deleted tasks
+      if (task.status === 'deleted') return false;
+
+      // Exclude tasks that correspond to a deleted instance (e.g. parent task whose start date instance was deleted)
+      const instanceKey = `${task.id}_${task.year}_${task.month}_${task.date}`;
+      if (deletedInstances.has(instanceKey)) return false;
+
+      return (
+        task.title.toLowerCase().includes(query.toLowerCase()) ||
+        task.description.toLowerCase().includes(query.toLowerCase()) ||
+        task.type.toLowerCase().includes(query.toLowerCase()) ||
+        getAssigneesDisplay(task).toLowerCase().includes(query.toLowerCase())
+      );
+    });
 
     setSearchResults(results);
     setShowSearchResults(true);
@@ -4940,7 +4934,11 @@ const MMCCalendar = () => {
                                 {getTaskCategoryDisplayName(task)}
                               </span>
                               <span className="text-xs text-gray-500">
-                                {monthNames[task.month !== undefined && task.month !== null ? task.month : currentDate.getMonth()]} {task.date}, {task.year !== undefined && task.year !== null ? task.year : currentDate.getFullYear()}
+                                {task.is_multiday && task.start_date ? (
+                                  `${monthNames[parseInt(task.start_date.split('-')[1]) - 1]} ${parseInt(task.start_date.split('-')[2])}, ${task.start_date.split('-')[0]}`
+                                ) : (
+                                  `${monthNames[task.month !== undefined && task.month !== null ? task.month : currentDate.getMonth()]} ${task.date}, ${task.year !== undefined && task.year !== null ? task.year : currentDate.getFullYear()}`
+                                )}
                               </span>
                               <span className="text-xs text-gray-500">
                                 {getAssigneesDisplay(task)}
@@ -6223,9 +6221,9 @@ const MMCCalendar = () => {
                         onChange={(e) => setNewTask((prev: any) => ({
                           ...prev,
                           start_date: e.target.value,
-                          date: e.target.value ? new Date(e.target.value).getDate() : prev.date,
-                          month: e.target.value ? new Date(e.target.value).getMonth() : prev.month,
-                          year: e.target.value ? new Date(e.target.value).getFullYear() : prev.year
+                          date: e.target.value ? parseInt(e.target.value.split('-')[2]) : prev.date,
+                          month: e.target.value ? parseInt(e.target.value.split('-')[1]) - 1 : prev.month,
+                          year: e.target.value ? parseInt(e.target.value.split('-')[0]) : prev.year
                         }))}
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
@@ -7390,9 +7388,9 @@ const MMCCalendar = () => {
                         onChange={(e) => setEditingTask((prev: any) => ({
                           ...prev,
                           start_date: e.target.value,
-                          date: e.target.value ? new Date(e.target.value).getDate() : prev.date,
-                          month: e.target.value ? new Date(e.target.value).getMonth() : prev.month,
-                          year: e.target.value ? new Date(e.target.value).getFullYear() : prev.year
+                          date: e.target.value ? parseInt(e.target.value.split('-')[2]) : prev.date,
+                          month: e.target.value ? parseInt(e.target.value.split('-')[1]) - 1 : prev.month,
+                          year: e.target.value ? parseInt(e.target.value.split('-')[0]) : prev.year
                         }))}
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
