@@ -2,6 +2,12 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Plus, X, User, Calendar, Clock, UserCheck, Search, Download, Repeat, Eye, FilePlus } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
+const priorityConfig: { [key: string]: { color: string, icon: string, label: string } } = {
+  high: { color: 'bg-red-100 text-red-800 border-red-200', icon: '🔴', label: 'High' },
+  medium: { color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: '🟡', label: 'Medium' },
+  low: { color: 'bg-green-100 text-green-800 border-green-200', icon: '🟢', label: 'Low' }
+};
+
 // Pure function for generating recurring instances - outside component to avoid circular dependencies
 const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYear: number, deletedInstances: Set<string>) => {
   const instances: any[] = [];
@@ -2039,6 +2045,9 @@ const MMCCalendar = () => {
   const inProgressCount = currentMonthFilteredTasks.filter(t => t.status === 'in-progress').length;
   const reviewCount = currentMonthFilteredTasks.filter(t => t.status === 'review').length;
   const completedCount = currentMonthFilteredTasks.filter(t => t.status === 'completed').length;
+  const lowPriorityCount = currentMonthFilteredTasks.filter(t => (t.priority === 'low') && t.status !== 'completed' && t.status !== 'deleted').length;
+  const mediumPriorityCount = currentMonthFilteredTasks.filter(t => (t.priority === 'medium' || !t.priority) && t.status !== 'completed' && t.status !== 'deleted').length;
+  const highPriorityCount = currentMonthFilteredTasks.filter(t => (t.priority === 'high') && t.status !== 'completed' && t.status !== 'deleted').length;
 
   const toggleFilter = (filter: string) => {
     setSelectedFilters(prev => ({ ...prev, [filter]: !prev[filter] }));
@@ -2996,6 +3005,28 @@ const MMCCalendar = () => {
     setDraggedTask(null);
   };
 
+  const handlePriorityDrop = async (e: React.DragEvent, newPriority: string) => {
+    e.preventDefault();
+    if (draggedTask && draggedTask.priority !== newPriority) {
+      await supabase.from('tasks').update({ priority: newPriority }).eq('id', draggedTask.id);
+
+      // Add activity for priority change
+      addActivity({
+        type: 'priority_changed',
+        task: draggedTask,
+        message: `Changed priority from ${draggedTask.priority || 'medium'} to ${newPriority}`,
+        user: teamMembers.find(m => m.id === draggedTask.created_by)?.name || 'Unknown',
+        userId: draggedTask.created_by,
+        oldPriority: draggedTask.priority || 'medium',
+        newPriority: newPriority
+      });
+
+      await refreshTasks();
+      loadActivities();
+    }
+    setDraggedTask(null);
+  };
+
   // Calendar drag & drop handlers
   const handleCalendarDragStart = (e: React.DragEvent, task: any) => {
     setDraggedTask(task);
@@ -3504,6 +3535,52 @@ const MMCCalendar = () => {
     );
 
     return tasks;
+  };
+
+  const priorityColumns = [
+    { id: 'low', title: 'Low Priority', color: 'bg-green-50', borderColor: 'darkgreen', icon: '🟢' },
+    { id: 'medium', title: 'Medium Priority', color: 'bg-yellow-50', borderColor: 'rosybrown', icon: '🟡' },
+    { id: 'high', title: 'High Priority', color: 'bg-red-50', borderColor: 'darkred', icon: '🔴' }
+  ];
+
+  const getTasksByPriority = (priority: string) => {
+    const currentMonth = currentDate.getMonth();
+    const currentYear = currentDate.getFullYear();
+
+    const tasks = getAllFilteredTasks().filter(task =>
+      (task.priority === priority || (priority === 'medium' && !task.priority)) && // Default to medium if undefined
+      task.status !== 'completed' &&
+      task.status !== 'deleted' &&
+      task.month === currentMonth &&
+      task.year === currentYear
+    );
+
+    return tasks;
+  };
+
+  const handleMonthlyPriorityClick = (priority: string) => {
+    // Switch to Priority view
+    setActiveView('Priority');
+
+    // Start the highlight animation sequence
+    setHighlightedColumn(priority);
+    setHighlightPhase('appearing');
+
+    // Phase 1: Appearing (0.5s)
+    setTimeout(() => {
+      setHighlightPhase('glowing');
+    }, 500);
+
+    // Phase 2: Glowing (2s)
+    setTimeout(() => {
+      setHighlightPhase('disappearing');
+    }, 2500);
+
+    // Phase 3: Disappearing (1s)
+    setTimeout(() => {
+      setHighlightedColumn(null);
+      setHighlightPhase(null);
+    }, 3500);
   };
 
   const handleMonthlyOverviewClick = (status: string) => {
@@ -4218,6 +4295,36 @@ const MMCCalendar = () => {
               <h1 className="text-lg font-semibold text-gray-900">MMC Calendar</h1>
             </div>
           </div>
+          {/* Priority Overview */}
+          <div className="mb-6">
+            <h3 className="text-sm font-medium text-gray-900 mb-3">Priority</h3>
+            <div className="grid grid-cols-3 gap-2">
+              <div
+                className="bg-green-50 rounded-lg p-2 cursor-pointer hover:bg-green-100 transition-colors text-center border border-green-200 border-b-[3px] border-b-green-500"
+                onClick={() => handleMonthlyPriorityClick('low')}
+                title="Click to view in Priority"
+              >
+                <div className="text-xl font-bold text-green-600">{lowPriorityCount}</div>
+                <div className="text-[10px] text-gray-600 uppercase tracking-wider">Low</div>
+              </div>
+              <div
+                className="bg-yellow-50 rounded-lg p-2 cursor-pointer hover:bg-yellow-100 transition-colors text-center border border-yellow-200 border-b-[3px] border-b-yellow-500"
+                onClick={() => handleMonthlyPriorityClick('medium')}
+                title="Click to view in Priority"
+              >
+                <div className="text-xl font-bold text-yellow-600">{mediumPriorityCount}</div>
+                <div className="text-[10px] text-gray-600 uppercase tracking-wider">Med</div>
+              </div>
+              <div
+                className="bg-red-50 rounded-lg p-2 cursor-pointer hover:bg-red-100 transition-colors text-center border border-red-200 border-b-[3px] border-b-red-500"
+                onClick={() => handleMonthlyPriorityClick('high')}
+                title="Click to view in Priority"
+              >
+                <div className="text-xl font-bold text-red-600">{highPriorityCount}</div>
+                <div className="text-[10px] text-gray-600 uppercase tracking-wider">High</div>
+              </div>
+            </div>
+          </div>
           {/* Monthly Overview */}
           <div className="mb-6">
             <h3 className="text-sm font-medium text-gray-900 mb-3">Monthly Overview</h3>
@@ -4779,13 +4886,7 @@ const MMCCalendar = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                  {recentActivitiesCount > 0 && (
-                    <div className="absolute -top-1 -right-1 min-w-5 h-5 bg-red-500 rounded-full flex items-center justify-center px-1">
-                      <span className="text-xs text-white font-bold">
-                        {recentActivitiesCount}
-                      </span>
-                    </div>
-                  )}
+
                 </button>
               </div>
 
@@ -4880,6 +4981,16 @@ const MMCCalendar = () => {
                 >
                   <span className="hidden sm:inline">Day</span>
                   <span className="sm:hidden">Day</span>
+                </button>
+                <button
+                  className={`px-2 2xl:px-3 py-1 text-xs 2xl:text-sm rounded-md ${activeView === 'Priority'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  onClick={() => setActiveView('Priority')}
+                >
+                  <span className="hidden sm:inline">Priority</span>
+                  <span className="sm:hidden">Prio</span>
                 </button>
                 <button
                   className={`px-2 2xl:px-3 py-1 text-xs 2xl:text-sm rounded-md ${activeView === 'Kanban'
@@ -5712,142 +5823,278 @@ const MMCCalendar = () => {
               </div>
             </div>
           ) : (
-            /* Kanban View */
-            <div className="h-full">
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 h-full">
-                {kanbanColumns.map(column => (
-                  <div
-                    key={column.id}
-                    className={`${column.color} rounded-lg p-4 transition-all duration-500 ${highlightedColumn === column.id
-                      ? highlightPhase === 'appearing'
-                        ? 'ring-2 ring-blue-400 ring-opacity-50 shadow-md'
-                        : highlightPhase === 'glowing'
-                          ? 'ring-4 ring-blue-400 ring-opacity-75 shadow-xl'
-                          : highlightPhase === 'disappearing'
-                            ? 'ring-2 ring-blue-400 ring-opacity-25 shadow-sm'
-                            : ''
-                      : ''
-                      }`}
-                    style={{
-                      border: `1px solid ${column.id === 'planned' ? '#bbf7d0' :  // green-200
+            activeView === 'Kanban' ? (
+              /* Kanban View */
+              <div className="h-full">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 h-full">
+                  {kanbanColumns.map(column => (
+                    <div
+                      key={column.id}
+                      className={`${column.color} rounded-lg p-4 transition-all duration-500 ${highlightedColumn === column.id
+                        ? highlightPhase === 'appearing'
+                          ? 'ring-2 ring-blue-400 ring-opacity-50 shadow-md'
+                          : highlightPhase === 'glowing'
+                            ? 'ring-4 ring-blue-400 ring-opacity-75 shadow-xl'
+                            : highlightPhase === 'disappearing'
+                              ? 'ring-2 ring-blue-400 ring-opacity-25 shadow-sm'
+                              : ''
+                        : ''
+                        }`}
+                      style={{
+                        border: `1px solid ${column.id === 'planned' ? '#bbf7d0' :  // green-200
                           column.id === 'in-progress' ? '#fef08a' :  // yellow-200
                             column.id === 'review' ? '#fed7aa' :  // orange-200
                               column.id === 'completed' ? '#bfdbfe' :  // blue-200
                                 column.borderColor
-                        }`,
-                      borderRight: `5px solid ${column.id === 'planned' ? '#22c55e' :  // green-500
+                          }`,
+                        borderRight: `5px solid ${column.id === 'planned' ? '#22c55e' :  // green-500
                           column.id === 'in-progress' ? '#eab308' :  // yellow-500
                             column.id === 'review' ? '#f97316' :  // orange-500
                               column.id === 'completed' ? '#3b82f6' :  // blue-500
                                 column.borderColor
-                        }`
-                    }}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, column.id)}
-                  >
-                    <h3 className="font-medium text-gray-900 mb-4 flex items-center justify-between">
-                      {column.title}
-                      <span className="text-sm bg-white px-2 py-1 rounded-full">
-                        {getTasksByStatus(column.id).length}
-                      </span>
-                    </h3>
-                    <div className="space-y-3">
-                      {getTasksByStatus(column.id).map(task => (
-                        <div
-                          key={task.id}
-                          className={`bg-white p-4 rounded-lg shadow-sm border cursor-move hover:shadow-md transition-shadow ${draggedTask?.id === task.id ? 'opacity-50' : ''
-                            }`}
-                          draggable={user !== 'guest'}
-                          onDragStart={user !== 'guest' ? (e) => handleDragStart(e, task) : undefined}
-                          onClick={user !== 'guest' ? () => handleTaskClick(task) : undefined}
-                        >
-                          <div className="font-medium text-gray-900 mb-2 flex items-center space-x-2">
-                            <span>{task.title}</span>
-                            {task.is_recurring && (
-                              <Repeat className="w-4 h-4 text-blue-500" />
-                            )}
-                            {task.priority && task.priority !== 'medium' && (
-                              <span className="text-xs">
-                                {priorityConfig[task.priority]?.icon || '🟡'}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-sm text-gray-600 mb-3">{task.description}</div>
-                          <div className="flex items-center justify-between mb-2">
-                            <span className={`text-xs px-2 py-1 rounded ${task.color}`}>
-                              {getTaskCategoryDisplayName(task)}
-                            </span>
-                            <div className="flex items-center space-x-2">
-                              <Calendar className="w-4 h-4 text-gray-400" />
-                              <span className="text-xs text-gray-500">
-                                {monthNames[task.month || currentDate.getMonth()]} {task.date}
-                              </span>
-                            </div>
-                          </div>
-                          {task.is_multiday ? (
-                            <div className="flex items-center space-x-2 mb-2">
-                              <Calendar className="w-4 h-4 text-gray-400" />
-                              <span className="text-xs text-gray-500">
-                                {task.start_date && task.end_date ?
-                                  `${new Date(task.start_date + 'T00:00:00').toLocaleDateString()} - ${new Date(task.end_date + 'T00:00:00').toLocaleDateString()}` :
-                                  'Multi-Day'
-                                }
-                              </span>
-                            </div>
-                          ) : task.is_all_day ? (
-                            <div className="flex items-center space-x-2 mb-2">
-                              <Calendar className="w-4 h-4 text-gray-400" />
-                              <span className="text-xs text-gray-500">All Day</span>
-                            </div>
-                          ) : task.time && (
-                            <div className="flex items-center space-x-2 mb-2">
-                              <Clock className="w-4 h-4 text-gray-400" />
-                              <span className="text-xs text-gray-500">{task.time}</span>
-                            </div>
-                          )}
-                          <div className="flex items-center space-x-2 mb-2">
-                            <div className="flex -space-x-1">
-                              {getAssigneesAvatars(task).map((avatar: string, index: number) => {
-                                const assigneeIds = task.assignees && task.assignees.length > 0 ? task.assignees : (task.assignee ? [task.assignee] : []);
-                                const member = teamMembers.find(m => m.id === assigneeIds[index]);
-                                return (
-                                  <div key={index} className={`w-6 h-6 ${member?.color || 'bg-gray-400'} rounded-full flex items-center justify-center text-white text-xs font-medium border-2 border-white`}>
-                                    {avatar}
-                                  </div>
-                                );
-                              })}
-                              {task.assignees && task.assignees.length > 3 && (
-                                <div className="w-6 h-6 bg-gray-400 rounded-full flex items-center justify-center text-white text-xs font-medium border-2 border-white">
-                                  +{task.assignees.length - 3}
-                                </div>
+                          }`
+                      }}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, column.id)}
+                    >
+                      <h3 className="font-medium text-gray-900 mb-4 flex items-center justify-between">
+                        {column.title}
+                        <span className="text-sm bg-white px-2 py-1 rounded-full">
+                          {getTasksByStatus(column.id).length}
+                        </span>
+                      </h3>
+                      <div className="space-y-3">
+                        {getTasksByStatus(column.id).map(task => (
+                          <div
+                            key={task.id}
+                            className={`bg-white p-4 rounded-lg shadow-sm border cursor-move hover:shadow-md transition-shadow ${draggedTask?.id === task.id ? 'opacity-50' : ''
+                              }`}
+                            draggable={user !== 'guest'}
+                            onDragStart={user !== 'guest' ? (e) => handleDragStart(e, task) : undefined}
+                            onClick={user !== 'guest' ? () => handleTaskClick(task) : undefined}
+                          >
+                            <div className="font-medium text-gray-900 mb-2 flex items-center space-x-2">
+                              <span>{task.title}</span>
+                              {task.is_recurring && (
+                                <Repeat className="w-4 h-4 text-blue-500" />
                               )}
-                            </div>
-                            <span className="text-xs text-gray-600">
-                              {getAssigneesDisplay(task)}
-                            </span>
-                          </div>
-                          {task.tags && task.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              {task.tags.slice(0, 3).map((tag: string, index: number) => (
-                                <span
-                                  key={index}
-                                  className="text-[10px] bg-gray-50 text-gray-600 px-1.5 py-0.5 rounded truncate max-w-[80px] sm:max-w-none"
-                                >
-                                  {tag}
+                              {task.priority && task.priority !== 'medium' && (
+                                <span className="text-xs">
+                                  {priorityConfig[(task.priority || 'medium') as string]?.icon || '🟡'}
                                 </span>
-                              ))}
-                              {task.tags.length > 3 && (
-                                <span className="text-[10px] text-gray-500">+{task.tags.length - 3}</span>
                               )}
                             </div>
-                          )}
-                        </div>
-                      ))}
+                            <div className="text-sm text-gray-600 mb-3">{task.description}</div>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className={`text-xs px-2 py-1 rounded ${task.color}`}>
+                                {getTaskCategoryDisplayName(task)}
+                              </span>
+                              <div className="flex items-center space-x-2">
+                                <Calendar className="w-4 h-4 text-gray-400" />
+                                <span className="text-xs text-gray-500">
+                                  {monthNames[task.month || currentDate.getMonth()]} {task.date}
+                                </span>
+                              </div>
+                            </div>
+                            {task.is_multiday ? (
+                              <div className="flex items-center space-x-2 mb-2">
+                                <Calendar className="w-4 h-4 text-gray-400" />
+                                <span className="text-xs text-gray-500">
+                                  {task.start_date && task.end_date ?
+                                    `${new Date(task.start_date + 'T00:00:00').toLocaleDateString()} - ${new Date(task.end_date + 'T00:00:00').toLocaleDateString()}` :
+                                    'Multi-Day'
+                                  }
+                                </span>
+                              </div>
+                            ) : task.is_all_day ? (
+                              <div className="flex items-center space-x-2 mb-2">
+                                <Calendar className="w-4 h-4 text-gray-400" />
+                                <span className="text-xs text-gray-500">All Day</span>
+                              </div>
+                            ) : task.time && (
+                              <div className="flex items-center space-x-2 mb-2">
+                                <Clock className="w-4 h-4 text-gray-400" />
+                                <span className="text-xs text-gray-500">{task.time}</span>
+                              </div>
+                            )}
+                            <div className="flex items-center space-x-2 mb-2">
+                              <div className="flex -space-x-1">
+                                {getAssigneesAvatars(task).map((avatar: string, index: number) => {
+                                  const assigneeIds = task.assignees && task.assignees.length > 0 ? task.assignees : (task.assignee ? [task.assignee] : []);
+                                  const member = teamMembers.find(m => m.id === assigneeIds[index]);
+                                  return (
+                                    <div key={index} className={`w-6 h-6 ${member?.color || 'bg-gray-400'} rounded-full flex items-center justify-center text-white text-xs font-medium border-2 border-white`}>
+                                      {avatar}
+                                    </div>
+                                  );
+                                })}
+                                {task.assignees && task.assignees.length > 3 && (
+                                  <div className="w-6 h-6 bg-gray-400 rounded-full flex items-center justify-center text-white text-xs font-medium border-2 border-white">
+                                    +{task.assignees.length - 3}
+                                  </div>
+                                )}
+                              </div>
+                              <span className="text-xs text-gray-600">
+                                {getAssigneesDisplay(task)}
+                              </span>
+                            </div>
+                            {task.tags && task.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {task.tags.slice(0, 3).map((tag: string, index: number) => (
+                                  <span
+                                    key={index}
+                                    className="text-[10px] bg-gray-50 text-gray-600 px-1.5 py-0.5 rounded truncate max-w-[80px] sm:max-w-none"
+                                  >
+                                    {tag}
+                                  </span>
+                                ))}
+                                {task.tags.length > 3 && (
+                                  <span className="text-[10px] text-gray-500">+{task.tags.length - 3}</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : (
+              /* Priority View */
+              <div className="h-full">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 h-full">
+                  {priorityColumns.map(column => (
+                    <div
+                      key={column.id}
+                      className={`${column.color} rounded-lg p-4 transition-all duration-500 ${highlightedColumn === column.id
+                        ? highlightPhase === 'appearing'
+                          ? 'ring-2 ring-blue-400 ring-opacity-50 shadow-md'
+                          : highlightPhase === 'glowing'
+                            ? 'ring-4 ring-blue-400 ring-opacity-75 shadow-xl'
+                            : highlightPhase === 'disappearing'
+                              ? 'ring-2 ring-blue-400 ring-opacity-25 shadow-sm'
+                              : ''
+                        : ''
+                        }`}
+                      style={{
+                        border: `1px solid ${column.borderColor}`,
+                        borderBottom: `5px solid ${column.borderColor === 'darkgreen' ? '#22c55e' : // green-500
+                          column.borderColor === 'rosybrown' ? '#eab308' : // yellow-500
+                            column.borderColor === 'darkred' ? '#ef4444' : // red-500
+                              column.borderColor
+                          }`
+                      }}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handlePriorityDrop(e, column.id)}
+                    >
+                      <h3 className="font-medium text-gray-900 mb-4 flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                          <span className="text-xl">{column.icon}</span>
+                          {column.title}
+                        </span>
+                        <span className="text-sm bg-white px-2 py-1 rounded-full">
+                          {getTasksByPriority(column.id).length}
+                        </span>
+                      </h3>
+                      <div className="space-y-3">
+                        {getTasksByPriority(column.id).map(task => (
+                          <div
+                            key={task.id}
+                            className={`bg-white p-4 rounded-lg shadow-sm border cursor-move hover:shadow-md transition-shadow ${draggedTask?.id === task.id ? 'opacity-50' : ''
+                              }`}
+                            draggable={user !== 'guest'}
+                            onDragStart={user !== 'guest' ? (e) => handleDragStart(e, task) : undefined}
+                            onClick={user !== 'guest' ? () => handleTaskClick(task) : undefined}
+                          >
+                            <div className="font-medium text-gray-900 mb-2 flex items-center space-x-2">
+                              <span>{task.title}</span>
+                              {task.is_recurring && (
+                                <Repeat className="w-4 h-4 text-blue-500" />
+                              )}
+                              {task.priority && task.priority !== 'medium' && (
+                                <span className="text-xs">
+                                  {priorityConfig[(task.priority || 'medium') as string]?.icon || '🟡'}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-sm text-gray-600 mb-3">{task.description}</div>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className={`text-xs px-2 py-1 rounded ${task.color}`}>
+                                {getTaskCategoryDisplayName(task)}
+                              </span>
+                              <div className="flex items-center space-x-2">
+                                <Calendar className="w-4 h-4 text-gray-400" />
+                                <span className="text-xs text-gray-500">
+                                  {monthNames[task.month || currentDate.getMonth()]} {task.date}
+                                </span>
+                              </div>
+                            </div>
+                            {task.is_multiday ? (
+                              <div className="flex items-center space-x-2 mb-2">
+                                <Calendar className="w-4 h-4 text-gray-400" />
+                                <span className="text-xs text-gray-500">
+                                  {task.start_date && task.end_date ?
+                                    `${new Date(task.start_date + 'T00:00:00').toLocaleDateString()} - ${new Date(task.end_date + 'T00:00:00').toLocaleDateString()}` :
+                                    'Multi-Day'
+                                  }
+                                </span>
+                              </div>
+                            ) : task.is_all_day ? (
+                              <div className="flex items-center space-x-2 mb-2">
+                                <Calendar className="w-4 h-4 text-gray-400" />
+                                <span className="text-xs text-gray-500">All Day</span>
+                              </div>
+                            ) : task.time && (
+                              <div className="flex items-center space-x-2 mb-2">
+                                <Clock className="w-4 h-4 text-gray-400" />
+                                <span className="text-xs text-gray-500">{task.time}</span>
+                              </div>
+                            )}
+                            <div className="flex items-center space-x-2 mb-2">
+                              <div className="flex -space-x-1">
+                                {getAssigneesAvatars(task).map((avatar: string, index: number) => {
+                                  const assigneeIds = task.assignees && task.assignees.length > 0 ? task.assignees : (task.assignee ? [task.assignee] : []);
+                                  const member = teamMembers.find(m => m.id === assigneeIds[index]);
+                                  return (
+                                    <div key={index} className={`w-6 h-6 ${member?.color || 'bg-gray-400'} rounded-full flex items-center justify-center text-white text-xs font-medium border-2 border-white`}>
+                                      {avatar}
+                                    </div>
+                                  );
+                                })}
+                                {task.assignees && task.assignees.length > 3 && (
+                                  <div className="w-6 h-6 bg-gray-400 rounded-full flex items-center justify-center text-white text-xs font-medium border-2 border-white">
+                                    +{task.assignees.length - 3}
+                                  </div>
+                                )}
+                              </div>
+                              <span className="text-xs text-gray-600">
+                                {getAssigneesDisplay(task)}
+                              </span>
+                            </div>
+                            {task.tags && task.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {task.tags.slice(0, 3).map((tag: string, index: number) => (
+                                  <span
+                                    key={index}
+                                    className="text-[10px] bg-gray-50 text-gray-600 px-1.5 py-0.5 rounded truncate max-w-[80px] sm:max-w-none"
+                                  >
+                                    {tag}
+                                  </span>
+                                ))}
+                                {task.tags.length > 3 && (
+                                  <span className="text-[10px] text-gray-500">+{task.tags.length - 3}</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
           )}
         </div>
       </div>
