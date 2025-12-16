@@ -5074,7 +5074,7 @@ const MMCCalendar = () => {
           {loading ? (
             <div className="flex items-center justify-center h-full text-gray-500">Loading...</div>
           ) : activeView === 'Calendar' ? (
-            <div className="bg-white rounded-lg shadow-lg border border-gray-400 h-full">
+            <div className="bg-white rounded-lg shadow-lg border border-gray-400 h-full" style={{ margin: '0 10px' }}>
               {/* Calendar Header */}
               <div className="grid grid-cols-7 border-b border-gray-200">
                 {daysOfWeek.map(day => (
@@ -5147,8 +5147,8 @@ const MMCCalendar = () => {
                                     } ${isEnd ? 'border-r-4' : ''} ${task.status === 'completed' ? 'opacity-50' : ''
                                     } ${draggedTask?.id === task.id ? 'opacity-50' : ''} rounded-none`}
                                   style={{
-                                    marginLeft: isStart ? '0' : '-3px',
-                                    marginRight: isEnd ? '0' : '-3px',
+                                    marginLeft: isStart ? '0' : '-2px',
+                                    marginRight: isEnd ? '0' : '-2px',
                                     zIndex: 10
                                   }}
                                   onClick={user !== 'guest' ? (e) => {
