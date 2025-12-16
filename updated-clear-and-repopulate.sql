@@ -41,7 +41,7 @@ INSERT INTO tasks (title, description, type, category, date, month, year, time, 
 ('Marketing Automation Setup', 'Implement marketing automation workflows for lead nurturing and segmentation', 'Email', 'emailMarketing', 8, 10, 2025, '14:00', 4, 'planned', 'bg-orange-100 text-orange-800 border-orange-200', 'high', ARRAY['automation', 'workflows', 'leads', 'segmentation'], 4, false, false, null, null, false, null, null, null),
 ('Marketing Conference Attendance', 'Attend annual marketing conference for networking and learning', 'Campaign', 'campaigns', 5, 11, 2025, '09:00', 4, 'planned', 'bg-purple-100 text-purple-800 border-purple-200', 'medium', ARRAY['conference', 'networking', 'learning', 'marketing'], 4, false, true, '2025-11-05', '2025-11-07', false, null, null, null);
 
--- Lori-Anne Thibault (id: 5) - Bilingual Communications Specialist
+-- Lori-Anne Knarr (id: 5) - Bilingual Communications Specialist
 INSERT INTO tasks (title, description, type, category, date, month, year, time, assignee, status, color, priority, tags, created_by, is_all_day, is_multiday, start_date, end_date, is_recurring, recurring_interval, recurring_unit, recurring_end_date) VALUES
 ('French Content Translation', 'Translate all marketing materials to French with cultural adaptation', 'Blog', 'blogPosts', 6, 9, 2025, '09:15', 5, 'completed', 'bg-blue-100 text-blue-800 border-blue-200', 'medium', ARRAY['translation', 'french', 'content', 'cultural'], 5, false, false, null, null, false, null, null, null),
 ('Bilingual Email Templates', 'Create bilingual email templates for customer communications and support', 'Email', 'emailMarketing', 16, 10, 2025, '14:15', 5, 'in-progress', 'bg-orange-100 text-orange-800 border-orange-200', 'medium', ARRAY['bilingual', 'email', 'templates', 'support'], 5, false, false, null, null, false, null, null, null),
@@ -90,8 +90,8 @@ INSERT INTO activities (type, task_id, task_title, user_id, user_name, message, 
 ('task_created', 6, 'Q4 Strategy Review', '3', 'Joy Pavelich', 'Created new task: Q4 Strategy Review', NOW() - INTERVAL '1 day'),
 ('task_updated', 6, 'Q4 Strategy Review', '3', 'Joy Pavelich', 'Updated status to review', NOW() - INTERVAL '4 hours'),
 ('task_created', 7, 'Email Campaign: Holiday Launch', '4', 'Krystle Kung', 'Created new task: Email Campaign: Holiday Launch', NOW() - INTERVAL '2 days'),
-('task_created', 8, 'French Content Translation', '5', 'Lori-Anne Thibault', 'Created new task: French Content Translation', NOW() - INTERVAL '1 day'),
-('task_updated', 8, 'French Content Translation', '5', 'Lori-Anne Thibault', 'Updated status to completed', NOW() - INTERVAL '2 hours'),
+('task_created', 8, 'French Content Translation', '5', 'Lori-Anne Knarr', 'Created new task: French Content Translation', NOW() - INTERVAL '1 day'),
+('task_updated', 8, 'French Content Translation', '5', 'Lori-Anne Knarr', 'Updated status to completed', NOW() - INTERVAL '2 hours'),
 ('task_created', 9, 'TikTok Strategy Development', '6', 'Meg McLean', 'Created new task: TikTok Strategy Development', NOW() - INTERVAL '3 days'),
 ('task_updated', 9, 'TikTok Strategy Development', '6', 'Meg McLean', 'Updated status to review', NOW() - INTERVAL '1 day'),
 ('task_created', 10, 'Weekly Team Standup', '3', 'Joy Pavelich', 'Created recurring task: Weekly Team Standup', NOW() - INTERVAL '5 days'),
@@ -103,7 +103,7 @@ INSERT INTO activities (type, task_id, task_title, user_id, user_name, message, 
 ('task_created', 15, 'Content Calendar Review', '2', 'Ghislain Girard', 'Created new task: Content Calendar Review', NOW() - INTERVAL '1 hour'),
 ('task_created', 16, 'Company Holiday - Thanksgiving', '1', 'Courtney Wright', 'Created all-day task: Company Holiday - Thanksgiving', NOW() - INTERVAL '2 hours'),
 ('task_created', 17, 'Team Building Day', '4', 'Krystle Kung', 'Created all-day task: Team Building Day', NOW() - INTERVAL '1 hour'),
-('task_created', 18, 'Client Appreciation Day', '5', 'Lori-Anne Thibault', 'Created all-day task: Client Appreciation Day', NOW() - INTERVAL '30 minutes');
+('task_created', 18, 'Client Appreciation Day', '5', 'Lori-Anne Knarr', 'Created all-day task: Client Appreciation Day', NOW() - INTERVAL '30 minutes');
 
 -- Show completion message
 SELECT 'Updated test data populated successfully with all new features!' as status;

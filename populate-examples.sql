@@ -29,7 +29,7 @@ INSERT INTO tasks (title, description, type, category, date, month, year, time, 
 ('Marketing Analytics Report', 'Compile monthly marketing analytics and insights', 'Blog', 'blogPosts', 20, 9, 2025, '11:30', 4, 'in-progress', 'bg-blue-100 text-blue-800 border-blue-200', ARRAY['analytics', 'report', 'marketing'], 4),
 ('Customer Journey Mapping', 'Create detailed customer journey maps for digital touchpoints', 'Campaign', 'campaigns', 14, 10, 2025, '13:45', 4, 'planned', 'bg-purple-100 text-purple-800 border-purple-200', ARRAY['journey', 'mapping', 'customer'], 4);
 
--- Lori-Anne Thibault (id: 5) - Bilingual Communications Specialist
+-- Lori-Anne Knarr (id: 5) - Bilingual Communications Specialist
 INSERT INTO tasks (title, description, type, category, date, month, year, time, assignee, status, color, tags, created_by) VALUES
 ('French Content Translation', 'Translate all marketing materials to French', 'Blog', 'blogPosts', 6, 9, 2025, '09:15', 5, 'completed', 'bg-blue-100 text-blue-800 border-blue-200', ARRAY['translation', 'french', 'content'], 5),
 ('Bilingual Email Templates', 'Create bilingual email templates for customer communications', 'Email', 'emailMarketing', 16, 10, 2025, '14:15', 5, 'in-progress', 'bg-orange-100 text-orange-800 border-orange-200', ARRAY['bilingual', 'email', 'templates'], 5),

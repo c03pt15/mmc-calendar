@@ -693,7 +693,7 @@ const MMCCalendar = () => {
     { id: 2, name: 'Ghislain Girard', role: 'Manager, Web Operations', avatar: 'GG', color: 'bg-green-500', active: true },
     { id: 3, name: 'Joy Pavelich', role: 'Executive Vice-President, Strategy and Operations', avatar: 'JP', color: 'bg-purple-500', active: true },
     { id: 4, name: 'Krystle Kung', role: 'Manager, Digital Marketing', avatar: 'KK', color: 'bg-pink-500', active: true },
-    { id: 5, name: 'Lori-Anne Thibault', role: 'Bilingual Communications Specialist', avatar: 'LT', color: 'bg-indigo-500', active: true },
+    { id: 5, name: 'Lori-Anne Knarr', auth_name: 'Lori-Anne Thibault', email: 'lknarr@atlasinstitute.ca', role: 'Bilingual Communications Specialist', avatar: 'LK', color: 'bg-indigo-500', active: true },
     { id: 6, name: 'Meg McLean', auth_name: 'Meagan McLean', role: 'Social and Digital Engagement Lead', avatar: 'MM', color: 'bg-red-500', active: true }
   ];
 

@@ -119,7 +119,7 @@ INSERT INTO tasks (title, description, type, category, date, month, year, time, 
 ('Mid-Year Marketing Assessment', 'Comprehensive mid-year assessment of marketing operations and effectiveness', 'Marketing', 'marketingOps', 11, 5, 2025, '11:00', 4, 'planned', 'bg-purple-100 text-purple-800 border-purple-200', 'high', ARRAY['assessment', 'mid-year', 'operations', 'effectiveness'], 4, false, false, null, null),
 ('Marketing Strategy Planning', 'Multi-day planning session for H2 marketing strategy and implementation', 'Marketing', 'marketingOps', 27, 5, 2025, '09:00', 4, 'planned', 'bg-purple-100 text-purple-800 border-purple-200', 'high', ARRAY['strategy', 'planning', 'h2', 'implementation'], 4, true, true, '2025-06-27', '2025-06-29');
 
--- Lori-Anne Thibault (id: 5) - Manager, Content & Communications
+-- Lori-Anne Knarr (id: 5) - Manager, Content & Communications
 INSERT INTO tasks (title, description, type, category, date, month, year, time, assignee, status, color, priority, tags, created_by, is_all_day, is_multiday, start_date, end_date) VALUES
 -- January 2025
 ('Content Strategy Development', 'Develop comprehensive content strategy for Q1 with focus on audience engagement', 'Content', 'contentCreation', 9, 0, 2025, '10:00', 5, 'completed', 'bg-pink-100 text-pink-800 border-pink-200', 'high', ARRAY['strategy', 'content', 'q1', 'engagement'], 5, false, false, null, null),
@@ -204,12 +204,12 @@ INSERT INTO activities (type, task_id, task_title, user_id, user_name, message, 
 ('task_updated', 12, 'Q1 Marketing Campaign Planning', '4', 'Krystle Kung', 'Updated status to in-progress', NOW() - INTERVAL '20 days'),
 ('task_created', 13, 'Marketing Analytics Implementation', '4', 'Krystle Kung', 'Created new task: Marketing Analytics Implementation', NOW() - INTERVAL '25 days'),
 
--- Lori-Anne Thibault activities
-('task_created', 14, 'Content Strategy Development', '5', 'Lori-Anne Thibault', 'Created new task: Content Strategy Development', NOW() - INTERVAL '30 days'),
-('task_updated', 14, 'Content Strategy Development', '5', 'Lori-Anne Thibault', 'Updated status to completed', NOW() - INTERVAL '25 days'),
-('task_created', 15, 'Content Calendar Planning', '5', 'Lori-Anne Thibault', 'Created new task: Content Calendar Planning', NOW() - INTERVAL '28 days'),
-('task_updated', 15, 'Content Calendar Planning', '5', 'Lori-Anne Thibault', 'Updated status to in-progress', NOW() - INTERVAL '20 days'),
-('task_created', 16, 'Content Performance Analysis', '5', 'Lori-Anne Thibault', 'Created new task: Content Performance Analysis', NOW() - INTERVAL '25 days'),
+-- Lori-Anne Knarr activities
+('task_created', 14, 'Content Strategy Development', '5', 'Lori-Anne Knarr', 'Created new task: Content Strategy Development', NOW() - INTERVAL '30 days'),
+('task_updated', 14, 'Content Strategy Development', '5', 'Lori-Anne Knarr', 'Updated status to completed', NOW() - INTERVAL '25 days'),
+('task_created', 15, 'Content Calendar Planning', '5', 'Lori-Anne Knarr', 'Created new task: Content Calendar Planning', NOW() - INTERVAL '28 days'),
+('task_updated', 15, 'Content Calendar Planning', '5', 'Lori-Anne Knarr', 'Updated status to in-progress', NOW() - INTERVAL '20 days'),
+('task_created', 16, 'Content Performance Analysis', '5', 'Lori-Anne Knarr', 'Created new task: Content Performance Analysis', NOW() - INTERVAL '25 days'),
 
 -- Meg McLean activities
 ('task_created', 17, 'Strategic Planning Session', '6', 'Meg McLean', 'Created new task: Strategic Planning Session', NOW() - INTERVAL '30 days'),
@@ -223,7 +223,7 @@ INSERT INTO activities (type, task_id, task_title, user_id, user_name, message, 
 ('task_created', 21, 'Content Management System Migration', '2', 'Ghislain Girard', 'Created new task: Content Management System Migration', NOW() - INTERVAL '1 hour'),
 ('task_created', 22, 'Client Success Workshop', '3', 'Joy Pavelich', 'Created new task: Client Success Workshop', NOW() - INTERVAL '30 minutes'),
 ('task_created', 23, 'Marketing Technology Stack Review', '4', 'Krystle Kung', 'Created new task: Marketing Technology Stack Review', NOW() - INTERVAL '15 minutes'),
-('task_created', 24, 'Content Creation Workshop', '5', 'Lori-Anne Thibault', 'Created new task: Content Creation Workshop', NOW() - INTERVAL '10 minutes'),
+('task_created', 24, 'Content Creation Workshop', '5', 'Lori-Anne Knarr', 'Created new task: Content Creation Workshop', NOW() - INTERVAL '10 minutes'),
 ('task_created', 25, 'Strategic Workshop Series', '6', 'Meg McLean', 'Created new task: Strategic Workshop Series', NOW() - INTERVAL '5 minutes');
 
 -- Show completion message

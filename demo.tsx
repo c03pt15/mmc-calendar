@@ -61,7 +61,7 @@ const MMCCalendar = () => {
     { id: 2, name: 'Ghislain Girard', role: 'Manager, Web Operations', avatar: 'GG', color: 'bg-green-500', active: true },
     { id: 3, name: 'Joy Pavelich', role: 'Executive Vice-President, Strategy and Operations', avatar: 'JP', color: 'bg-purple-500', active: true },
     { id: 4, name: 'Krystle Kung', role: 'Manager, Digital Marketing', avatar: 'KK', color: 'bg-pink-500', active: true },
-    { id: 5, name: 'Lori-Anne Thibault', role: 'Bilingual Communications Specialist', avatar: 'LT', color: 'bg-indigo-500', active: true },
+    { id: 5, name: 'Lori-Anne Knarr', role: 'Bilingual Communications Specialist', avatar: 'LK', color: 'bg-indigo-500', active: true },
     { id: 6, name: 'Meg McLean', role: 'Social and Digital Engagement Lead', avatar: 'MM', color: 'bg-red-500', active: true }
   ];
 
@@ -72,9 +72,9 @@ const MMCCalendar = () => {
     emailMarketing: { color: 'bg-orange-100 text-orange-800 border-orange-200', type: 'Email' }
   };
 
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
-                     'July', 'August', 'September', 'October', 'November', 'December'];
-  
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   // Fetch tasks from Supabase
@@ -144,21 +144,21 @@ const MMCCalendar = () => {
 
   const getTasksForDate = (date: number) => {
     let tasks = currentMonthTasks.filter(task => task.date === date && selectedFilters[task.category as keyof typeof selectedFilters]);
-    
+
     if (selectedTeamMember) {
       tasks = tasks.filter(task => task.assignee === selectedTeamMember);
     }
-    
+
     return tasks;
   };
 
   const getAllFilteredTasks = () => {
     let tasks = currentMonthTasks.filter(task => selectedFilters[task.category as keyof typeof selectedFilters]);
-    
+
     if (selectedTeamMember) {
       tasks = tasks.filter(task => task.assignee === selectedTeamMember);
     }
-    
+
     return tasks;
   };
 
@@ -320,8 +320,8 @@ const MMCCalendar = () => {
 
   const days = getDaysInMonth(currentDate);
   const today = new Date().getDate();
-  const isCurrentMonth = currentDate.getMonth() === new Date().getMonth() && 
-                         currentDate.getFullYear() === new Date().getFullYear();
+  const isCurrentMonth = currentDate.getMonth() === new Date().getMonth() &&
+    currentDate.getFullYear() === new Date().getFullYear();
 
   // Kanban columns
   const kanbanColumns = [
@@ -414,11 +414,10 @@ const MMCCalendar = () => {
           <h3 className="text-sm font-medium text-gray-900 mb-3">Team Members</h3>
           <div className="space-y-3">
             {teamMembers.map(member => (
-              <div 
-                key={member.id} 
-                className={`flex items-center space-x-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 ${
-                  selectedTeamMember === member.id ? 'bg-blue-50 border border-blue-200' : ''
-                }`}
+              <div
+                key={member.id}
+                className={`flex items-center space-x-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 ${selectedTeamMember === member.id ? 'bg-blue-50 border border-blue-200' : ''
+                  }`}
                 onClick={() => handleTeamMemberClick(member.id)}
               >
                 <div className={`w-8 h-8 ${member.color} rounded-full flex items-center justify-center text-white text-xs font-medium`}>
@@ -442,17 +441,16 @@ const MMCCalendar = () => {
           <div className="space-y-3">
             {allFilteredTasks.slice(0, 3).map(task => (
               <div key={task.id} className="flex items-start space-x-2">
-                <div className={`w-2 h-2 rounded-full mt-2 ${
-                  task.status === 'completed' ? 'bg-green-400' :
-                  task.status === 'in-progress' ? 'bg-blue-400' : 
-                  task.status === 'review' ? 'bg-yellow-400' : 'bg-gray-400'
-                }`}></div>
+                <div className={`w-2 h-2 rounded-full mt-2 ${task.status === 'completed' ? 'bg-green-400' :
+                    task.status === 'in-progress' ? 'bg-blue-400' :
+                      task.status === 'review' ? 'bg-yellow-400' : 'bg-gray-400'
+                  }`}></div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm text-gray-900">{task.title}</div>
                   <div className="text-xs text-gray-500">
-                    {task.status === 'completed' ? 'completed' : 
-                     task.status === 'in-progress' ? 'in progress' :
-                     task.status === 'review' ? 'ready for review' : 'planned'}
+                    {task.status === 'completed' ? 'completed' :
+                      task.status === 'in-progress' ? 'in progress' :
+                        task.status === 'review' ? 'ready for review' : 'planned'}
                   </div>
                 </div>
               </div>
@@ -484,38 +482,36 @@ const MMCCalendar = () => {
                   <ChevronRight className="w-5 h-5" />
                 </button>
               </div>
-              <button 
+              <button
                 className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-md hover:bg-blue-200"
                 onClick={() => setCurrentDate(new Date())}
               >
                 Today
               </button>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               <div className="flex bg-gray-100 rounded-lg p-1">
                 <button
-                  className={`px-3 py-1 text-sm rounded-md ${
-                    activeView === 'Calendar' 
-                      ? 'bg-white text-gray-900 shadow-sm' 
+                  className={`px-3 py-1 text-sm rounded-md ${activeView === 'Calendar'
+                      ? 'bg-white text-gray-900 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                    }`}
                   onClick={() => setActiveView('Calendar')}
                 >
                   Calendar
                 </button>
                 <button
-                  className={`px-3 py-1 text-sm rounded-md ${
-                    activeView === 'Kanban' 
-                      ? 'bg-white text-gray-900 shadow-sm' 
+                  className={`px-3 py-1 text-sm rounded-md ${activeView === 'Kanban'
+                      ? 'bg-white text-gray-900 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                    }`}
                   onClick={() => setActiveView('Kanban')}
                 >
                   Kanban
                 </button>
               </div>
-              <button 
+              <button
                 className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
                 onClick={handleNewEntry}
               >
@@ -551,9 +547,8 @@ const MMCCalendar = () => {
                   >
                     {day && (
                       <>
-                        <div className={`text-sm font-medium mb-2 ${
-                          day === today && isCurrentMonth ? 'text-blue-600' : 'text-gray-900'
-                        }`}>
+                        <div className={`text-sm font-medium mb-2 ${day === today && isCurrentMonth ? 'text-blue-600' : 'text-gray-900'
+                          }`}>
                           {day}
                         </div>
                         <div className="space-y-1">
@@ -600,8 +595,8 @@ const MMCCalendar = () => {
             <div className="h-full">
               <div className="grid grid-cols-4 gap-6 h-full">
                 {kanbanColumns.map(column => (
-                  <div 
-                    key={column.id} 
+                  <div
+                    key={column.id}
                     className={`${column.color} rounded-lg p-4`}
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, column.id)}
@@ -616,9 +611,8 @@ const MMCCalendar = () => {
                       {getTasksByStatus(column.id).map(task => (
                         <div
                           key={task.id}
-                          className={`bg-white p-4 rounded-lg shadow-sm border cursor-move hover:shadow-md transition-shadow relative ${
-                            draggedTask?.id === task.id ? 'opacity-50' : ''
-                          }`}
+                          className={`bg-white p-4 rounded-lg shadow-sm border cursor-move hover:shadow-md transition-shadow relative ${draggedTask?.id === task.id ? 'opacity-50' : ''
+                            }`}
                           draggable
                           onDragStart={(e) => handleDragStart(e, task)}
                           onClick={() => handleTaskClick(task)}
@@ -689,7 +683,7 @@ const MMCCalendar = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
@@ -701,7 +695,7 @@ const MMCCalendar = () => {
                   placeholder="Enter task title"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                 <textarea
@@ -712,7 +706,7 @@ const MMCCalendar = () => {
                   placeholder="Enter task description"
                 />
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Month</label>
@@ -726,7 +720,7 @@ const MMCCalendar = () => {
                     ))}
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
                   <select
@@ -740,7 +734,7 @@ const MMCCalendar = () => {
                   </select>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Day</label>
@@ -753,7 +747,7 @@ const MMCCalendar = () => {
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
                   <input
@@ -764,14 +758,14 @@ const MMCCalendar = () => {
                   />
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
                   <select
                     value={newTask.category}
-                    onChange={(e) => setNewTask(prev => ({ 
-                      ...prev, 
+                    onChange={(e) => setNewTask(prev => ({
+                      ...prev,
                       category: e.target.value,
                       type: categoryConfig[e.target.value].type
                     }))}
@@ -783,7 +777,7 @@ const MMCCalendar = () => {
                     <option value="emailMarketing">Email Marketing</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
                   <select
@@ -797,7 +791,7 @@ const MMCCalendar = () => {
                   </select>
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Created by</label>
                 <select
@@ -810,14 +804,14 @@ const MMCCalendar = () => {
                   ))}
                 </select>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
                 <input
                   type="text"
                   value={newTask.tags?.join(', ') || ''}
-                  onChange={(e) => setNewTask(prev => ({ 
-                    ...prev, 
+                  onChange={(e) => setNewTask(prev => ({
+                    ...prev,
                     tags: e.target.value ? e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag) : []
                   }))}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -826,7 +820,7 @@ const MMCCalendar = () => {
                 <p className="text-xs text-gray-500 mt-1">Separate multiple tags with commas</p>
               </div>
             </div>
-            
+
             <div className="flex space-x-3 mt-6">
               <button
                 onClick={() => setShowNewEntryModal(false)}
@@ -859,13 +853,13 @@ const MMCCalendar = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="space-y-4">
               <div>
                 <h4 className="font-medium text-gray-900 mb-2">{selectedTask.title}</h4>
                 <p className="text-gray-600 text-sm">{selectedTask.description}</p>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">TYPE</label>
@@ -875,17 +869,16 @@ const MMCCalendar = () => {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">STATUS</label>
-                  <span className={`text-xs px-2 py-1 rounded capitalize ${
-                    selectedTask.status === 'completed' ? 'bg-green-100 text-green-800' :
-                    selectedTask.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
-                    selectedTask.status === 'review' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
+                  <span className={`text-xs px-2 py-1 rounded capitalize ${selectedTask.status === 'completed' ? 'bg-green-100 text-green-800' :
+                      selectedTask.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
+                        selectedTask.status === 'review' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
+                    }`}>
                     {selectedTask.status.replace('-', ' ')}
                   </span>
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">ASSIGNED TO</label>
                 <div className="flex items-center space-x-2">
@@ -897,7 +890,7 @@ const MMCCalendar = () => {
                   </span>
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">DUE DATE</label>
                 <div className="flex items-center space-x-2">
@@ -913,7 +906,7 @@ const MMCCalendar = () => {
                   )}
                 </div>
               </div>
-              
+
               {selectedTask.tags && selectedTask.tags.length > 0 && (
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-2">TAGS</label>
@@ -929,7 +922,7 @@ const MMCCalendar = () => {
                   </div>
                 </div>
               )}
-              
+
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">CREATED</label>
                 <div className="flex items-center space-x-2">
@@ -950,7 +943,7 @@ const MMCCalendar = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex space-x-3 mt-6">
               <button
                 onClick={handleDeleteTask}
@@ -989,7 +982,7 @@ const MMCCalendar = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
@@ -1001,7 +994,7 @@ const MMCCalendar = () => {
                   placeholder="Enter task title"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                 <textarea
@@ -1012,7 +1005,7 @@ const MMCCalendar = () => {
                   placeholder="Enter task description"
                 />
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Month</label>
@@ -1026,7 +1019,7 @@ const MMCCalendar = () => {
                     ))}
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
                   <select
@@ -1040,7 +1033,7 @@ const MMCCalendar = () => {
                   </select>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Day</label>
@@ -1053,7 +1046,7 @@ const MMCCalendar = () => {
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
                   <input
@@ -1064,7 +1057,7 @@ const MMCCalendar = () => {
                   />
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
@@ -1079,7 +1072,7 @@ const MMCCalendar = () => {
                     <option value="emailMarketing">Email Marketing</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
                   <select
@@ -1093,7 +1086,7 @@ const MMCCalendar = () => {
                   </select>
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                 <select
@@ -1107,14 +1100,14 @@ const MMCCalendar = () => {
                   <option value="completed">Completed</option>
                 </select>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
                 <input
                   type="text"
                   value={editingTask.tags?.join(', ') || ''}
-                  onChange={e => setEditingTask(prev => prev ? { 
-                    ...prev, 
+                  onChange={e => setEditingTask(prev => prev ? {
+                    ...prev,
                     tags: e.target.value ? e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag) : []
                   } : prev)}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1122,7 +1115,7 @@ const MMCCalendar = () => {
                 />
                 <p className="text-xs text-gray-500 mt-1">Separate multiple tags with commas</p>
               </div>
-              
+
               <div className="pt-2 border-t border-gray-200">
                 <label className="block text-xs font-medium text-gray-500 mb-1">CREATED</label>
                 <div className="flex items-center space-x-2">
@@ -1143,7 +1136,7 @@ const MMCCalendar = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex space-x-3 mt-6">
               <button
                 onClick={() => setShowEditModal(false)}
