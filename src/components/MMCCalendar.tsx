@@ -2675,7 +2675,15 @@ const MMCCalendar = () => {
           setMobileStateLocked(true); // Lock mobile state
 
           // Show mobile notification if not already shown
-          if (!localStorage.getItem('mobileNotificationDismissed')) {
+          // Check for iframe to avoid showing notification when embedded
+          let isInIframe = false;
+          try {
+            isInIframe = window.self !== window.top;
+          } catch (e) {
+            isInIframe = true;
+          }
+
+          if (!localStorage.getItem('mobileNotificationDismissed') && !isInIframe) {
             setShowMobileNotification(true);
           }
         } else {
