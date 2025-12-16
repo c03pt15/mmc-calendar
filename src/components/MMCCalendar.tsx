@@ -5074,7 +5074,7 @@ const MMCCalendar = () => {
           {loading ? (
             <div className="flex items-center justify-center h-full text-gray-500">Loading...</div>
           ) : activeView === 'Calendar' ? (
-            <div className="bg-white rounded-lg shadow-lg border border-gray-400 h-full" style={{ margin: '0 -5px' }}>
+            <div className="bg-white rounded-lg shadow-lg border border-gray-400 h-full" style={{ margin: '0 -3px' }}>
               {/* Calendar Header */}
               <div className="grid grid-cols-7 border-b border-gray-200">
                 {daysOfWeek.map(day => (
