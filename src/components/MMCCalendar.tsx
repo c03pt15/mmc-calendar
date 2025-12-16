@@ -5147,8 +5147,8 @@ const MMCCalendar = () => {
                                     } ${isEnd ? 'border-r-4' : ''} ${task.status === 'completed' ? 'opacity-50' : ''
                                     } ${draggedTask?.id === task.id ? 'opacity-50' : ''} rounded-none`}
                                   style={{
-                                    marginLeft: isStart ? '0' : '-2px',
-                                    marginRight: isEnd ? '0' : '-2px',
+                                    marginLeft: isStart ? '0' : '-1px',
+                                    marginRight: isEnd ? '0' : '-1px',
                                     zIndex: 10
                                   }}
                                   onClick={user !== 'guest' ? (e) => {
