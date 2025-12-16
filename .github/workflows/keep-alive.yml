@@ -1,0 +1,31 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    # Run at 6:00 AM UTC daily (check your timezone equivalence)
+    - cron: '0 6 * * *'
+  # Allow manual trigger for testing
+  workflow_dispatch:
+
+jobs:
+  ping-db:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run keep-alive script
+        run: node scripts/keep-alive.js
+        env:
+          # Make sure to add these secrets in your GitHub Repository Settings -> Secrets and variables -> Actions
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
