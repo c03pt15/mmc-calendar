@@ -694,7 +694,7 @@ const MMCCalendar = () => {
     { id: 3, name: 'Joy Pavelich', role: 'Executive Vice-President, Strategy and Operations', avatar: 'JP', color: 'bg-purple-500', active: true },
     { id: 4, name: 'Krystle Kung', role: 'Manager, Digital Marketing', avatar: 'KK', color: 'bg-pink-500', active: true },
     { id: 5, name: 'Lori-Anne Thibault', role: 'Bilingual Communications Specialist', avatar: 'LT', color: 'bg-indigo-500', active: true },
-    { id: 6, name: 'Meg McLean', role: 'Social and Digital Engagement Lead', avatar: 'MM', color: 'bg-red-500', active: true }
+    { id: 6, name: 'Meg McLean', auth_name: 'Meagan McLean', role: 'Social and Digital Engagement Lead', avatar: 'MM', color: 'bg-red-500', active: true }
   ];
 
   // Enhanced color options with accessibility considerations
@@ -854,7 +854,10 @@ const MMCCalendar = () => {
     // Find matching team member
     const matchingMember = teamMembers.find(member => {
       const memberFullName = `${member.name}`.trim();
-      return memberFullName.toLowerCase() === fullName.toLowerCase();
+      // Check both display name and optional auth_name
+      const authName = (member as any).auth_name || '';
+      return memberFullName.toLowerCase() === fullName.toLowerCase() ||
+        authName.toLowerCase() === fullName.toLowerCase();
     });
 
     if (matchingMember) {
@@ -2560,6 +2563,7 @@ const MMCCalendar = () => {
     const results = allTasksFlat.filter(task => {
       // Exclude explicitly deleted tasks
       if (task.status === 'deleted') return false;
+      if (task.is_deleted_instance) return false;
 
       // Exclude tasks that correspond to a deleted instance (e.g. parent task whose start date instance was deleted)
       const instanceKey = `${task.id}_${task.year}_${task.month}_${task.date}`;
