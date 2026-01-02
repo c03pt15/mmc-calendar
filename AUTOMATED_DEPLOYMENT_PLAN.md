@@ -1,71 +1,53 @@
 # Technical Feasibility: Automated MMC Calendar Deployment
 
-This document outlines the effort and technical steps required to automate the creation of self-contained versions of the MMC Calendar for different groups.
+This document outlines the effort and technical steps required to automate the creation of self-contained versions of the MMC Calendar for different groups using a **Shared Database (Multi-Tenant) strategy**.
 
 ## Overview
 
-The MMC Calendar is built with a modern stack (**React + Vite + Supabase**) that is naturally well-suited for automation. Since configuration is driven by environment variables, the effort to "clone" the application for a new group is relatively low.
+The MMC Calendar is built with a modern stack (**React + Vite + Supabase**) that is naturally well-suited for automation. By using a shared database with Row Level Security (RLS), we can ensure that each organization maintains its own private data space while you manage only one central codebase and database schema.
 
-## Feasibility Assessment
+## Selected Strategy: Multi-Tenant Shared Database
 
-### 1. Frontend Replication (Ease: High)
-The application logic is decoupled from the data.
-- **Approach**: The codebase can be treated as a template.
-- **Action**: Creating a new version involves a fresh deployment of the existing code to a new URL (e.g., via Vercel or Netlify).
-- **Configuration**: Any group-specific branding (title, logo, theme colors) can be moved to a `config.json` or additional environment variables to avoid code changes.
+This approach allows you to update the app and schema once, and have all "instances" benefit immediately.
 
-### 2. Backend Provisioning (Ease: Medium)
-Each group would ideally have its own Supabase project to ensure data isolation.
-- **Current state**: Database schema is documented in `database-schema.md`.
-- **Automation logic**: 
-    1. Create a new Supabase project (Manual or via Supabase CLI/API).
-    2. Apply the SQL schema to create tables (`activities`, `tasks`, `categories`).
-    3. Retrieve the new `SUPABASE_URL` and `ANON_KEY`.
+### 1. Schema Modifications
+To support multiple groups in one database, an `org_id` (or `organization_id`) must be added to every table that contains user data.
 
-### 3. Automation Tiers
+| Table | Added Column | Purpose |
+| :--- | :--- | :--- |
+| `tasks` | `org_id` (text/uuid) | Identifies which organization owns the task. |
+| `categories` | `org_id` (text/uuid) | Allows organizations to have their own custom categories. |
+| `activities` | `org_id` (text/uuid) | Segregates activity logs per organization. |
 
-| Tier | Description | Setup Time | Deployment Time |
-| :--- | :--- | :--- | :--- |
-| **Manual** | Clone repo + Manual Supabase setup + Manual Vercel push. | 0 mins | ~30-60 mins |
-| **Semi-Auto** | GitHub Template Repo + Supabase CLI Script. | 2 hours | ~10 mins |
-| **Full-Auto** | Custom "Provisioning Dashboard" that uses APIs to spin up both DB and Hosting. | 10-15 hours | ~2 mins |
+### 2. Supabase Row Level Security (RLS)
+Security is the most critical part of this approach. We use Supabase RLS to "filter" data automatically based on the user's organization.
 
-## Proposed Strategy for "Self-Contained" Versions
+**Proposed RLS Logic:**
+- Each user will have an `org_id` stored in their `auth.users` metadata.
+- A Policy will be created for each table:
+  ```sql
+  -- Example Policy for the tasks table
+  CREATE POLICY "Users can only see tasks from their org"
+  ON tasks FOR SELECT
+  USING (org_id = (auth.jwt() ->> 'org_id'));
+  ```
+- This ensures that the database itself protects the data isolation.
 
-To make this seamless, I recommend:
-1.  **Template Repository**: Turn the current repo into a GitHub Template.
-2.  **Environment Driven**: Ensure *everything* that changes between groups (Title, Timezone, Admin Emails) is in `.env` or a central `config` file.
-3.  **Setup Script**: A PowerShell or Bash script that uses the Supabase CLI to "push" the schema to a new project automatically.
+### 3. Automated Self-Provisioning (SaaS Flow)
 
-## Conclusion
+You can build a "sign-up and spin-off" flow that automates the creation of new organization profiles.
 
-Creating self-contained versions is **highly feasible**. The architecture is already clean. The "hardest" part is the one-time setup of an automation script for the database schema, but even that is a standard DevOps task.
-
-## Automated Self-Provisioning (SaaS Flow)
-
-Yes, you can absolutely build a "sign-up and spin-off" flow. This transforms the MMC Calendar into a multi-tenant SaaS application.
-
-### Technical Architecture
+#### Technical Architecture
 
 1.  **Landing Page**: A simple form (Name, Org Name, Admin Email).
-2.  **Orchestrator (Backend)**: A serverless function (e.g., Vercel Function) that triggers on form submission.
+2.  **Orchestrator (Backend)**: A serverless function (e.g., Vercel Function).
 3.  **The "Spin-off" Logic**:
-    -   **Step 1: DB Provisioning**: The Orchestrator calls the **Supabase Management API** to create a new project and runs the SQL script from `database-schema.md` to initialize it.
-    -   **Step 2: Hosting Deployment**: The Orchestrator calls the **Vercel API** to create a new project, connected to your GitHub repo, but with the *new* Supabase credentials injected as environment variables.
-    -   **Step 3: Completion**: The user is redirected to their new, unique URL (e.g., `https://org-name.mmc-calendar.com`).
+    -   **Step 1: DB Entry**: Register the new organization and admin user in the shared database.
+    -   **Step 2: Hosting**: Deploy a new frontend instance (or subfolder/subdomain) that points to the main Supabase project with its unique `org_id`.
+    -   **Step 3: Completion**: Redirect the user to their new URL.
 
-### Workflow Diagram
+### 4. Effort Estimate
+Building this "Orchestrator" and wiring it to the APIs would take approximately **10–15 hours** of development time to ensure error handling and proper security.
 
-```mermaid
-graph TD
-    A[New User on Landing Page] -->|Submits Form| B(Orchestrator / API)
-    B -->|API Call| C[Supabase Management API]
-    C -->|Creates| D[New Database + Schema]
-    B -->|API Call| E[Vercel / Hosting API]
-    E -->|Deploys| F[New Site Instance]
-    F -->|Configured with| D
-    B -->|Redirects| G[User to their New Calendar]
-```
-
-### Effort Estimate
-Building this "Orchestrator" and wiring it to the APIs would take approximately **10–15 hours** of development time to ensure error handling (e.g., what if a project name is taken?) and proper security.
+## Conclusion
+The Shared Database approach turns the MMC Calendar into a true SaaS platform. It is the most scalable and maintainable way to manage hundreds of versions while keeping your development overhead low.
