@@ -4242,7 +4242,7 @@ const MMCCalendar = () => {
           </button>
         )}
 
-        <div className="p-4 flex-1">
+        <div className="p-4 flex-1 overflow-y-auto">
           <div className="mb-6">
             <div
               className="flex items-center space-x-2 mb-4 cursor-pointer hover:opacity-80 transition-opacity"
