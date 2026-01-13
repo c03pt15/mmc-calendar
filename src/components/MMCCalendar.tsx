@@ -627,6 +627,7 @@ const MMCCalendar = () => {
   const [highlightPhase, setHighlightPhase] = useState<'appearing' | 'glowing' | 'disappearing' | null>(null);
   const [highlightedToday, setHighlightedToday] = useState<boolean>(false);
   const [todayHighlightPhase, setTodayHighlightPhase] = useState<'appearing' | 'glowing' | 'disappearing' | null>(null);
+  const [showPersonalReminders, setShowPersonalReminders] = useState(false);
 
   // Custom notification system
   const [notifications, setNotifications] = useState<Array<{
@@ -1242,6 +1243,26 @@ const MMCCalendar = () => {
       return allTasksFlat || [];
     }
   }, [allTasks, currentDate.getMonth(), currentDate.getFullYear(), deletedInstances]);
+
+  const myUpcomingReminders = useMemo(() => {
+    if (!loggedInUserTeamMemberId) return [];
+    return upcomingReminders.filter(reminder => {
+      const task = allTasksWithRecurring.find(t => t.id === reminder.taskId || t.parent_task_id === reminder.taskId);
+      if (!task) return false;
+      return (task.assignees && task.assignees.includes(loggedInUserTeamMemberId)) ||
+        task.assignee === loggedInUserTeamMemberId;
+    });
+  }, [upcomingReminders, allTasksWithRecurring, loggedInUserTeamMemberId]);
+
+  const myPastReminders = useMemo(() => {
+    if (!loggedInUserTeamMemberId) return [];
+    return dismissedReminders.filter(reminder => {
+      const task = allTasksWithRecurring.find(t => t.id === reminder.taskId || t.parent_task_id === reminder.taskId);
+      if (!task) return false;
+      return (task.assignees && task.assignees.includes(loggedInUserTeamMemberId)) ||
+        task.assignee === loggedInUserTeamMemberId;
+    });
+  }, [dismissedReminders, allTasksWithRecurring, loggedInUserTeamMemberId]);
 
   // Helper functions for reminders
   const getReminderTime = (task: any, reminderType: string) => {
@@ -4763,6 +4784,7 @@ const MMCCalendar = () => {
                         </button>
                         <button
                           onClick={() => {
+                            setShowPersonalReminders(true);
                             setShowRemindersDrawer(true);
                             setShowUserMenu(false);
                             ensureDrawerVisibleOnMobile();
@@ -4772,7 +4794,7 @@ const MMCCalendar = () => {
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                           </svg>
-                          <span>Upcoming Reminders ({upcomingReminders.length})</span>
+                          <span>Upcoming Reminders ({myUpcomingReminders.length})</span>
                         </button>
                         <div className="border-t border-gray-100"></div>
                         <button
@@ -4808,6 +4830,7 @@ const MMCCalendar = () => {
               <div className="relative">
                 <button
                   onClick={user !== 'guest' ? () => {
+                    setShowPersonalReminders(false);
                     setShowRemindersDrawer(!showRemindersDrawer);
                     if (!showRemindersDrawer) ensureDrawerVisibleOnMobile();
                   } : undefined}
@@ -8399,8 +8422,12 @@ const MMCCalendar = () => {
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Reminders</h2>
-                  <p className="text-sm text-gray-500 mt-1">Next 14 days</p>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    {showPersonalReminders ? 'My Reminders' : 'Reminders'}
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {showPersonalReminders ? 'Reminders for your assigned tasks' : 'Next 14 days'}
+                  </p>
                 </div>
                 <button
                   onClick={closeRemindersDrawer}
@@ -8414,10 +8441,10 @@ const MMCCalendar = () => {
               <div className="flex-1 overflow-y-auto p-6">
                 <div className="space-y-6">
                   {/* Past Reminders */}
-                  {dismissedReminders.length > 0 && (
+                  {(showPersonalReminders ? myPastReminders : dismissedReminders).length > 0 && (
                     <div className="space-y-3">
                       <h3 className="text-sm font-medium text-gray-700 mb-3">Past Reminders</h3>
-                      {dismissedReminders.map((reminder) => (
+                      {(showPersonalReminders ? myPastReminders : dismissedReminders).map((reminder) => (
                         <div
                           key={reminder.id}
                           className="p-4 bg-gray-50 border border-gray-200 rounded-lg transition-colors hover:bg-gray-100 cursor-pointer"
@@ -8471,10 +8498,10 @@ const MMCCalendar = () => {
                   )}
 
                   {/* Upcoming Reminders */}
-                  {upcomingReminders.length > 0 ? (
+                  {(showPersonalReminders ? myUpcomingReminders : upcomingReminders).length > 0 ? (
                     <div className="space-y-3">
                       <h3 className="text-sm font-medium text-gray-700 mb-3">Upcoming Reminders</h3>
-                      {upcomingReminders.map((reminder) => (
+                      {(showPersonalReminders ? myUpcomingReminders : upcomingReminders).map((reminder) => (
                         <div
                           key={reminder.id}
                           className="p-4 bg-blue-50 border border-blue-200 rounded-lg transition-colors hover:bg-blue-100 cursor-pointer"
@@ -8528,7 +8555,7 @@ const MMCCalendar = () => {
                   ) : null}
 
                   {/* Empty State - Only show if no reminders at all */}
-                  {upcomingReminders.length === 0 && dismissedReminders.length === 0 && (
+                  {(showPersonalReminders ? myUpcomingReminders.length === 0 && myPastReminders.length === 0 : upcomingReminders.length === 0 && dismissedReminders.length === 0) && (
                     <div className="text-center py-8">
                       <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                         <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
@@ -8537,7 +8564,10 @@ const MMCCalendar = () => {
                       </div>
                       <h3 className="text-lg font-medium text-gray-900 mb-2">No reminders</h3>
                       <p className="text-gray-500 text-sm">
-                        Set reminders when creating or editing tasks to see them here.
+                        {showPersonalReminders
+                          ? "You have no personal reminders set for your assigned tasks."
+                          : "Set reminders when creating or editing tasks to see them here."
+                        }
                       </p>
                     </div>
                   )}
