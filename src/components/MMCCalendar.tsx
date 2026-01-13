@@ -940,6 +940,48 @@ const MMCCalendar = () => {
       });
     }
   }, [categories]);
+  // Function to add activity to database and local state
+  const addActivity = useCallback(async (activity: any) => {
+    // Always add to local state immediately for better UX
+    const newActivity = {
+      id: Date.now() + Math.random(),
+      type: activity.type || 'unknown',
+      task: activity.task || { id: null, title: 'Unknown Task' },
+      message: activity.message || 'Unknown activity',
+      user: activity.user || 'Unknown User',
+      timestamp: new Date(),
+      oldStatus: activity.oldStatus || null,
+      newStatus: activity.newStatus || null
+    };
+
+    setRecentActivities(prev => [newActivity, ...prev].slice(0, 20));
+
+    try {
+      // Also try to save to database (but don't wait for it)
+      const { data, error } = await supabase
+        .from('activities')
+        .insert([{
+          type: activity.type || 'unknown',
+          task_id: activity.task?.id || null,
+          task_title: activity.task?.title || 'Unknown Task',
+          message: activity.message || 'Unknown activity',
+          user_id: activity.userId || activity.user || 'unknown',
+          user_name: activity.user || 'Unknown User',
+          old_status: activity.oldStatus || null,
+          new_status: activity.newStatus || null
+        }])
+        .select();
+
+      if (error) {
+        console.error('Error saving activity to database:', error);
+        // Activity is already in local state, so we're good
+      }
+    } catch (err) {
+      console.error('Error adding activity to database:', err);
+      // Activity is already in local state, so we're good
+    }
+  }, []);
+
 
   const refreshTasks = useCallback(async () => {
     try {
@@ -951,6 +993,56 @@ const MMCCalendar = () => {
       if (error) {
         console.error('Error refreshing tasks:', error);
         return;
+      }
+
+      // Auto-complete Vacations and Events/webinars if their date has passed
+      const now = new Date();
+      const relevantCategories = ['vacations', 'Vacations', 'eventsWebinars', 'Events/webinars', 'events/webinars'];
+
+      const tasksToComplete = (data || []).filter(task => {
+        if (!task || task.status === 'completed' || task.status === 'deleted') return false;
+        if (!relevantCategories.includes(task.category)) return false;
+
+        let taskEndDate: Date;
+        if (task.is_multiday && task.end_date) {
+          // For multi-day tasks, use the end_date
+          taskEndDate = new Date(task.end_date + 'T23:59:59');
+        } else {
+          // For single day tasks, use the task date at end of day
+          taskEndDate = new Date(task.year, task.month, task.date, 23, 59, 59);
+        }
+
+        return taskEndDate < now;
+      });
+
+      if (user && user !== 'guest' && tasksToComplete.length > 0) {
+        const idsToUpdate = tasksToComplete.map(t => t.id);
+        const { error: updateError } = await supabase
+          .from('tasks')
+          .update({ status: 'completed' })
+          .in('id', idsToUpdate);
+
+        if (!updateError) {
+          // Update local data so UI reflects completion immediately
+          (data || []).forEach(task => {
+            if (idsToUpdate.includes(task.id)) {
+              task.status = 'completed';
+            }
+          });
+
+          // Add activities for the auto-completed tasks
+          tasksToComplete.forEach(task => {
+            addActivity({
+              type: 'status_change',
+              task: task,
+              message: `Automatically marked "${task.title}" as completed (date passed)`,
+              user: 'System',
+              userId: 'system',
+              oldStatus: task.status,
+              newStatus: 'completed'
+            });
+          });
+        }
       }
 
       // Group tasks by month-year
@@ -977,7 +1069,7 @@ const MMCCalendar = () => {
     } catch (err) {
       console.error('Unexpected error refreshing tasks:', err);
     }
-  }, []);
+  }, [user, addActivity]);
 
   // Fetch tasks from Supabase for the current month
   useEffect(() => {
@@ -1711,48 +1803,6 @@ const MMCCalendar = () => {
 
     return highPriorityTasks;
   }, [allTasksWithRecurring]);
-
-  // Function to add activity to database and local state
-  const addActivity = useCallback(async (activity: any) => {
-    // Always add to local state immediately for better UX
-    const newActivity = {
-      id: Date.now() + Math.random(),
-      type: activity.type || 'unknown',
-      task: activity.task || { id: null, title: 'Unknown Task' },
-      message: activity.message || 'Unknown activity',
-      user: activity.user || 'Unknown User',
-      timestamp: new Date(),
-      oldStatus: activity.oldStatus || null,
-      newStatus: activity.newStatus || null
-    };
-
-    setRecentActivities(prev => [newActivity, ...prev].slice(0, 20));
-
-    try {
-      // Also try to save to database (but don't wait for it)
-      const { data, error } = await supabase
-        .from('activities')
-        .insert([{
-          type: activity.type || 'unknown',
-          task_id: activity.task?.id || null,
-          task_title: activity.task?.title || 'Unknown Task',
-          message: activity.message || 'Unknown activity',
-          user_id: activity.userId || activity.user || 'unknown',
-          user_name: activity.user || 'Unknown User',
-          old_status: activity.oldStatus || null,
-          new_status: activity.newStatus || null
-        }])
-        .select();
-
-      if (error) {
-        console.error('Error saving activity to database:', error);
-        // Activity is already in local state, so we're good
-      }
-    } catch (err) {
-      console.error('Error adding activity to database:', err);
-      // Activity is already in local state, so we're good
-    }
-  }, []);
 
   // Function to create a custom category
   const handleCreateCustomCategory = async () => {
