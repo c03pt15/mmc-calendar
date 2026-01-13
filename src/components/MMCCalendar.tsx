@@ -4825,6 +4825,8 @@ const MMCCalendar = () => {
                 </div>
               )}
 
+              {/* Separator */}
+              <div className="text-gray-300 text-lg">|</div>
 
               {/* Reminders Button */}
               <div className="relative">
@@ -4856,9 +4858,6 @@ const MMCCalendar = () => {
                   )}
                 </button>
               </div>
-
-              {/* Separator */}
-              <div className="text-gray-300 text-lg">|</div>
 
               {/* Drawer Toggle Button */}
               <button
