@@ -25,11 +25,8 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
         return;
       }
 
-      // Skip modified instances - they should not generate their own recurring instances
-      // Modified instances are only used to override specific instances of their parent task
-      if (task.is_modified_instance) {
-        return;
-      }
+      // Process the task. Non-recurring tasks (including modified instances) will be added for their specific month/year.
+      // Recurring tasks will generate instances through the while loop.
 
       if (!task.is_recurring || !task.recurring_pattern) {
         // For non-recurring tasks, only add them if they're in the target month
@@ -310,20 +307,12 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
 
 
             if (modifiedInstance) {
-              // If there's a modified instance, use it instead of generating from original task
-              const newInstance = {
-                ...modifiedInstance,
-                date: currentDate.getDate(),
-                month: currentDate.getMonth(),
-                year: currentDate.getFullYear(),
-                parent_task_id: modifiedInstance.parent_task_id || task.id,
-                is_recurring: true,
-                is_recurring_instance: true,
-                instance_key: instanceKey
-              };
-              instances.push(newInstance);
+              // If there's a modified instance, it means this specific slot has been overridden.
+              // We skip generating the regular instance for this slot here.
+              // The modified instance ITSELF will be added to the instances array when it is processed
+              // as its own task in the outer forEach loop (since it is non-recurring).
             } else {
-              // Only generate from original task if no modified instance exists
+              // Only generate from original task if no modified instance exists for this slot
               const newInstance = {
                 ...task,
                 id: task.id,
@@ -719,7 +708,7 @@ const MMCCalendar = () => {
   ];
 
   // Legacy category config for backward compatibility
-  const categoryConfig = {
+  const categoryConfig: { [key: string]: { color: string, type: string } } = {
     blogPosts: { color: 'bg-blue-100 text-blue-800 border-blue-200', type: 'Blog' },
     socialMedia: { color: 'bg-green-100 text-green-800 border-green-200', type: 'Social' },
     campaigns: { color: 'bg-purple-100 text-purple-800 border-purple-200', type: 'Campaign' },
@@ -727,7 +716,7 @@ const MMCCalendar = () => {
     vacations: { color: 'bg-gray-100 text-gray-800 border-gray-200', type: 'Vacation' }
   };
 
-  const priorityConfig = {
+  const priorityConfig: { [key: string]: { color: string, icon: string, label: string } } = {
     high: { color: 'bg-red-100 text-red-800 border-red-200', icon: '🔴', label: 'High' },
     medium: { color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: '🟡', label: 'Medium' },
     low: { color: 'bg-green-100 text-green-800 border-green-200', icon: '🟢', label: 'Low' }
@@ -1289,7 +1278,6 @@ const MMCCalendar = () => {
   // Filter out modified instances and deleted instances since they'll be handled through the recurring generation process
   const allTasksFlat = useMemo(() => {
     return Object.values(allTasks).flat().filter(task =>
-      !task.is_modified_instance &&
       !task.is_deleted_instance &&
       task.status !== 'deleted'
     );
@@ -2804,6 +2792,23 @@ const MMCCalendar = () => {
   const handleSaveEditTask = async () => {
     try {
       setLoading(true);
+
+      // Validate required fields
+      if (!editingTask.category) {
+        showNotification('warning', 'Please select a category');
+        setLoading(false);
+        return;
+      }
+      if (!editingTask.assignees || editingTask.assignees.length === 0) {
+        showNotification('warning', 'Please select at least one assignee');
+        setLoading(false);
+        return;
+      }
+      if (!editingTask.created_by) {
+        showNotification('warning', 'Created by field is required');
+        setLoading(false);
+        return;
+      }
 
       // Clean up date fields - convert empty strings to null for database
       const cleanedTask = { ...editingTask };
