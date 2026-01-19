@@ -2868,7 +2868,9 @@ const MMCCalendar = () => {
           instance_key: instanceKey,
           is_recurring: false,
           is_recurring_instance: true,
-          is_modified_instance: true // Flag to identify this as a modified instance
+          is_modified_instance: true, // Flag to identify this as a modified instance
+          assignees: updatedTask.assignees || [],
+          created_by: updatedTask.created_by || loggedInUserTeamMemberId
         };
 
         // Clean up date fields for modified instance as well
@@ -2990,7 +2992,7 @@ const MMCCalendar = () => {
               time: selectedTask.time,
               assignee: selectedTask.assignee,
               assignees: selectedTask.assignees || [],
-              created_by: selectedTask.created_by,
+              created_by: selectedTask.created_by || loggedInUserTeamMemberId,
               status: 'deleted', // Special status to mark as deleted
               color: selectedTask.color,
               priority: selectedTask.priority,
@@ -3052,7 +3054,7 @@ const MMCCalendar = () => {
 
   // Drag and drop handlers for Kanban
   const handleDragStart = (e: React.DragEvent, task: any) => {
-    setDraggedTask(task);
+    setDraggedTask(ensureCompleteTaskData(task));
     e.dataTransfer.effectAllowed = 'move';
   };
 
@@ -3064,21 +3066,58 @@ const MMCCalendar = () => {
   const handleDrop = async (e: React.DragEvent, newStatus: string) => {
     e.preventDefault();
     if (draggedTask && draggedTask.status !== newStatus) {
-      await supabase.from('tasks').update({ status: newStatus }).eq('id', draggedTask.id);
+      const isRecurring = draggedTask.is_recurring || draggedTask.is_recurring_instance;
+
+      if (isRecurring) {
+        const parentTaskId = draggedTask.parent_task_id || draggedTask.id;
+        const instanceKey = draggedTask.instance_key || `${parentTaskId}_${draggedTask.year}_${draggedTask.month}_${draggedTask.date}`;
+
+        const modifiedInstance = {
+          ...draggedTask,
+          status: newStatus,
+          parent_task_id: parentTaskId,
+          instance_key: instanceKey,
+          is_recurring: false,
+          is_recurring_instance: true,
+          is_modified_instance: true,
+          assignees: draggedTask.assignees || [],
+          created_by: draggedTask.created_by || loggedInUserTeamMemberId
+        };
+
+        if (draggedTask.is_modified_instance) {
+          await supabase.from('tasks').update(modifiedInstance).eq('id', draggedTask.id);
+        } else {
+          const { data: existingModified } = await supabase
+            .from('tasks')
+            .select('id')
+            .eq('parent_task_id', parentTaskId)
+            .eq('instance_key', instanceKey)
+            .eq('is_modified_instance', true)
+            .single();
+
+          if (existingModified) {
+            await supabase.from('tasks').update(modifiedInstance).eq('id', existingModified.id);
+          } else {
+            delete (modifiedInstance as any).id;
+            await supabase.from('tasks').insert([modifiedInstance]);
+          }
+        }
+      } else {
+        await supabase.from('tasks').update({ status: newStatus }).eq('id', draggedTask.id);
+      }
 
       // Add activity for status change
       addActivity({
         type: 'status_changed',
-        task: draggedTask,
+        task: { ...draggedTask, status: newStatus },
         message: `Changed status from ${draggedTask.status} to ${newStatus}`,
-        user: teamMembers.find(m => m.id === draggedTask.created_by)?.name || 'Unknown',
-        userId: draggedTask.created_by,
+        user: teamMembers.find(m => m.id === draggedTask.created_by || m.id === loggedInUserTeamMemberId)?.name || 'Unknown',
+        userId: draggedTask.created_by || loggedInUserTeamMemberId,
         oldStatus: draggedTask.status,
         newStatus: newStatus
       });
 
       await refreshTasks();
-      // Refresh activities to show the new activity
       loadActivities();
     }
     setDraggedTask(null);
@@ -3087,15 +3126,53 @@ const MMCCalendar = () => {
   const handlePriorityDrop = async (e: React.DragEvent, newPriority: string) => {
     e.preventDefault();
     if (draggedTask && draggedTask.priority !== newPriority) {
-      await supabase.from('tasks').update({ priority: newPriority }).eq('id', draggedTask.id);
+      const isRecurring = draggedTask.is_recurring || draggedTask.is_recurring_instance;
+
+      if (isRecurring) {
+        const parentTaskId = draggedTask.parent_task_id || draggedTask.id;
+        const instanceKey = draggedTask.instance_key || `${parentTaskId}_${draggedTask.year}_${draggedTask.month}_${draggedTask.date}`;
+
+        const modifiedInstance = {
+          ...draggedTask,
+          priority: newPriority,
+          parent_task_id: parentTaskId,
+          instance_key: instanceKey,
+          is_recurring: false,
+          is_recurring_instance: true,
+          is_modified_instance: true,
+          assignees: draggedTask.assignees || [],
+          created_by: draggedTask.created_by || loggedInUserTeamMemberId
+        };
+
+        if (draggedTask.is_modified_instance) {
+          await supabase.from('tasks').update(modifiedInstance).eq('id', draggedTask.id);
+        } else {
+          const { data: existingModified } = await supabase
+            .from('tasks')
+            .select('id')
+            .eq('parent_task_id', parentTaskId)
+            .eq('instance_key', instanceKey)
+            .eq('is_modified_instance', true)
+            .single();
+
+          if (existingModified) {
+            await supabase.from('tasks').update(modifiedInstance).eq('id', existingModified.id);
+          } else {
+            delete (modifiedInstance as any).id;
+            await supabase.from('tasks').insert([modifiedInstance]);
+          }
+        }
+      } else {
+        await supabase.from('tasks').update({ priority: newPriority }).eq('id', draggedTask.id);
+      }
 
       // Add activity for priority change
       addActivity({
         type: 'priority_changed',
-        task: draggedTask,
+        task: { ...draggedTask, priority: newPriority },
         message: `Changed priority from ${draggedTask.priority || 'medium'} to ${newPriority}`,
-        user: teamMembers.find(m => m.id === draggedTask.created_by)?.name || 'Unknown',
-        userId: draggedTask.created_by,
+        user: teamMembers.find(m => m.id === draggedTask.created_by || m.id === loggedInUserTeamMemberId)?.name || 'Unknown',
+        userId: draggedTask.created_by || loggedInUserTeamMemberId,
         oldPriority: draggedTask.priority || 'medium',
         newPriority: newPriority
       });
@@ -3108,7 +3185,7 @@ const MMCCalendar = () => {
 
   // Calendar drag & drop handlers
   const handleCalendarDragStart = (e: React.DragEvent, task: any) => {
-    setDraggedTask(task);
+    setDraggedTask(ensureCompleteTaskData(task));
     e.dataTransfer.effectAllowed = 'move';
   };
 
@@ -3131,14 +3208,60 @@ const MMCCalendar = () => {
       // Check if the new date is valid for the current month
       const daysInMonth = new Date(newYear, newMonth + 1, 0).getDate();
       if (newDate <= daysInMonth) {
-        await supabase
-          .from('tasks')
-          .update({
+        const isRecurring = draggedTask.is_recurring || draggedTask.is_recurring_instance;
+
+        if (isRecurring) {
+          const parentTaskId = draggedTask.parent_task_id || draggedTask.id;
+          const originalDate = draggedTask.date;
+          const originalMonth = draggedTask.month;
+          const originalYear = draggedTask.year;
+          const instanceKey = draggedTask.instance_key || `${parentTaskId}_${originalYear}_${originalMonth}_${originalDate}`;
+
+          const modifiedInstance = {
+            ...draggedTask,
             date: newDate,
             month: newMonth,
-            year: newYear
-          })
-          .eq('id', draggedTask.id);
+            year: newYear,
+            parent_task_id: parentTaskId,
+            instance_key: instanceKey,
+            is_recurring: false,
+            is_recurring_instance: true,
+            is_modified_instance: true,
+            assignees: draggedTask.assignees || [],
+            created_by: draggedTask.created_by || loggedInUserTeamMemberId
+          };
+
+          if (draggedTask.is_modified_instance) {
+            // Update existing modified instance
+            await supabase.from('tasks').update(modifiedInstance).eq('id', draggedTask.id);
+          } else {
+            // Check if there's an existing modified instance in the database for this specific occurrence
+            const { data: existingModified } = await supabase
+              .from('tasks')
+              .select('id')
+              .eq('parent_task_id', parentTaskId)
+              .eq('instance_key', instanceKey)
+              .eq('is_modified_instance', true)
+              .single();
+
+            if (existingModified) {
+              await supabase.from('tasks').update(modifiedInstance).eq('id', existingModified.id);
+            } else {
+              delete (modifiedInstance as any).id;
+              await supabase.from('tasks').insert([modifiedInstance]);
+            }
+          }
+        } else {
+          // Regular task - simple update
+          await supabase
+            .from('tasks')
+            .update({
+              date: newDate,
+              month: newMonth,
+              year: newYear
+            })
+            .eq('id', draggedTask.id);
+        }
         await refreshTasks();
       }
     }
