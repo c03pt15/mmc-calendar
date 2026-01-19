@@ -2530,21 +2530,33 @@ const MMCCalendar = () => {
         .from('tasks')
         .select('*')
         .eq('id', taskIdToEdit)
-        .single();
+        .limit(1);
 
       if (error) {
         console.error('Error fetching recurring task:', error);
         showNotification('error', `Error loading recurring task: ${error.message}`);
+        setLoading(false);
         return;
       }
+
+      const recurringTaskData = data && data.length > 0 ? data[0] : null;
+
+      if (!recurringTaskData) {
+        showNotification('error', 'Could not find the original recurring task.');
+        setLoading(false);
+        return;
+      }
+
+      // Use recurringTaskData for the rest of the function (data variable was used below)
+      const taskData = recurringTaskData;
 
       // Initialize reminder names from existing reminders (only non-dismissed ones)
       const reminderNames: { [key: string]: string } = {};
       const customReminders: Array<{ time: string, name: string }> = [];
       const activeReminderTypes: string[] = []; // Track active reminder types for checkboxes
 
-      if (data.reminders) {
-        data.reminders.forEach((reminder: any) => {
+      if (taskData.reminders) {
+        taskData.reminders.forEach((reminder: any) => {
           // Only include non-dismissed reminders
           if (!reminder.dismissed) {
             if (reminder.type !== 'custom') {
@@ -2564,15 +2576,15 @@ const MMCCalendar = () => {
       }
 
       setEditingTask({
-        ...data,
-        start_date: data.start_date || '',
-        end_date: data.end_date || '',
-        recurring_end_date: data.recurring_end_date || '',
+        ...taskData,
+        start_date: taskData.start_date || '',
+        end_date: taskData.end_date || '',
+        recurring_end_date: taskData.recurring_end_date || '',
         reminder_times: activeReminderTypes, // Use only active (non-dismissed) reminder types
         reminder_names: reminderNames,
-        reminder_custom_name: data.reminders?.find((r: any) => r.type === 'custom' && !r.dismissed)?.name || '',
+        reminder_custom_name: taskData.reminders?.find((r: any) => r.type === 'custom' && !r.dismissed)?.name || '',
         custom_reminders: customReminders,
-        has_reminders: data.reminders && data.reminders.some((r: any) => !r.dismissed)
+        has_reminders: taskData.reminders && taskData.reminders.some((r: any) => !r.dismissed)
       });
       setEditMode('all'); // Set to edit all instances
       setShowTaskModal(false);
@@ -2887,13 +2899,15 @@ const MMCCalendar = () => {
         delete modifiedInstance.id;
 
         // First, check if there's already a modified instance for this date
-        const { data: existingModified } = await supabase
+        const { data: existingResults } = await supabase
           .from('tasks')
           .select('id')
           .eq('parent_task_id', modifiedInstance.parent_task_id)
           .eq('instance_key', instanceKey)
           .eq('is_modified_instance', true)
-          .single();
+          .limit(1);
+
+        const existingModified = existingResults && existingResults.length > 0 ? existingResults[0] : null;
 
         if (existingModified) {
           // Update existing modified instance
@@ -2985,7 +2999,21 @@ const MMCCalendar = () => {
             // we'll create a special task record to mark this instance as deleted
             const instanceKey = selectedTask.instance_key || `${selectedTask.parent_task_id || selectedTask.id}_${selectedTask.year}_${selectedTask.month}_${selectedTask.date}`;
 
-            // Create a "deleted" task record to mark this instance as deleted
+            // If we're deleting a modified instance, we need to delete its specific record
+            if (selectedTask.is_modified_instance) {
+              const { error: deleteError } = await supabase
+                .from('tasks')
+                .delete()
+                .eq('id', selectedTask.id);
+
+              if (deleteError) {
+                console.error('Error deleting modified instance record:', deleteError);
+                showNotification('error', `Error deleting task: ${deleteError.message}`);
+                return;
+              }
+            }
+
+            // Create a "deleted" task record to mark this instance as deleted in the recurring sequence
             const deletedInstance = {
               title: `[DELETED] ${selectedTask.title}`,
               description: selectedTask.description,
@@ -2998,14 +3026,14 @@ const MMCCalendar = () => {
               assignee: selectedTask.assignee,
               assignees: selectedTask.assignees || [],
               created_by: selectedTask.created_by || loggedInUserTeamMemberId,
-              status: 'deleted', // Special status to mark as deleted
+              status: 'deleted',
               color: selectedTask.color,
               priority: selectedTask.priority,
               is_recurring: false,
               parent_task_id: selectedTask.parent_task_id || selectedTask.id,
               instance_key: instanceKey,
               is_recurring_instance: true,
-              is_deleted_instance: true // Flag to identify this as a deleted instance
+              is_deleted_instance: true
             };
 
             const result = await supabase.from('tasks').insert([deletedInstance]);
@@ -3092,13 +3120,15 @@ const MMCCalendar = () => {
         if (draggedTask.is_modified_instance) {
           await supabase.from('tasks').update(modifiedInstance).eq('id', draggedTask.id);
         } else {
-          const { data: existingModified } = await supabase
+          const { data: existingResults } = await supabase
             .from('tasks')
             .select('id')
             .eq('parent_task_id', parentTaskId)
             .eq('instance_key', instanceKey)
             .eq('is_modified_instance', true)
-            .single();
+            .limit(1);
+
+          const existingModified = existingResults && existingResults.length > 0 ? existingResults[0] : null;
 
           if (existingModified) {
             await supabase.from('tasks').update(modifiedInstance).eq('id', existingModified.id);
@@ -3152,13 +3182,15 @@ const MMCCalendar = () => {
         if (draggedTask.is_modified_instance) {
           await supabase.from('tasks').update(modifiedInstance).eq('id', draggedTask.id);
         } else {
-          const { data: existingModified } = await supabase
+          const { data: existingResults } = await supabase
             .from('tasks')
             .select('id')
             .eq('parent_task_id', parentTaskId)
             .eq('instance_key', instanceKey)
             .eq('is_modified_instance', true)
-            .single();
+            .limit(1);
+
+          const existingModified = existingResults && existingResults.length > 0 ? existingResults[0] : null;
 
           if (existingModified) {
             await supabase.from('tasks').update(modifiedInstance).eq('id', existingModified.id);
@@ -3241,13 +3273,15 @@ const MMCCalendar = () => {
             await supabase.from('tasks').update(modifiedInstance).eq('id', draggedTask.id);
           } else {
             // Check if there's an existing modified instance in the database for this specific occurrence
-            const { data: existingModified } = await supabase
+            const { data: existingResults } = await supabase
               .from('tasks')
               .select('id')
               .eq('parent_task_id', parentTaskId)
               .eq('instance_key', instanceKey)
               .eq('is_modified_instance', true)
-              .single();
+              .limit(1);
+
+            const existingModified = existingResults && existingResults.length > 0 ? existingResults[0] : null;
 
             if (existingModified) {
               await supabase.from('tasks').update(modifiedInstance).eq('id', existingModified.id);
@@ -8495,11 +8529,10 @@ const MMCCalendar = () => {
                               .select('*')
                               .eq('title', taskTitle)
                               .order('created_at', { ascending: false })
-                              .limit(1)
-                              .single();
+                              .limit(1);
 
-                            if (data && !error) {
-                              completeTask = data;
+                            if (data && data.length > 0 && !error) {
+                              completeTask = data[0];
                             }
                           } catch (err) {
                             console.error('Error fetching task by title:', err);
