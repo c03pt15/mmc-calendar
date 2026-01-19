@@ -48,417 +48,147 @@ const generateRecurringInstances = (tasks: any[], targetMonth: number, targetYea
         const maxInstances = task.recurring_end_date ? 365 : 1000; // Allow up to 1 year of daily instances
 
         while (currentDate <= endDate && instanceCount < maxInstances) {
-          // Check if this instance falls within the target month
-          if (currentDate.getMonth() === targetMonth && currentDate.getFullYear() === targetYear) {
-            const instanceKey = `${task.id}_${currentDate.getFullYear()}_${currentDate.getMonth()}_${currentDate.getDate()}`;
+          const instanceKey = `${task.id}_${currentDate.getFullYear()}_${currentDate.getMonth()}_${currentDate.getDate()}`;
 
-            // Skip this instance if it's been deleted (check both deletedInstances set and database records)
-            if (deletedInstances.has(instanceKey)) {
-              // Calculate next occurrence before skipping
-              let nextDate: Date;
-              const interval = (task.recurring_interval && typeof task.recurring_interval === 'number') ? task.recurring_interval : 1;
-              const unit = (task.recurring_unit && typeof task.recurring_unit === 'string') ? task.recurring_unit : 'week';
+          // Check if this instance falls within the target month (only generate for UI optimization)
+          const isInTargetMonth = currentDate.getMonth() === targetMonth && currentDate.getFullYear() === targetYear;
 
-              switch (task.recurring_pattern) {
-                case 'daily':
-                  nextDate = new Date(currentDate);
-                  nextDate.setDate(currentDate.getDate() + interval);
-                  break;
-                case 'weekly':
-                  nextDate = new Date(currentDate);
-                  nextDate.setDate(currentDate.getDate() + (7 * interval));
-                  break;
-                case 'monthly':
-                  nextDate = new Date(currentDate);
-                  nextDate.setMonth(currentDate.getMonth() + interval);
-                  break;
-                case 'yearly':
-                  nextDate = new Date(currentDate);
-                  nextDate.setFullYear(currentDate.getFullYear() + interval);
-                  break;
-                case 'weekdays':
-                  nextDate = new Date(currentDate);
-                  nextDate.setDate(currentDate.getDate() + 1);
-                  break;
-                case 'custom_days':
-                  if (task.recurring_days && task.recurring_days.length > 0) {
-                    nextDate = new Date(currentDate);
-                    nextDate.setDate(currentDate.getDate() + 1);
-                  } else {
-                    nextDate = new Date(currentDate);
-                    nextDate.setDate(currentDate.getDate() + 1);
-                  }
-                  break;
-                case '1st_day_of_month':
-                  nextDate = new Date(currentDate);
-                  nextDate.setMonth(currentDate.getMonth() + interval);
-                  const firstDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-                  const firstDayOfWeek = firstDay.getDay();
-                  const targetDay1st = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-                  const daysToAdd1st = (targetDay1st - firstDayOfWeek + 7) % 7;
-                  nextDate = new Date(firstDay);
-                  nextDate.setDate(firstDay.getDate() + daysToAdd1st);
-                  break;
-                case '2nd_day_of_month':
-                  nextDate = new Date(currentDate);
-                  nextDate.setMonth(currentDate.getMonth() + interval);
-                  const secondDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-                  const secondDayOfWeek = secondDay.getDay();
-                  const targetDay2nd = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-                  const daysToAdd2nd = (targetDay2nd - secondDayOfWeek + 7) % 7;
-                  nextDate = new Date(secondDay);
-                  nextDate.setDate(secondDay.getDate() + daysToAdd2nd + 7); // Add 7 days for 2nd occurrence
-                  break;
-                case '3rd_day_of_month':
-                  nextDate = new Date(currentDate);
-                  nextDate.setMonth(currentDate.getMonth() + interval);
-                  const thirdDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-                  const thirdDayOfWeek = thirdDay.getDay();
-                  const targetDay3rd = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-                  const daysToAdd3rd = (targetDay3rd - thirdDayOfWeek + 7) % 7;
-                  nextDate = new Date(thirdDay);
-                  nextDate.setDate(thirdDay.getDate() + daysToAdd3rd + 14); // Add 14 days for 3rd occurrence
-                  break;
-                case '4th_day_of_month':
-                  nextDate = new Date(currentDate);
-                  nextDate.setMonth(currentDate.getMonth() + interval);
-                  const fourthDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-                  const fourthDayOfWeek = fourthDay.getDay();
-                  const targetDay4th = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-                  const daysToAdd4th = (targetDay4th - fourthDayOfWeek + 7) % 7;
-                  nextDate = new Date(fourthDay);
-                  nextDate.setDate(fourthDay.getDate() + daysToAdd4th + 21); // Add 21 days for 4th occurrence
-                  break;
-                case 'last_day_of_month':
-                  nextDate = new Date(currentDate);
-                  nextDate.setMonth(currentDate.getMonth() + interval);
-                  const lastDay = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0);
-                  const lastDayOfWeek = lastDay.getDay();
-                  const targetDayLast = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-                  const daysToSubtract = (lastDayOfWeek - targetDayLast + 7) % 7;
-                  nextDate = new Date(lastDay);
-                  nextDate.setDate(lastDay.getDate() - daysToSubtract);
-                  break;
-                default:
-                  nextDate = new Date(currentDate);
-                  nextDate.setDate(currentDate.getDate() + 1);
-              }
+          // 1. Check if this specific occurrence is marked as deleted
+          const isDeleted = deletedInstances.has(instanceKey) || tasks.some(t =>
+            t.is_deleted_instance &&
+            t.parent_task_id === task.id &&
+            t.instance_key === instanceKey
+          );
 
-              currentDate = nextDate;
-              instanceCount++;
-              continue;
-            }
+          // 2. Check if there's a modified instance record overriding this specific occurrence
+          const modifiedInstance = tasks.find(t =>
+            t.is_modified_instance &&
+            t.parent_task_id === task.id &&
+            t.instance_key === instanceKey &&
+            t.status !== 'deleted'
+          );
 
-            // Check if there's a deleted instance record for this specific instance
-            const hasDeletedInstance = tasks.some(t =>
-              t.is_deleted_instance &&
-              t.parent_task_id === task.id &&
-              t.instance_key === instanceKey
-            );
-
-            if (hasDeletedInstance) {
-              // Calculate next occurrence before skipping
-              let nextDate: Date;
-              const interval = (task.recurring_interval && typeof task.recurring_interval === 'number') ? task.recurring_interval : 1;
-              const unit = (task.recurring_unit && typeof task.recurring_unit === 'string') ? task.recurring_unit : 'week';
-
-              switch (task.recurring_pattern) {
-                case 'daily':
-                  nextDate = new Date(currentDate);
-                  nextDate.setDate(currentDate.getDate() + interval);
-                  break;
-                case 'weekly':
-                  nextDate = new Date(currentDate);
-                  nextDate.setDate(currentDate.getDate() + (7 * interval));
-                  break;
-                case 'monthly':
-                  nextDate = new Date(currentDate);
-                  nextDate.setMonth(currentDate.getMonth() + interval);
-                  break;
-                case 'yearly':
-                  nextDate = new Date(currentDate);
-                  nextDate.setFullYear(currentDate.getFullYear() + interval);
-                  break;
-                case 'weekdays':
-                  nextDate = new Date(currentDate);
-                  nextDate.setDate(currentDate.getDate() + 1);
-                  break;
-                case 'custom_days':
-                  if (task.recurring_days && task.recurring_days.length > 0) {
-                    nextDate = new Date(currentDate);
-                    nextDate.setDate(currentDate.getDate() + 1);
-                  } else {
-                    nextDate = new Date(currentDate);
-                    nextDate.setDate(currentDate.getDate() + 1);
-                  }
-                  break;
-                case '1st_day_of_month':
-                  nextDate = new Date(currentDate);
-                  nextDate.setMonth(currentDate.getMonth() + interval);
-                  const firstDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-                  const firstDayOfWeek = firstDay.getDay();
-                  const targetDay1st = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-                  const daysToAdd1st = (targetDay1st - firstDayOfWeek + 7) % 7;
-                  nextDate = new Date(firstDay);
-                  nextDate.setDate(firstDay.getDate() + daysToAdd1st);
-                  break;
-                case '2nd_day_of_month':
-                  nextDate = new Date(currentDate);
-                  nextDate.setMonth(currentDate.getMonth() + interval);
-                  const secondDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-                  const secondDayOfWeek = secondDay.getDay();
-                  const targetDay2nd = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-                  const daysToAdd2nd = (targetDay2nd - secondDayOfWeek + 7) % 7;
-                  nextDate = new Date(secondDay);
-                  nextDate.setDate(secondDay.getDate() + daysToAdd2nd + 7); // Add 7 days for 2nd occurrence
-                  break;
-                case '3rd_day_of_month':
-                  nextDate = new Date(currentDate);
-                  nextDate.setMonth(currentDate.getMonth() + interval);
-                  const thirdDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-                  const thirdDayOfWeek = thirdDay.getDay();
-                  const targetDay3rd = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-                  const daysToAdd3rd = (targetDay3rd - thirdDayOfWeek + 7) % 7;
-                  nextDate = new Date(thirdDay);
-                  nextDate.setDate(thirdDay.getDate() + daysToAdd3rd + 14); // Add 14 days for 3rd occurrence
-                  break;
-                case '4th_day_of_month':
-                  nextDate = new Date(currentDate);
-                  nextDate.setMonth(currentDate.getMonth() + interval);
-                  const fourthDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-                  const fourthDayOfWeek = fourthDay.getDay();
-                  const targetDay4th = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-                  const daysToAdd4th = (targetDay4th - fourthDayOfWeek + 7) % 7;
-                  nextDate = new Date(fourthDay);
-                  nextDate.setDate(fourthDay.getDate() + daysToAdd4th + 21); // Add 21 days for 4th occurrence
-                  break;
-                case 'last_day_of_month':
-                  nextDate = new Date(currentDate);
-                  nextDate.setMonth(currentDate.getMonth() + interval);
-                  const lastDay = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0);
-                  const lastDayOfWeek = lastDay.getDay();
-                  const targetDayLast = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-                  const daysToSubtract = (lastDayOfWeek - targetDayLast + 7) % 7;
-                  nextDate = new Date(lastDay);
-                  nextDate.setDate(lastDay.getDate() - daysToSubtract);
-                  break;
-                case 'monthly_advanced':
-                  nextDate = new Date(currentDate);
-                  nextDate.setMonth(currentDate.getMonth() + interval);
-                  const occurrence = task.recurring_occurrence || 'first';
-                  const dayOfWeek = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-
-                  if (occurrence === 'last') {
-                    const lastDayOfMonth = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0);
-                    const lastDayWeekday = lastDayOfMonth.getDay();
-                    const daysBack = (lastDayWeekday - dayOfWeek + 7) % 7;
-                    nextDate = new Date(lastDayOfMonth);
-                    nextDate.setDate(lastDayOfMonth.getDate() - daysBack);
-                  } else {
-                    const firstDayOfMonth = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-                    const firstDayWeekday = firstDayOfMonth.getDay();
-                    const daysToFirstOccurrence = (dayOfWeek - firstDayWeekday + 7) % 7;
-                    const occurrenceNumber = occurrence === 'first' ? 0 : occurrence === 'second' ? 1 : occurrence === 'third' ? 2 : 3;
-                    nextDate = new Date(firstDayOfMonth);
-                    nextDate.setDate(firstDayOfMonth.getDate() + daysToFirstOccurrence + (occurrenceNumber * 7));
-                  }
-                  break;
-                case 'yearly_advanced':
-                  nextDate = new Date(currentDate);
-                  nextDate.setFullYear(currentDate.getFullYear() + interval);
-                  const yearOccurrence = task.recurring_occurrence || 'first';
-                  const yearDayOfWeek = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-                  const targetMonth = task.recurring_month !== null && task.recurring_month !== undefined ? task.recurring_month : 0;
-
-                  nextDate.setMonth(targetMonth);
-
-                  if (yearOccurrence === 'last') {
-                    const lastDayOfTargetMonth = new Date(nextDate.getFullYear(), targetMonth + 1, 0);
-                    const lastDayWeekdayYear = lastDayOfTargetMonth.getDay();
-                    const daysBackYear = (lastDayWeekdayYear - yearDayOfWeek + 7) % 7;
-                    nextDate = new Date(lastDayOfTargetMonth);
-                    nextDate.setDate(lastDayOfTargetMonth.getDate() - daysBackYear);
-                  } else {
-                    const firstDayOfTargetMonth = new Date(nextDate.getFullYear(), targetMonth, 1);
-                    const firstDayWeekdayYear = firstDayOfTargetMonth.getDay();
-                    const daysToFirstOccurrenceYear = (yearDayOfWeek - firstDayWeekdayYear + 7) % 7;
-                    const yearOccurrenceNumber = yearOccurrence === 'first' ? 0 : yearOccurrence === 'second' ? 1 : yearOccurrence === 'third' ? 2 : 3;
-                    nextDate = new Date(firstDayOfTargetMonth);
-                    nextDate.setDate(firstDayOfTargetMonth.getDate() + daysToFirstOccurrenceYear + (yearOccurrenceNumber * 7));
-                  }
-                  break;
-                default:
-                  nextDate = new Date(currentDate);
-                  nextDate.setDate(currentDate.getDate() + 1);
-              }
-
-              currentDate = nextDate;
-              instanceCount++;
-              continue;
-            }
-
-            // Check if there's a modified instance record for this specific instance
-            const modifiedInstance = tasks.find(t =>
-              t.is_modified_instance &&
-              t.parent_task_id === task.id &&
-              t.instance_key === instanceKey
-            );
-
-
-
-            if (modifiedInstance) {
-              // If there's a modified instance, it means this specific slot has been overridden.
-              // We skip generating the regular instance for this slot here.
-              // The modified instance ITSELF will be added to the instances array when it is processed
-              // as its own task in the outer forEach loop (since it is non-recurring).
-            } else {
-              // Only generate from original task if no modified instance exists for this slot
-              const newInstance = {
-                ...task,
-                id: task.id,
-                date: currentDate.getDate(),
-                month: currentDate.getMonth(),
-                year: currentDate.getFullYear(),
-                parent_task_id: task.id,
-                is_recurring: true,
-                is_recurring_instance: true,
-                instance_key: instanceKey
-              };
-              instances.push(newInstance);
-            }
+          // 3. If it's in the month we are looking at and NOT deleted/modified, add it!
+          if (isInTargetMonth && !isDeleted && !modifiedInstance) {
+            const newInstance = {
+              ...task,
+              id: task.id,
+              date: currentDate.getDate(),
+              month: currentDate.getMonth(),
+              year: currentDate.getFullYear(),
+              parent_task_id: task.id,
+              is_recurring: true,
+              is_recurring_instance: true,
+              instance_key: instanceKey,
+              assignees: task.assignees || [],
+              created_by: task.created_by
+            };
+            instances.push(newInstance);
           }
 
-          // Calculate next occurrence based on pattern
-          let nextDate: Date;
+          // 4. Always calculate next occurrence based on pattern to move the loop forward correctly
+          let nextDate = new Date(currentDate);
           const interval = (task.recurring_interval && typeof task.recurring_interval === 'number') ? task.recurring_interval : 1;
-          const unit = (task.recurring_unit && typeof task.recurring_unit === 'string') ? task.recurring_unit : 'week';
+          const pattern = task.recurring_pattern || 'weekly';
 
-          switch (unit) {
-            case 'day':
-              nextDate = new Date(currentDate);
+          switch (pattern) {
+            case 'daily':
               nextDate.setDate(currentDate.getDate() + interval);
               break;
-            case 'week':
-              nextDate = new Date(currentDate);
+            case 'weekly':
+            case 'week': // Handle both naming conventions
               nextDate.setDate(currentDate.getDate() + (7 * interval));
               break;
             case 'month':
-              nextDate = new Date(currentDate);
+            case 'monthly':
               nextDate.setMonth(currentDate.getMonth() + interval);
               break;
             case 'year':
-              nextDate = new Date(currentDate);
+            case 'yearly':
               nextDate.setFullYear(currentDate.getFullYear() + interval);
               break;
+            case 'weekdays':
+              nextDate.setDate(currentDate.getDate() + 1);
+              // Skip weekends
+              while (nextDate.getDay() === 0 || nextDate.getDay() === 6) {
+                nextDate.setDate(nextDate.getDate() + 1);
+              }
+              break;
+            case 'custom_days':
+              nextDate.setDate(currentDate.getDate() + 1);
+              if (task.recurring_days && task.recurring_days.length > 0) {
+                while (!task.recurring_days.includes(nextDate.getDay()) && nextDate <= endDate) {
+                  nextDate.setDate(nextDate.getDate() + 1);
+                }
+              }
+              break;
+            case '1st_day_of_month':
             case 'first_day_of_month':
-              nextDate = new Date(currentDate);
               nextDate.setMonth(currentDate.getMonth() + interval);
-              // Find first occurrence of selected day in next month
-              const firstDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-              const firstDayOfWeek = firstDay.getDay();
-              const targetDay = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-              const daysToAdd = (targetDay - firstDayOfWeek + 7) % 7;
-              nextDate = new Date(firstDay);
-              nextDate.setDate(firstDay.getDate() + daysToAdd);
+              nextDate.setDate(1);
+              const targetDay1 = task.recurring_days?.[0] ?? 1;
+              const daysToAdd1 = (targetDay1 - nextDate.getDay() + 7) % 7;
+              nextDate.setDate(nextDate.getDate() + daysToAdd1);
               break;
             case '2nd_day_of_month':
-              nextDate = new Date(currentDate);
               nextDate.setMonth(currentDate.getMonth() + interval);
-              // Find 2nd occurrence of selected day in next month
-              const secondDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-              const secondDayOfWeek = secondDay.getDay();
-              const targetDay2nd = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-              const daysToAdd2nd = (targetDay2nd - secondDayOfWeek + 7) % 7;
-              nextDate = new Date(secondDay);
-              nextDate.setDate(secondDay.getDate() + daysToAdd2nd + 7); // Add 7 days for 2nd occurrence
+              nextDate.setDate(1);
+              const targetDay2 = task.recurring_days?.[0] ?? 1;
+              const daysToAdd2 = (targetDay2 - nextDate.getDay() + 7) % 7;
+              nextDate.setDate(nextDate.getDate() + daysToAdd2 + 7);
               break;
             case '3rd_day_of_month':
-              nextDate = new Date(currentDate);
               nextDate.setMonth(currentDate.getMonth() + interval);
-              // Find 3rd occurrence of selected day in next month
-              const thirdDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-              const thirdDayOfWeek = thirdDay.getDay();
-              const targetDay3rd = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-              const daysToAdd3rd = (targetDay3rd - thirdDayOfWeek + 7) % 7;
-              nextDate = new Date(thirdDay);
-              nextDate.setDate(thirdDay.getDate() + daysToAdd3rd + 14); // Add 14 days for 3rd occurrence
+              nextDate.setDate(1);
+              const targetDay3 = task.recurring_days?.[0] ?? 1;
+              const daysToAdd3 = (targetDay3 - nextDate.getDay() + 7) % 7;
+              nextDate.setDate(nextDate.getDate() + daysToAdd3 + 14);
               break;
             case '4th_day_of_month':
-              nextDate = new Date(currentDate);
               nextDate.setMonth(currentDate.getMonth() + interval);
-              // Find 4th occurrence of selected day in next month
-              const fourthDay = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-              const fourthDayOfWeek = fourthDay.getDay();
-              const targetDay4th = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-              const daysToAdd4th = (targetDay4th - fourthDayOfWeek + 7) % 7;
-              nextDate = new Date(fourthDay);
-              nextDate.setDate(fourthDay.getDate() + daysToAdd4th + 21); // Add 21 days for 4th occurrence
+              nextDate.setDate(1);
+              const targetDay4 = task.recurring_days?.[0] ?? 1;
+              const daysToAdd4 = (targetDay4 - nextDate.getDay() + 7) % 7;
+              nextDate.setDate(nextDate.getDate() + daysToAdd4 + 21);
               break;
             case 'last_day_of_month':
-              nextDate = new Date(currentDate);
-              nextDate.setMonth(currentDate.getMonth() + interval);
-              // Find last occurrence of selected day in next month
-              const lastDay = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0);
-              const lastDayOfWeek = lastDay.getDay();
-              const targetDayLast = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-              const daysToSubtract = (lastDayOfWeek - targetDayLast + 7) % 7;
-              nextDate = new Date(lastDay);
-              nextDate.setDate(lastDay.getDate() - daysToSubtract);
+              nextDate.setMonth(currentDate.getMonth() + interval + 1);
+              nextDate.setDate(0); // Last day of that month
+              const targetDayL = task.recurring_days?.[0] ?? 1;
+              const daysToSubtractL = (nextDate.getDay() - targetDayL + 7) % 7;
+              nextDate.setDate(nextDate.getDate() - daysToSubtractL);
               break;
             case 'monthly_advanced':
-              // Advanced monthly pattern: e.g., "First Monday of every 3 months"
-              nextDate = new Date(currentDate);
               nextDate.setMonth(currentDate.getMonth() + interval);
-              const occurrence = task.recurring_occurrence || 'first';
-              const dayOfWeek = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-
-              if (occurrence === 'last') {
-                // Find last occurrence of the day in the month
-                const lastDayOfMonth = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0);
-                const lastDayWeekday = lastDayOfMonth.getDay();
-                const daysBack = (lastDayWeekday - dayOfWeek + 7) % 7;
-                nextDate = new Date(lastDayOfMonth);
-                nextDate.setDate(lastDayOfMonth.getDate() - daysBack);
+              const occM = task.recurring_occurrence || 'first';
+              const dayM = task.recurring_days?.[0] ?? 1;
+              if (occM === 'last') {
+                const lastDayM = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0);
+                nextDate.setDate(lastDayM.getDate() - ((lastDayM.getDay() - dayM + 7) % 7));
               } else {
-                // Find first/second/third/fourth occurrence
-                const firstDayOfMonth = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-                const firstDayWeekday = firstDayOfMonth.getDay();
-                const daysToFirstOccurrence = (dayOfWeek - firstDayWeekday + 7) % 7;
-                const occurrenceNumber = occurrence === 'first' ? 0 : occurrence === 'second' ? 1 : occurrence === 'third' ? 2 : 3;
-                nextDate = new Date(firstDayOfMonth);
-                nextDate.setDate(firstDayOfMonth.getDate() + daysToFirstOccurrence + (occurrenceNumber * 7));
+                nextDate.setDate(1);
+                const firstD = (dayM - nextDate.getDay() + 7) % 7;
+                const occN = occM === 'first' ? 0 : occM === 'second' ? 1 : occM === 'third' ? 2 : 3;
+                nextDate.setDate(nextDate.getDate() + firstD + (occN * 7));
               }
               break;
             case 'yearly_advanced':
-              // Advanced yearly pattern: e.g., "Last Sunday in September every year"
-              nextDate = new Date(currentDate);
               nextDate.setFullYear(currentDate.getFullYear() + interval);
-              const yearOccurrence = task.recurring_occurrence || 'first';
-              const yearDayOfWeek = task.recurring_days && task.recurring_days[0] !== undefined ? task.recurring_days[0] : 1;
-              const targetMonth = task.recurring_month !== null && task.recurring_month !== undefined ? task.recurring_month : 0;
-
-              // Set to the target month
-              nextDate.setMonth(targetMonth);
-
-              if (yearOccurrence === 'last') {
-                // Find last occurrence of the day in the target month
-                const lastDayOfTargetMonth = new Date(nextDate.getFullYear(), targetMonth + 1, 0);
-                const lastDayWeekdayYear = lastDayOfTargetMonth.getDay();
-                const daysBackYear = (lastDayWeekdayYear - yearDayOfWeek + 7) % 7;
-                nextDate = new Date(lastDayOfTargetMonth);
-                nextDate.setDate(lastDayOfTargetMonth.getDate() - daysBackYear);
+              const occY = task.recurring_occurrence || 'first';
+              const dayY = task.recurring_days?.[0] ?? 1;
+              const monthY = task.recurring_month ?? 0;
+              nextDate.setMonth(monthY);
+              if (occY === 'last') {
+                const lastDayY = new Date(nextDate.getFullYear(), monthY + 1, 0);
+                nextDate.setDate(lastDayY.getDate() - ((lastDayY.getDay() - dayY + 7) % 7));
               } else {
-                // Find first/second/third/fourth occurrence in the target month
-                const firstDayOfTargetMonth = new Date(nextDate.getFullYear(), targetMonth, 1);
-                const firstDayWeekdayYear = firstDayOfTargetMonth.getDay();
-                const daysToFirstOccurrenceYear = (yearDayOfWeek - firstDayWeekdayYear + 7) % 7;
-                const yearOccurrenceNumber = yearOccurrence === 'first' ? 0 : yearOccurrence === 'second' ? 1 : yearOccurrence === 'third' ? 2 : 3;
-                nextDate = new Date(firstDayOfTargetMonth);
-                nextDate.setDate(firstDayOfTargetMonth.getDate() + daysToFirstOccurrenceYear + (yearOccurrenceNumber * 7));
+                nextDate.setDate(1);
+                const firstD = (dayY - nextDate.getDay() + 7) % 7;
+                const occN = occY === 'first' ? 0 : occY === 'second' ? 1 : occY === 'third' ? 2 : 3;
+                nextDate.setDate(nextDate.getDate() + firstD + (occN * 7));
               }
               break;
             default:
-              nextDate = new Date(currentDate);
               nextDate.setDate(currentDate.getDate() + 1);
           }
 
