@@ -2989,6 +2989,8 @@ const MMCCalendar = () => {
               year: selectedTask.year,
               time: selectedTask.time,
               assignee: selectedTask.assignee,
+              assignees: selectedTask.assignees || [],
+              created_by: selectedTask.created_by,
               status: 'deleted', // Special status to mark as deleted
               color: selectedTask.color,
               priority: selectedTask.priority,
