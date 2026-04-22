@@ -6078,7 +6078,6 @@ const MMCCalendar = () => {
       {showNewEntryModal && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-2 md:p-4"
-          onClick={() => setShowNewEntryModal(false)}
         >
           <div
             className="bg-white rounded-lg p-4 md:p-6 w-full max-w-[95vw] md:w-[800px] mx-2 md:mx-4 max-h-[90vh] overflow-y-auto"
