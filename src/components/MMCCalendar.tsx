@@ -2307,6 +2307,14 @@ const MMCCalendar = () => {
 
       setEditingTask({
         ...taskData,
+        // Preserve the specific instance's date info so single-occurrence
+        // edits save to the correct instance, not the first in the series
+        ...(selectedTask.is_recurring_instance ? {
+          year: selectedTask.year,
+          month: selectedTask.month,
+          date: selectedTask.date,
+          instance_key: selectedTask.instance_key,
+        } : {}),
         start_date: taskData.start_date || '',
         end_date: taskData.end_date || '',
         recurring_end_date: taskData.recurring_end_date || '',
