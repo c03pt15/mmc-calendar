@@ -2336,15 +2336,14 @@ const MMCCalendar = () => {
   };
 
   const handleDuplicateTask = () => {
-    const today = new Date();
     setNewTask({
       title: selectedTask.title + ' (Copy)',
       description: selectedTask.description,
       type: selectedTask.type,
       category: selectedTask.category,
-      date: today.getDate(),
-      month: today.getMonth(),
-      year: today.getFullYear(),
+      date: selectedTask.date,
+      month: selectedTask.month,
+      year: selectedTask.year,
       time: selectedTask.time,
       assignee: selectedTask.assignee,
       assignees: selectedTask.assignees || [],
