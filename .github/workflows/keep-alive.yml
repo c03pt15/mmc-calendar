@@ -2,9 +2,7 @@ name: Keep Supabase Alive
 
 on:
   schedule:
-    # Run at 6:00 AM UTC daily (check your timezone equivalence)
     - cron: '0 6 * * *'
-  # Allow manual trigger for testing
   workflow_dispatch:
 
 jobs:
@@ -26,6 +24,16 @@ jobs:
       - name: Run keep-alive script
         run: node scripts/keep-alive.js
         env:
-          # Make sure to add these secrets in your GitHub Repository Settings -> Secrets and variables -> Actions
           SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Keep repo active
+        run: |
+          echo "Last kept alive: $(date -u)" > .github/keep-alive.txt
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add .github/keep-alive.txt
+          git diff --quiet && git diff --staged --quiet || git commit -m "chore: keep repo active [skip ci]"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
