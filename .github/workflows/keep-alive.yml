@@ -5,6 +5,9 @@ on:
     - cron: '0 6 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   ping-db:
     runs-on: ubuntu-latest
@@ -34,7 +37,5 @@ jobs:
           git config user.email "actions@github.com"
           git add .github/keep-alive.txt
           git diff --quiet && git diff --staged --quiet || git commit -m "chore: keep repo active [skip ci]"
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git remote set-url origin https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
           git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
