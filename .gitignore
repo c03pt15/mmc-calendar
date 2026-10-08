@@ -26,3 +26,7 @@ yarn-error.log*
 
 # Deployment
 .vercel
+
+# One-off admin scripts (may contain secrets, never commit)
+generate-*-link.mjs
+*-link.mjs

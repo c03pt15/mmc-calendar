@@ -956,7 +956,12 @@ const MMCCalendar = () => {
       });
 
       if (error) {
-        setResetMessage('Error: ' + error.message);
+        const msg = error.message || '';
+        if (msg.toLowerCase().includes('rate limit')) {
+          setResetMessage('Too many reset requests. Please wait about an hour before trying again, or contact your admin for a direct reset link.');
+        } else {
+          setResetMessage('Error: ' + msg);
+        }
       } else {
         setResetMessage('Password reset email sent! Check your inbox and follow the instructions.');
       }
