@@ -958,13 +958,7 @@ const MMCCalendar = () => {
       if (error) {
         const msg = error.message || '';
         if (msg.toLowerCase().includes('rate limit')) {
-          const now = Date.now();
-          try {
-            localStorage.setItem('pwdResetRateLimitedAt', String(now));
-          } catch { /* ignore */ }
-          const retryAt = new Date(now + 60 * 60 * 1000);
-          const retryTime = retryAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-          setResetMessage(`Too many reset requests. Please try again after ${retryTime}, or contact your admin for a direct reset link.`);
+          setResetMessage('Too many reset requests. Please wait about an hour before trying again, or contact your admin for a direct reset link.');
         } else {
           setResetMessage('Error: ' + msg);
         }
