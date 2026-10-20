@@ -272,6 +272,7 @@ const MMCCalendar = () => {
   const [selectedFilters, setSelectedFilters] = useState<{ [key: string]: boolean }>({});
   const [selectedTeamMember, setSelectedTeamMember] = useState<number | null>(null);
   const [showNewEntryModal, setShowNewEntryModal] = useState(false);
+  const [notifyEveryone, setNotifyEveryone] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any>(null);
@@ -1637,6 +1638,65 @@ const MMCCalendar = () => {
     return false;
   }, [loggedInUserTeamMemberId, user]);
 
+  // Reset the "Notify everyone" option whenever the New Entry modal is closed
+  useEffect(() => {
+    if (!showNewEntryModal) {
+      setNotifyEveryone(false);
+    }
+  }, [showNewEntryModal]);
+
+  const formatTaskEventDate = (task: any) => {
+    const formatDate = (year: number, month: number, date: number) =>
+      `${monthNames[month] || ''} ${date}, ${year}`;
+
+    if (task.is_multiday && task.start_date && task.end_date) {
+      const start = new Date(`${task.start_date}T00:00:00`);
+      const end = new Date(`${task.end_date}T00:00:00`);
+      const startLabel = formatDate(start.getFullYear(), start.getMonth(), start.getDate());
+      const endLabel = formatDate(end.getFullYear(), end.getMonth(), end.getDate());
+      return `${startLabel} – ${endLabel}${task.is_all_day ? ' (All day)' : ''}`;
+    }
+
+    const dateLabel = formatDate(task.year, task.month, task.date);
+    if (task.is_all_day) return `${dateLabel} (All day)`;
+    return task.time ? `${dateLabel} at ${task.time}` : dateLabel;
+  };
+
+  const sendTaskNotificationEmail = async (task: any, createdByName: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        showNotification('warning', 'Task saved, but the notification email was not sent because your session has expired. Please sign in again.');
+        return;
+      }
+
+      const response = await fetch('/api/send-task-notification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          title: task.title,
+          eventDate: formatTaskEventDate(task),
+          createdByName
+        })
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to send notification email');
+      }
+
+      showNotification('success', `Notification email sent to ${result.recipients?.length || 0} recipient(s).`);
+    } catch (err) {
+      console.error('Notification email error:', err);
+      showNotification('warning', `Task saved, but the notification email could not be sent: ${err instanceof Error ? err.message : err}`);
+    }
+  };
+
   // Handle editing a category
   const handleEditCategory = (category: any) => {
     setEditingCategory(category);
@@ -2191,6 +2251,15 @@ const MMCCalendar = () => {
         });
       }
 
+      // Send the email notification if requested (admin-only feature for now)
+      if (isAdmin && notifyEveryone && data && data[0]) {
+        await sendTaskNotificationEmail(
+          data[0],
+          teamMembers.find(m => m.id === data[0].created_by)?.name || 'Unknown'
+        );
+      }
+
+      setNotifyEveryone(false);
       setShowNewEntryModal(false);
       await refreshTasks();
       // Refresh activities to show the new activity
@@ -6104,12 +6173,30 @@ const MMCCalendar = () => {
                   </span>
                 )}
               </h3>
-              <button
-                onClick={() => setShowNewEntryModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-1 sm:gap-4">
+                {isAdmin && (
+                  <label
+                    htmlFor="notify_everyone"
+                    className="flex items-center gap-2 text-xs sm:text-sm font-medium text-gray-700 cursor-pointer select-none"
+                    title="Send an email about this new entry to all MMC members"
+                  >
+                    <input
+                      type="checkbox"
+                      id="notify_everyone"
+                      checked={notifyEveryone}
+                      onChange={(e) => setNotifyEveryone(e.target.checked)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    Notify everyone
+                  </label>
+                )}
+                <button
+                  onClick={() => setShowNewEntryModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
             <div className="space-y-3">
               <div>
