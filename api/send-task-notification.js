@@ -21,7 +21,7 @@ const formatAddedOn = () =>
     timeZone: 'America/Toronto'
   }).format(new Date());
 
-const buildEmailHtml = ({ title, eventDate, createdByName, addedOn }) => `
+const buildEmailHtml = ({ title, eventDate, createdByName, addedOn, calendarUrl }) => `
   <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1f2937; line-height: 1.6;">
     <h2 style="margin: 0 0 8px; color: #1d4ed8;">New MMC Calendar entry</h2>
     <p style="margin: 0 0 20px;">A new entry has been added to the MMC Calendar.</p>
@@ -43,6 +43,9 @@ const buildEmailHtml = ({ title, eventDate, createdByName, addedOn }) => `
         <td style="padding: 8px 12px; border: 1px solid #dbeafe;">${escapeHtml(createdByName)}</td>
       </tr>
     </table>
+    <p style="margin: 24px 0 0;">
+      <a href="${escapeHtml(calendarUrl)}" style="display: inline-block; padding: 10px 18px; background: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600;">View in MMC Calendar</a>
+    </p>
     <p style="margin: 20px 0 0; font-size: 12px; color: #6b7280;">
       This notification was sent from the MMC Calendar.
     </p>
@@ -117,23 +120,39 @@ module.exports = async (req, res) => {
     const safeEventDate = String(eventDate).trim();
     const safeCreatedByName = String(createdByName || 'Unknown').trim();
 
-    const emailResponse = await fetch('https://api.resend.com/emails', {
+    const defaultCalendarUrl = 'https://mmc-calendar.atlasveterans.ca/';
+    let calendarUrl = defaultCalendarUrl;
+    try {
+      calendarUrl = new URL(process.env.MMC_CALENDAR_URL || defaultCalendarUrl).toString();
+    } catch {
+      calendarUrl = defaultCalendarUrl;
+    }
+
+    const from = process.env.MMC_FROM_EMAIL || 'MMC Calendar <onboarding@resend.dev>';
+    const subject = `New MMC Calendar entry: ${safeTitle}`;
+    const html = buildEmailHtml({
+      title: safeTitle,
+      eventDate: safeEventDate,
+      createdByName: safeCreatedByName,
+      addedOn,
+      calendarUrl
+    });
+
+    // Send one email per recipient so member addresses are not exposed to each other
+    const emails = recipients.map((recipient) => ({
+      from,
+      to: [recipient],
+      subject,
+      html
+    }));
+
+    const emailResponse = await fetch('https://api.resend.com/emails/batch', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${resendApiKey}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        from: process.env.MMC_FROM_EMAIL || 'MMC Calendar <onboarding@resend.dev>',
-        to: recipients,
-        subject: `New MMC Calendar entry: ${safeTitle}`,
-        html: buildEmailHtml({
-          title: safeTitle,
-          eventDate: safeEventDate,
-          createdByName: safeCreatedByName,
-          addedOn
-        })
-      })
+      body: JSON.stringify(emails)
     });
 
     const emailResult = await emailResponse.json().catch(() => ({}));
@@ -147,7 +166,6 @@ module.exports = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      id: emailResult.id,
       recipients
     });
   } catch (error) {
