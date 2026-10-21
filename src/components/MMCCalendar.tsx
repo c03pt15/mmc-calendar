@@ -1638,12 +1638,15 @@ const MMCCalendar = () => {
     return false;
   }, [loggedInUserTeamMemberId, user]);
 
-  // Reset the "Notify everyone" option whenever the New Entry modal is closed
+  const isTaskCreator = (createdBy: any) =>
+    Boolean(loggedInUserTeamMemberId) && Number(createdBy) === Number(loggedInUserTeamMemberId);
+
+  // Reset the "Notify everyone" option whenever the entry modals are closed
   useEffect(() => {
-    if (!showNewEntryModal) {
+    if (!showNewEntryModal && !showEditModal) {
       setNotifyEveryone(false);
     }
-  }, [showNewEntryModal]);
+  }, [showNewEntryModal, showEditModal]);
 
   const formatTaskEventDate = (task: any) => {
     const formatDate = (year: number, month: number, date: number) =>
@@ -1662,7 +1665,7 @@ const MMCCalendar = () => {
     return task.time ? `${dateLabel} at ${task.time}` : dateLabel;
   };
 
-  const sendTaskNotificationEmail = async (task: any, createdByName: string) => {
+  const sendTaskNotificationEmail = async (task: any, actorName: string, action: 'created' | 'updated' = 'created') => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
 
@@ -1678,9 +1681,11 @@ const MMCCalendar = () => {
           Authorization: `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
+          taskId: task.id,
           title: task.title,
           eventDate: formatTaskEventDate(task),
-          createdByName
+          createdByName: actorName,
+          action
         })
       });
 
@@ -2251,8 +2256,8 @@ const MMCCalendar = () => {
         });
       }
 
-      // Send the email notification if requested (admin-only feature for now)
-      if (isAdmin && notifyEveryone && data && data[0]) {
+      // Send the email notification if requested by the task creator
+      if (notifyEveryone && data && data[0] && isTaskCreator(data[0].created_by)) {
         await sendTaskNotificationEmail(
           data[0],
           teamMembers.find(m => m.id === data[0].created_by)?.name || 'Unknown'
@@ -2766,6 +2771,15 @@ const MMCCalendar = () => {
         user: teamMembers.find(m => m.id === updatedTask.created_by)?.name || 'Unknown',
         userId: updatedTask.created_by
       });
+
+      // Send the email notification if requested by the task creator
+      if (notifyEveryone && isTaskCreator(updatedTask.created_by)) {
+        await sendTaskNotificationEmail(
+          updatedTask,
+          teamMembers.find(m => m.id === loggedInUserTeamMemberId)?.name || user?.email || 'Unknown',
+          'updated'
+        );
+      }
 
       setShowEditModal(false);
       setEditingTask(null);
@@ -6174,15 +6188,15 @@ const MMCCalendar = () => {
                 )}
               </h3>
               <div className="flex items-center gap-1 sm:gap-4">
-                {isAdmin && (
+                {isTaskCreator(newTask.created_by) && (
                   <label
-                    htmlFor="notify_everyone"
+                    htmlFor="notify_everyone_new"
                     className="flex items-center gap-2 text-xs sm:text-sm font-medium text-gray-700 cursor-pointer select-none"
                     title="Send an email about this new entry to all MMC members"
                   >
                     <input
                       type="checkbox"
-                      id="notify_everyone"
+                      id="notify_everyone_new"
                       checked={notifyEveryone}
                       onChange={(e) => setNotifyEveryone(e.target.checked)}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
@@ -7322,12 +7336,30 @@ const MMCCalendar = () => {
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-gray-900">Edit Task</h3>
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-1 sm:gap-4">
+                {editingTask && isTaskCreator(editingTask.created_by) && (
+                  <label
+                    htmlFor="notify_everyone_edit"
+                    className="flex items-center gap-2 text-xs sm:text-sm font-medium text-gray-700 cursor-pointer select-none"
+                    title="Send an email about this updated entry to all MMC members"
+                  >
+                    <input
+                      type="checkbox"
+                      id="notify_everyone_edit"
+                      checked={notifyEveryone}
+                      onChange={(e) => setNotifyEveryone(e.target.checked)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    Notify everyone
+                  </label>
+                )}
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Edit Mode Selection for Recurring Tasks */}

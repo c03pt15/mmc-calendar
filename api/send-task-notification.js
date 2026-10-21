@@ -1,5 +1,36 @@
 const DEFAULT_ADMIN_EMAILS = ['ghgirard@atlasinstitute.ca'];
 
+const TEAM_MEMBER_NAMES = {
+  1: ['courtney wright'],
+  2: ['ghislain girard'],
+  3: ['joy pavelich'],
+  4: ['krystle kung'],
+  5: ['lori-anne knarr', 'lori-anne thibault'],
+  6: ['meg mclean', 'meagan mclean']
+};
+
+const getRequesterTeamMemberId = (authUser) => {
+  const metadata = authUser?.user_metadata || {};
+  const explicitId = Number(metadata.team_member_id ?? metadata.teamMemberId);
+  if (Number.isInteger(explicitId) && explicitId > 0) return explicitId;
+
+  const names = [
+    `${metadata.first_name || ''} ${metadata.last_name || ''}`.trim(),
+    metadata.full_name,
+    metadata.name
+  ]
+    .filter(Boolean)
+    .map((name) => name.toLowerCase());
+
+  for (const [id, aliases] of Object.entries(TEAM_MEMBER_NAMES)) {
+    if (aliases.some((alias) => names.includes(alias))) {
+      return Number(id);
+    }
+  }
+
+  return null;
+};
+
 const escapeHtml = (value) =>
   String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -21,10 +52,10 @@ const formatAddedOn = () =>
     timeZone: 'America/Toronto'
   }).format(new Date());
 
-const buildEmailHtml = ({ title, eventDate, createdByName, addedOn, calendarUrl }) => `
+const buildEmailHtml = ({ title, eventDate, createdByName, addedOn, calendarUrl, isUpdate }) => `
   <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1f2937; line-height: 1.6;">
-    <h2 style="margin: 0 0 8px; color: #1d4ed8;">New MMC Calendar entry</h2>
-    <p style="margin: 0 0 20px;">A new entry has been added to the MMC Calendar.</p>
+    <h2 style="margin: 0 0 8px; color: #1d4ed8;">${isUpdate ? 'Updated MMC Calendar entry' : 'New MMC Calendar entry'}</h2>
+    <p style="margin: 0 0 20px;">${isUpdate ? 'An entry in the MMC Calendar has been updated.' : 'A new entry has been added to the MMC Calendar.'}</p>
     <table cellpadding="0" cellspacing="0" style="border-collapse: collapse; width: 100%; max-width: 560px;">
       <tr>
         <td style="padding: 8px 12px; background: #eff6ff; border: 1px solid #dbeafe; font-weight: 600; width: 140px;">Title</td>
@@ -35,11 +66,11 @@ const buildEmailHtml = ({ title, eventDate, createdByName, addedOn, calendarUrl 
         <td style="padding: 8px 12px; border: 1px solid #dbeafe;">${escapeHtml(eventDate)}</td>
       </tr>
       <tr>
-        <td style="padding: 8px 12px; background: #eff6ff; border: 1px solid #dbeafe; font-weight: 600;">Date added</td>
+        <td style="padding: 8px 12px; background: #eff6ff; border: 1px solid #dbeafe; font-weight: 600;">${isUpdate ? 'Date updated' : 'Date added'}</td>
         <td style="padding: 8px 12px; border: 1px solid #dbeafe;">${escapeHtml(addedOn)}</td>
       </tr>
       <tr>
-        <td style="padding: 8px 12px; background: #eff6ff; border: 1px solid #dbeafe; font-weight: 600;">Added by</td>
+        <td style="padding: 8px 12px; background: #eff6ff; border: 1px solid #dbeafe; font-weight: 600;">${isUpdate ? 'Updated by' : 'Added by'}</td>
         <td style="padding: 8px 12px; border: 1px solid #dbeafe;">${escapeHtml(createdByName)}</td>
       </tr>
     </table>
@@ -86,17 +117,17 @@ module.exports = async (req, res) => {
     }
 
     const authUser = await userResponse.json();
-    const requesterEmail = String(authUser.email || '').toLowerCase();
+
+    if (!authUser?.email) {
+      return res.status(401).json({ error: 'Invalid or expired session' });
+    }
 
     const adminEmails = process.env.MMC_ADMIN_EMAILS
       ? parseEmailList(process.env.MMC_ADMIN_EMAILS)
       : DEFAULT_ADMIN_EMAILS;
 
-    if (!requesterEmail || !adminEmails.includes(requesterEmail)) {
-      return res.status(403).json({ error: 'Only administrators can send this notification' });
-    }
-
-    const { title, eventDate, createdByName } = req.body || {};
+    const { title, eventDate, createdByName, action, taskId } = req.body || {};
+    const isUpdate = action === 'updated';
 
     if (!title || !String(title).trim()) {
       return res.status(400).json({ error: 'Missing task title' });
@@ -104,6 +135,41 @@ module.exports = async (req, res) => {
 
     if (!eventDate || !String(eventDate).trim()) {
       return res.status(400).json({ error: 'Missing event date' });
+    }
+
+    if (!taskId) {
+      return res.status(400).json({ error: 'Missing task id' });
+    }
+
+    const requesterTeamMemberId = getRequesterTeamMemberId(authUser);
+
+    if (!requesterTeamMemberId) {
+      return res.status(403).json({ error: 'Could not verify your team member profile' });
+    }
+
+    const taskResponse = await fetch(
+      `${supabaseUrl}/rest/v1/tasks?id=eq.${encodeURIComponent(taskId)}&select=created_by`,
+      {
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${accessToken}`
+        }
+      }
+    );
+
+    if (!taskResponse.ok) {
+      console.error('Failed to load task for notification verification:', taskResponse.status);
+      return res.status(502).json({ error: 'Failed to verify the task creator' });
+    }
+
+    const tasks = await taskResponse.json().catch(() => []);
+
+    if (!Array.isArray(tasks) || tasks.length === 0) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    if (Number(tasks[0].created_by) !== requesterTeamMemberId) {
+      return res.status(403).json({ error: 'Only the task creator can send this notification' });
     }
 
     const resendApiKey = process.env.RESEND_API_KEY;
@@ -129,13 +195,14 @@ module.exports = async (req, res) => {
     }
 
     const from = process.env.MMC_FROM_EMAIL || 'MMC Calendar <onboarding@resend.dev>';
-    const subject = `New MMC Calendar entry: ${safeTitle}`;
+    const subject = `${isUpdate ? 'Updated' : 'New'} MMC Calendar entry: ${safeTitle}`;
     const html = buildEmailHtml({
       title: safeTitle,
       eventDate: safeEventDate,
       createdByName: safeCreatedByName,
       addedOn,
-      calendarUrl
+      calendarUrl,
+      isUpdate
     });
 
     // Send one email per recipient so member addresses are not exposed to each other
