@@ -4274,8 +4274,7 @@ const MMCCalendar = () => {
         ? `fixed left-0 top-0 h-full w-80 z-50 transform transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`
         : 'w-64'
-        } bg-white border-r border-gray-200 flex flex-col min-h-screen ${user === 'guest' ? 'hidden' : ''
-        }`} style={{
+        } bg-white border-r border-gray-200 flex flex-col min-h-screen        }`} style={{
           // Ensure mobile sidebar is properly positioned
           ...(isMobile && {
             position: 'fixed',
@@ -4554,7 +4553,7 @@ const MMCCalendar = () => {
           </div>
 
           {/* Admin Section - Bottom of Sidebar */}
-          {isAdmin && (
+          {isAdmin && user !== 'guest' && (
             <div className="mt-auto">
               {/* Separator */}
               <div className="border-t border-gray-200 my-4"></div>
@@ -4710,7 +4709,7 @@ const MMCCalendar = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               {/* Mobile Menu Button */}
-              {isMobile && user !== 'guest' && (
+              {isMobile && (
                 <button
                   onClick={() => {
                     if (isMobile) {
@@ -7273,53 +7272,59 @@ const MMCCalendar = () => {
               )}
             </div>
             <div className="flex space-x-3 mt-6">
-              {(selectedTask.is_recurring || selectedTask.is_recurring_instance) ? (
-                <>
+              {user !== 'guest' && (
+                (selectedTask.is_recurring || selectedTask.is_recurring_instance) ? (
+                  <>
+                    <button
+                      onClick={() => handleDeleteTask(false)}
+                      className="px-4 py-2 border border-orange-300 text-orange-700 rounded-md hover:bg-orange-50"
+                    >
+                      Delete This One
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTask(true)}
+                      className="px-4 py-2 border border-red-300 text-red-700 rounded-md hover:bg-red-50"
+                    >
+                      Delete All
+                    </button>
+                    <button
+                      onClick={() => handleEditRecurringTask()}
+                      className="px-4 py-2 border border-blue-300 text-blue-700 rounded-md hover:bg-blue-50"
+                    >
+                      Edit Recurring Task
+                    </button>
+                  </>
+                ) : (
                   <button
-                    onClick={() => handleDeleteTask(false)}
-                    className="px-4 py-2 border border-orange-300 text-orange-700 rounded-md hover:bg-orange-50"
-                  >
-                    Delete This One
-                  </button>
-                  <button
-                    onClick={() => handleDeleteTask(true)}
+                    onClick={() => handleDeleteTask()}
                     className="px-4 py-2 border border-red-300 text-red-700 rounded-md hover:bg-red-50"
                   >
-                    Delete All
+                    Delete
                   </button>
-                  <button
-                    onClick={() => handleEditRecurringTask()}
-                    className="px-4 py-2 border border-blue-300 text-blue-700 rounded-md hover:bg-blue-50"
-                  >
-                    Edit Recurring Task
-                  </button>
-                </>
-              ) : (
+                )
+              )}
+              {user !== 'guest' && (
                 <button
-                  onClick={() => handleDeleteTask()}
-                  className="px-4 py-2 border border-red-300 text-red-700 rounded-md hover:bg-red-50"
+                  onClick={handleDuplicateTask}
+                  className="px-4 py-2 border border-green-300 text-green-700 rounded-md hover:bg-green-50"
                 >
-                  Delete
+                  Duplicate
                 </button>
               )}
-              <button
-                onClick={handleDuplicateTask}
-                className="px-4 py-2 border border-green-300 text-green-700 rounded-md hover:bg-green-50"
-              >
-                Duplicate
-              </button>
               <button
                 onClick={() => setShowTaskModal(false)}
                 className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
               >
                 Close
               </button>
-              <button
-                onClick={handleEditTask}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 whitespace-nowrap"
-              >
-                Edit Task
-              </button>
+              {user !== 'guest' && (
+                <button
+                  onClick={handleEditTask}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 whitespace-nowrap"
+                >
+                  Edit Task
+                </button>
+              )}
             </div>
           </div>
         </div>
