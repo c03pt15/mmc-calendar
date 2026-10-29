@@ -4452,13 +4452,11 @@ const MMCCalendar = () => {
             <h3 className="text-sm font-medium text-gray-900 mb-3">Filters</h3>
             <div className="space-y-2">
               {categories.map(category => (
-                <label key={category.name} className={`flex items-center space-x-2 ${user !== 'guest' ? 'cursor-pointer' : 'cursor-default'
-                  }`}>
+                <label key={category.name} className="flex items-center space-x-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={selectedFilters[category.name] || false}
-                    onChange={user !== 'guest' ? () => toggleFilter(category.name) : undefined}
-                    disabled={user === 'guest'}
+                    onChange={() => toggleFilter(category.name)}
                     className="rounded border-gray-300"
                   />
                   <div className="flex items-center space-x-2 flex-1">
@@ -4506,19 +4504,16 @@ const MMCCalendar = () => {
           <div className="mb-6">
             <h3 className="text-sm font-medium text-gray-900 mb-3">
               Team Members
-              {user && user !== 'guest' && (
-                <span className="text-xs text-gray-500 ml-2">(Click to filter tasks)</span>
-              )}
+              <span className="text-xs text-gray-500 ml-2">(Click to filter tasks)</span>
             </h3>
 
 
             <div className="space-y-3">
               {/* Show All option */}
               <div
-                className={`flex items-center space-x-3 p-2 rounded-lg ${user !== 'guest' ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default'
-                  } ${selectedTeamMember === null ? 'bg-blue-50 border border-blue-200' : ''
+                className={`flex items-center space-x-3 p-2 rounded-lg cursor-pointer hover:bg-gray-50 ${selectedTeamMember === null ? 'bg-blue-50 border border-blue-200' : ''
                   }`}
-                onClick={user !== 'guest' ? () => handleTeamMemberClick(null) : undefined}
+                onClick={() => handleTeamMemberClick(null)}
               >
                 <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 text-xs font-medium">
                   All
@@ -4532,10 +4527,9 @@ const MMCCalendar = () => {
               {teamMembers.map(member => (
                 <div
                   key={member.id}
-                  className={`flex items-center space-x-3 p-2 rounded-lg ${user !== 'guest' ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default'
-                    } ${selectedTeamMember === member.id ? 'bg-blue-50 border border-blue-200' : ''
+                  className={`flex items-center space-x-3 p-2 rounded-lg cursor-pointer hover:bg-gray-50 ${selectedTeamMember === member.id ? 'bg-blue-50 border border-blue-200' : ''
                     }`}
-                  onClick={user !== 'guest' ? () => handleTeamMemberClick(member.id) : undefined}
+                  onClick={() => handleTeamMemberClick(member.id)}
                 >
                   <div className={`w-8 h-8 ${member.color} rounded-full flex items-center justify-center text-white text-xs font-medium`}>
                     {member.avatar}
